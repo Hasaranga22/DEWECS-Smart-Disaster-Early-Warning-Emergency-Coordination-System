@@ -3,6 +3,8 @@ import { z } from "zod";
 import { uc2 } from "@/shared/infra/container";
 import { ValidationError, DuplicateLocalIdError } from "@/modules/uc2-report/domain/errors";
 
+const MAX_PHOTO_PAYLOAD_CHARS = 850_000;
+
 // 1. Zod schema for incoming JSON (matches ReportDraft interface perfectly)
 const submitReportSchema = z.object({
   reporterId: z.string().min(1, "Reporter ID is required"),
@@ -13,7 +15,7 @@ const submitReportSchema = z.object({
   longitude: z.number().min(-180).max(180),
   locationSource: z.enum(["GPS", "MANUAL_PIN"]),
   gpsAccuracyM: z.number().optional(),
-  photo: z.string().optional(),
+  photo: z.string().max(MAX_PHOTO_PAYLOAD_CHARS, "Photos are too large. Please choose fewer or smaller photos.").optional(),
   localId: z.string().min(1, "Local ID is required for idempotency"),
   captureTime: z.string().transform((str) => new Date(str)),
 });

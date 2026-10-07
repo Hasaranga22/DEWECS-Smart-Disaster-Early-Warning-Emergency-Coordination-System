@@ -14,6 +14,7 @@ import Link from "next/link";
 
 const MAX_PHOTOS = 3;
 const MIN_DESC = 10;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 // Full static class strings so Tailwind never purges them.
 const HAZARDS: {
@@ -93,7 +94,7 @@ export default function NewReportPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hazardType) return showStatus("Choose what you're reporting.", "error");
-    if (!lat || !lng) return showStatus("Waiting for your location…", "error");
+    if (lat === null || lng === null) return showStatus("Waiting for your location…", "error");
 
     setIsSubmitting(true);
     showStatus("Sending report…", "info");
@@ -116,14 +117,21 @@ export default function NewReportPage() {
       captureTime,
     };
 
+    let timeout: number | undefined;
     try {
       if (isOnline) {
+        const controller = new AbortController();
+        timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
         const response = await fetch("/api/reports", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
+          signal: controller.signal,
         });
-        if (!response.ok) throw new Error("The server couldn't accept this report. Try again.");
+        if (!response.ok) {
+          const error = await response.json().catch(() => null);
+          throw new Error(error?.error ?? error?.message ?? "The server couldn't accept this report. Try again.");
+        }
         setDone("sent");
       } else {
         const outbox = new IdbOutboxRepository();
@@ -139,9 +147,13 @@ export default function NewReportPage() {
       setHazardType(null);
       setDescription("");
       setPhotos([]);
-    } catch (err: any) {
-      showStatus(err.message, "error");
+    } catch (err: unknown) {
+      const message = err instanceof DOMException && err.name === "AbortError"
+        ? "Sending took too long. Your report was not confirmed; please try again."
+        : err instanceof Error ? err.message : "Couldn't send the report. Please try again.";
+      showStatus(message, "error");
     } finally {
+      if (timeout !== undefined) window.clearTimeout(timeout);
       setIsSubmitting(false);
     }
   };
@@ -149,7 +161,7 @@ export default function NewReportPage() {
   const poorGps = !!accuracy && accuracy > 100;
   const steps = [!!hazardType, !!(lat && lng), photos.length > 0, description.length >= MIN_DESC];
   const completed = steps.filter(Boolean).length;
-  const canSubmit = !isSubmitting && !!lat && !!lng && !!hazardType && description.length >= MIN_DESC;
+  const canSubmit = !isSubmitting && lat !== null && lng !== null && !!hazardType && description.length >= MIN_DESC;
   const selected = HAZARDS.find((h) => h.type === hazardType);
 
   /* ---------- Success screen ---------- */
