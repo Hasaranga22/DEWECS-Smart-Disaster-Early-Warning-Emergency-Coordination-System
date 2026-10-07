@@ -5,7 +5,7 @@ import { IdbOutboxRepository } from "@/modules/uc2-report/client/IdbOutboxReposi
 import { LocalOutboxEntry } from "@/modules/uc2-report/domain/LocalOutboxEntry";
 import { useNetworkStatus } from "@/modules/uc2-report/client/network";
 import Link from "next/link";
-import { WifiOff, Wifi, RefreshCw, AlertCircle, Clock, CheckCircle2, Plus, ImageIcon, Inbox } from "lucide-react";
+import { WifiOff, Wifi, RefreshCw, AlertCircle, Clock, CheckCircle2, Plus, ImageIcon, Inbox, ClipboardList } from "lucide-react";
 
 const HAZARD_META: Record<string, { icon: string; bg: string }> = {
   FLOOD: { icon: "🌊", bg: "bg-sky-50" },
@@ -114,9 +114,12 @@ export default function OutboxPage() {
               {entries.length === 0 ? "Nothing waiting to send" : `${entries.length} report${entries.length === 1 ? "" : "s"} waiting`}
             </p>
           </div>
-          <Link href="/report/new" className="flex items-center gap-1.5 text-sm font-semibold bg-teal-500 text-slate-950 pl-3 pr-4 py-2.5 rounded-full active:bg-teal-400 shadow-lg">
-            <Plus size={18} strokeWidth={3} /> New report
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link href="/report/history" className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 px-3 py-2.5 rounded-xl active:bg-white/10"><ClipboardList size={16} /> Sent reports</Link>
+            <Link href="/report/new" className="flex items-center gap-1.5 text-sm font-semibold bg-teal-500 text-slate-950 pl-3 pr-4 py-2.5 rounded-full active:bg-teal-400 shadow-lg">
+              <Plus size={18} strokeWidth={3} /> New report
+            </Link>
+          </div>
         </div>
       </header>
 

@@ -5,10 +5,11 @@ import { useNetworkStatus } from "@/modules/uc2-report/client/network";
 import { getCurrentLocation } from "@/modules/uc2-report/client/geolocation";
 import { compressImage } from "@/modules/uc2-report/client/compressImage";
 import { IdbOutboxRepository } from "@/modules/uc2-report/client/IdbOutboxRepository";
+import { DEMO_CITIZEN_ID } from "@/modules/uc2-report/client/citizen";
 import { HazardType } from "@/shared/contracts/types";
 import {
   Camera, ImagePlus, MapPin, AlertTriangle, Send, X, CheckCircle2,
-  ChevronLeft, WifiOff, LocateFixed, Inbox, Check,
+  ChevronLeft, WifiOff, LocateFixed, Inbox, Check, ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -105,7 +106,7 @@ export default function NewReportPage() {
 
     const payload = {
       localId,
-      reporterId: "550e8400-e29b-41d4-a716-446655440001", // Citizen UUID
+      reporterId: DEMO_CITIZEN_ID,
       districtId: "550e8400-e29b-41d4-a716-446655440000", // Colombo UUID
       hazardType,
       description,
@@ -182,8 +183,8 @@ export default function NewReportPage() {
           <button onClick={() => setDone(null)} className="w-full py-4 rounded-2xl bg-white text-slate-900 font-semibold active:scale-[0.98] transition-transform">
             Report another
           </button>
-          <Link href="/report/outbox" className="block w-full py-4 rounded-2xl bg-white/10 text-white font-semibold active:bg-white/20">
-            View outbox
+          <Link href={queued ? "/report/outbox" : "/report/history"} className="block w-full py-4 rounded-2xl bg-white/10 text-white font-semibold active:bg-white/20">
+            {queued ? "View outbox" : "View sent reports"}
           </Link>
         </div>
       </div>
@@ -195,9 +196,14 @@ export default function NewReportPage() {
       {/* Hero header with progress */}
       <header className="bg-slate-950 text-white px-5 pt-4 pb-20 rounded-b-[2rem]">
         <div className="flex items-center justify-between">
-          <Link href="/report/outbox" aria-label="Back to outbox" className="h-10 w-10 -ml-2 flex items-center justify-center rounded-full active:bg-white/10">
-            <ChevronLeft size={24} />
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href="/report/outbox" className="flex items-center gap-1 text-xs font-semibold text-slate-200 px-2 py-2 rounded-xl active:bg-white/10">
+              <ChevronLeft size={18} /> Outbox
+            </Link>
+            <Link href="/report/history" className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 px-3 py-2 rounded-xl active:bg-white/10">
+              <ClipboardList size={16} /> Sent reports
+            </Link>
+          </div>
           {!isOnline ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-400/15 px-3 py-1.5 rounded-full">
               <WifiOff size={14} /> Offline
