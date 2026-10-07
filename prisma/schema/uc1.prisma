@@ -1,0 +1,140 @@
+enum HazardType {
+  FLOOD
+  LANDSLIDE
+  CYCLONE
+  DROUGHT
+  OTHER
+}
+
+enum AlertSeverity {
+  ADVISORY
+  WATCH
+  WARNING
+  EMERGENCY
+}
+
+enum AlertStatus {
+  ACTIVE
+  ESCALATED
+  CANCELLED
+  EXPIRED
+}
+
+enum ChannelType {
+  PUSH
+  SMS
+}
+
+enum AttemptStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum NotificationKind {
+  ISSUE
+  ESCALATION
+  CANCELLATION
+}
+
+enum DistrictNotificationKind {
+  ISSUED
+  ESCALATED
+}
+
+model HazardAlert {
+  id                 String        @id @default(uuid()) @db.Uuid
+  hazardType         HazardType    @map("hazard_type")
+  severity           AlertSeverity
+  status             AlertStatus
+  message            String        @db.Text
+  issuedById         String        @map("issued_by") @db.Uuid
+  occurredAt         DateTime      @map("occurred_at") @db.Timestamptz
+  expiresAt          DateTime?     @map("expires_at") @db.Timestamptz
+  cancelledAt        DateTime?     @map("cancelled_at") @db.Timestamptz
+  cancellationReason String?       @map("cancellation_reason") @db.Text
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  issuedBy Officer @relation(fields: [issuedById], references: [id])
+
+  targetDistricts       AlertTargetDistrict[]
+  targetBasins          AlertTargetBasin[]
+  escalations           AlertEscalation[]
+  notificationAttempts  NotificationAttempt[]
+  districtNotifications DistrictNotification[]
+
+  @@map("hazard_alert")
+}
+
+model AlertTargetDistrict {
+  alertId    String @map("alert_id") @db.Uuid
+  districtId String @map("district_id") @db.Uuid
+
+  alert    HazardAlert @relation(fields: [alertId], references: [id])
+  district District    @relation(fields: [districtId], references: [id])
+
+  @@id([alertId, districtId])
+  @@map("alert_target_district")
+}
+
+model AlertTargetBasin {
+  alertId String @map("alert_id") @db.Uuid
+  basinId String @map("basin_id") @db.Uuid
+
+  alert HazardAlert @relation(fields: [alertId], references: [id])
+  basin RiverBasin  @relation(fields: [basinId], references: [id])
+
+  @@id([alertId, basinId])
+  @@map("alert_target_basin")
+}
+
+model AlertEscalation {
+  id           String        @id @default(uuid()) @db.Uuid
+  alertId      String        @map("alert_id") @db.Uuid
+  fromSeverity AlertSeverity @map("from_severity")
+  toSeverity   AlertSeverity @map("to_severity")
+  occurredAt   DateTime      @map("occurred_at") @db.Timestamptz
+  byOfficerId  String        @map("by_officer_id") @db.Uuid
+  reason       String?       @db.Text
+
+  alert   HazardAlert @relation(fields: [alertId], references: [id])
+  officer Officer     @relation(fields: [byOfficerId], references: [id])
+
+  @@map("alert_escalation")
+}
+
+model NotificationAttempt {
+  id            String           @id @default(uuid()) @db.Uuid
+  alertId       String           @map("alert_id") @db.Uuid
+  citizenId     String           @map("citizen_id") @db.Uuid
+  districtId    String           @map("district_id") @db.Uuid
+  hazardType    HazardType       @map("hazard_type")
+  channel       ChannelType
+  status        AttemptStatus
+  kind          NotificationKind
+  occurredAt    DateTime         @map("occurred_at") @db.Timestamptz
+  sentAt        DateTime?        @map("sent_at") @db.Timestamptz
+  deliveredAt   DateTime?        @map("delivered_at") @db.Timestamptz
+  failureReason String?          @map("failure_reason") @db.Text
+
+  alert    HazardAlert @relation(fields: [alertId], references: [id])
+  citizen  Citizen     @relation(fields: [citizenId], references: [id])
+  district District    @relation(fields: [districtId], references: [id])
+
+  @@map("notification_attempt")
+}
+
+model DistrictNotification {
+  id         String                   @id @default(uuid()) @db.Uuid
+  alertId    String                   @map("alert_id") @db.Uuid
+  districtId String                   @map("district_id") @db.Uuid
+  kind       DistrictNotificationKind
+  occurredAt DateTime                 @map("occurred_at") @db.Timestamptz
+  readAt     DateTime?                @map("read_at") @db.Timestamptz
+
+  alert    HazardAlert @relation(fields: [alertId], references: [id])
+  district District    @relation(fields: [districtId], references: [id])
+
+  @@map("district_notification")
+}

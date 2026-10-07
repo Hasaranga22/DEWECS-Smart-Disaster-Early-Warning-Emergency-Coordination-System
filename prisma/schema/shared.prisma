@@ -1,0 +1,121 @@
+enum OfficerRole {
+  DUTY_OFFICER
+  DMC_OFFICIAL
+  DISTRICT_OFFICER
+}
+
+enum OrganizationType {
+  GOVERNMENT
+  ARMED_FORCES
+  NGO
+  PRIVATE_DONOR
+}
+
+model District {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  basins                BasinDistrict[]
+  citizens              Citizen[]
+  officers              Officer[]
+  groundReports         GroundReport[]
+  shelters              Shelter[]
+  rescueTeams           RescueTeam[]
+  supplyStocks          SupplyStock[]
+  alertTargets          AlertTargetDistrict[]
+  notificationAttempts  NotificationAttempt[]
+  districtNotifications DistrictNotification[]
+  reportAuditEntries    ReportAuditEntry[]
+  occupancyEvents       OccupancyEvent[]
+  distributions         Distribution[]
+
+  @@map("district")
+}
+
+model RiverBasin {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(150)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  districts    BasinDistrict[]
+  alertTargets AlertTargetBasin[]
+
+  @@map("river_basin")
+}
+
+model BasinDistrict {
+  basinId    String @map("basin_id") @db.Uuid
+  districtId String @map("district_id") @db.Uuid
+
+  basin    RiverBasin @relation(fields: [basinId], references: [id])
+  district District   @relation(fields: [districtId], references: [id])
+
+  @@id([basinId, districtId])
+  @@map("basin_district")
+}
+
+model Citizen {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(150)
+  nationalId  String?  @unique @map("national_id") @db.VarChar(20)
+  phone       String?  @db.VarChar(20)
+  pushToken   String?  @map("push_token") @db.Text
+  address     String?  @db.Text
+  districtId  String?  @map("district_id") @db.Uuid
+  isVolunteer Boolean  @map("is_volunteer")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  district             District?             @relation(fields: [districtId], references: [id])
+  groundReports        GroundReport[]
+  notificationAttempts NotificationAttempt[]
+
+  @@map("citizen")
+}
+
+model Officer {
+  id         String      @id @default(uuid()) @db.Uuid
+  name       String      @db.VarChar(150)
+  role       OfficerRole
+  districtId String?     @map("district_id") @db.Uuid
+  phone      String?     @db.VarChar(20)
+  email      String?     @db.VarChar(150)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  district District? @relation(fields: [districtId], references: [id])
+
+  hazardAlerts        HazardAlert[]
+  alertEscalations    AlertEscalation[]
+  reportAuditEntries  ReportAuditEntry[]
+  occupancyEvents     OccupancyEvent[]
+  distributions       Distribution[]
+  teamStatusEvents    TeamStatusEvent[]
+  conflictResolutions ConflictQueueItem[]
+  analysisReports     AnalysisReport[]
+  reportShares        ReportShare[]
+
+  @@map("officer")
+}
+
+model Organization {
+  id               String           @id @default(uuid()) @db.Uuid
+  name             String           @unique @db.VarChar(200)
+  type             OrganizationType
+  coordinatorName  String?          @map("coordinator_name") @db.VarChar(150)
+  coordinatorPhone String?          @map("coordinator_phone") @db.VarChar(20)
+  coordinatorEmail String?          @map("coordinator_email") @db.VarChar(150)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  shelters      Shelter[]
+  rescueTeams   RescueTeam[]
+  supplyStocks  SupplyStock[]
+  reportShares  ReportShare[]
+  distributions Distribution[]
+
+  @@map("organization")
+}

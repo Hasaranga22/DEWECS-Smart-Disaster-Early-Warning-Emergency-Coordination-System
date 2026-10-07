@@ -1,0 +1,151 @@
+enum ShelterStatus {
+  OPEN
+  FULL
+}
+
+enum RescueTeamStatus {
+  AVAILABLE
+  EN_ROUTE
+  ON_SITE
+  RETURNING
+}
+
+enum ConflictStatus {
+  OPEN
+  RESOLVED
+}
+
+model Shelter {
+  id             String        @id @default(uuid()) @db.Uuid
+  districtId     String        @map("district_id") @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  name           String        @db.VarChar(200)
+  address        String        @db.Text
+  latitude       Decimal?      @db.Decimal(9, 6)
+  longitude      Decimal?      @db.Decimal(9, 6)
+  capacity       Int
+  occupancy      Int
+  status         ShelterStatus
+  version        Int
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  district        District         @relation(fields: [districtId], references: [id])
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  occupancyEvents OccupancyEvent[]
+  distributions   Distribution[]
+
+  @@map("shelter")
+}
+
+model RescueTeam {
+  id               String           @id @default(uuid()) @db.Uuid
+  districtId       String           @map("district_id") @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  name             String           @db.VarChar(200)
+  capability       String           @db.Text
+  status           RescueTeamStatus
+  currentLatitude  Decimal?         @map("current_latitude") @db.Decimal(9, 6)
+  currentLongitude Decimal?         @map("current_longitude") @db.Decimal(9, 6)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  district     District          @relation(fields: [districtId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  statusEvents TeamStatusEvent[]
+
+  @@map("rescue_team")
+}
+
+model SupplyStock {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  districtId     String   @map("district_id") @db.Uuid
+  supplyType     String   @map("supply_type") @db.VarChar(100)
+  onHand         Int      @map("on_hand")
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  district      District       @relation(fields: [districtId], references: [id])
+  distributions Distribution[]
+
+  @@map("supply_stock")
+}
+
+model OccupancyEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  shelterId     String   @map("shelter_id") @db.Uuid
+  districtId    String   @map("district_id") @db.Uuid
+  previousCount Int      @map("previous_count")
+  newCount      Int      @map("new_count")
+  actorId       String   @map("actor_id") @db.Uuid
+  occurredAt    DateTime @map("occurred_at") @db.Timestamptz
+  actionId      String   @map("action_id") @db.VarChar(100)
+
+  shelter  Shelter  @relation(fields: [shelterId], references: [id])
+  district District @relation(fields: [districtId], references: [id])
+  actor    Officer  @relation(fields: [actorId], references: [id])
+
+  @@map("occupancy_event")
+}
+
+model Distribution {
+  id                   String   @id @default(uuid()) @db.Uuid
+  stockId              String   @map("stock_id") @db.Uuid
+  destinationShelterId String   @map("destination_shelter_id") @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  districtId           String   @map("district_id") @db.Uuid
+  quantity             Int
+  actorId              String   @map("actor_id") @db.Uuid
+  occurredAt           DateTime @map("occurred_at") @db.Timestamptz
+  actionId             String   @map("action_id") @db.VarChar(100)
+
+  stock              SupplyStock  @relation(fields: [stockId], references: [id])
+  destinationShelter Shelter      @relation(fields: [destinationShelterId], references: [id])
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  district           District     @relation(fields: [districtId], references: [id])
+  actor              Officer      @relation(fields: [actorId], references: [id])
+
+  @@map("distribution")
+}
+
+model TeamStatusEvent {
+  id         String           @id @default(uuid()) @db.Uuid
+  teamId     String           @map("team_id") @db.Uuid
+  fromStatus RescueTeamStatus @map("from_status")
+  toStatus   RescueTeamStatus @map("to_status")
+  actorId    String           @map("actor_id") @db.Uuid
+  occurredAt DateTime         @map("occurred_at") @db.Timestamptz
+  incident   String?          @db.Text
+  location   String?          @db.Text
+
+  team  RescueTeam @relation(fields: [teamId], references: [id])
+  actor Officer    @relation(fields: [actorId], references: [id])
+
+  @@map("team_status_event")
+}
+
+model ProcessedAction {
+  actionId    String   @id @map("action_id") @db.VarChar(100)
+  type        String   @db.VarChar(50)
+  resultRef   String?  @map("result_ref") @db.VarChar(100)
+  processedAt DateTime @map("processed_at") @db.Timestamptz
+
+  @@map("processed_action")
+}
+
+model ConflictQueueItem {
+  id              String         @id @default(uuid()) @db.Uuid
+  actionType      String         @map("action_type") @db.VarChar(100)
+  payload         Json
+  expectedVersion Int            @map("expected_version")
+  actualVersion   Int            @map("actual_version")
+  status          ConflictStatus
+  createdAt       DateTime       @map("created_at") @db.Timestamptz
+  resolvedAt      DateTime?      @map("resolved_at") @db.Timestamptz
+  resolvedBy      String?        @map("resolved_by") @db.Uuid
+
+  resolvingOfficer Officer? @relation(fields: [resolvedBy], references: [id])
+
+  @@map("conflict_queue_item")
+}

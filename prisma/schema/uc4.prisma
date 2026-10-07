@@ -1,0 +1,34 @@
+enum ShareStatus {
+  SENT
+  FAILED
+}
+
+model AnalysisReport {
+  id           String   @id @default(uuid()) @db.Uuid
+  filters      Json
+  sourceCutoff DateTime @map("source_cutoff") @db.Timestamptz
+  generatedAt  DateTime @map("generated_at") @db.Timestamptz
+  metrics      Json
+  generatedBy  String   @map("generated_by") @db.Uuid
+
+  generatingOfficer Officer       @relation(fields: [generatedBy], references: [id])
+  reportShares      ReportShare[]
+
+  @@map("analysis_report")
+}
+
+model ReportShare {
+  id             String      @id @default(uuid()) @db.Uuid
+  reportId       String      @map("report_id") @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  status         ShareStatus
+  attemptedAt    DateTime    @map("attempted_at") @db.Timestamptz
+  actorId        String      @map("actor_id") @db.Uuid
+  failureReason  String?     @map("failure_reason") @db.Text
+
+  report       AnalysisReport @relation(fields: [reportId], references: [id])
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  actor        Officer        @relation(fields: [actorId], references: [id])
+
+  @@map("report_share")
+}
