@@ -13,11 +13,14 @@ const prodIdGenerator: IdGenerator = {
   next: () => crypto.randomUUID(),
 };
 
-// 2. Initialize Repositories
-// (In Phase 7, we will add an "if (process.env.DATA_STORE === 'prisma')" check here
-// to swap these out for the Prisma versions).
-export const reports = new InMemoryReportRepository();
-export const audits = new InMemoryAuditRepository();
+import { PrismaReportRepository } from "@/modules/uc2-report/adapters/PrismaReportRepository";
+import { PrismaAuditRepository } from "@/modules/uc2-report/adapters/PrismaAuditRepository";
+
+// 2. Initialize Repositories conditionally based on environment variable
+const isPrisma = process.env.DATA_STORE === "prisma";
+
+export const reports = isPrisma ? new PrismaReportRepository() : new InMemoryReportRepository();
+export const audits = isPrisma ? new PrismaAuditRepository() : new InMemoryAuditRepository();
 
 // 3. Wire the UC2 Module
 // This `uc2` object is exported and used by all API routes.
