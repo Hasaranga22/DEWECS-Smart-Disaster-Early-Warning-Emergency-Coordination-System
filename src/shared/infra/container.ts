@@ -16,8 +16,8 @@ const prodIdGenerator: IdGenerator = {
 // 2. Initialize Repositories
 // (In Phase 7, we will add an "if (process.env.DATA_STORE === 'prisma')" check here
 // to swap these out for the Prisma versions).
-const reports = new InMemoryReportRepository();
-const audits = new InMemoryAuditRepository();
+export const reports = new InMemoryReportRepository();
+export const audits = new InMemoryAuditRepository();
 
 // 3. Wire the UC2 Module
 // This `uc2` object is exported and used by all API routes.
