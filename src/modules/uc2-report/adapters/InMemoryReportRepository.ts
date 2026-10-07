@@ -27,6 +27,11 @@ export class InMemoryReportRepository implements ReportRepository {
     return getStore();
   }
 
+  /** Clears the store. Used to prevent test bleeding. */
+  clear(): void {
+    this.store.clear();
+  }
+
   async save(report: GroundReport): Promise<void> {
     const snapshot = report.toSnapshot();
 
