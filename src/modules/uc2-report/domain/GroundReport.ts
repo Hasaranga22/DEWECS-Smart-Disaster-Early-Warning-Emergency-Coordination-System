@@ -1,4 +1,4 @@
-import { HazardType, LocationSource, ReportConfidence } from "@/shared/contracts/types";
+import { HazardType, LocationSource, ReportConfidence, SeverityIndication } from "@/shared/contracts/types";
 import { InvalidStateTransitionError } from "./errors";
 
 export type ReviewStatus =
@@ -6,8 +6,6 @@ export type ReviewStatus =
   | "NEEDS_INFO"
   | "VERIFIED"
   | "REJECTED";
-
-export type SeverityIndication = "LOW" | "MEDIUM" | "HIGH";
 
 /**
  * Props required to instantiate a GroundReport.

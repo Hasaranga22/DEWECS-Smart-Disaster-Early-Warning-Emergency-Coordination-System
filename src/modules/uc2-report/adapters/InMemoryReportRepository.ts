@@ -72,6 +72,12 @@ export class InMemoryReportRepository implements ReportRepository {
       .map((p) => GroundReport.create({ ...p }));
   }
 
+  async findByDistrict(districtId: string): Promise<GroundReport[]> {
+    return [...this.store.values()]
+      .filter((p) => p.districtId === districtId)
+      .map((p) => GroundReport.create({ ...p }));
+  }
+
   async findNearby(params: {
     hazardType: string;
     latitude: number;

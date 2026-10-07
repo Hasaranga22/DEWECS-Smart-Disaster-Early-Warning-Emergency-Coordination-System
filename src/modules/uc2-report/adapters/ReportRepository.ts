@@ -31,6 +31,9 @@ export interface ReportRepository {
   /** Reports submitted by a specific citizen. */
   findByReporter(reporterId: string): Promise<GroundReport[]>;
 
+  /** All reports belonging to a specific district (used by EvidenceProviderImpl). */
+  findByDistrict(districtId: string): Promise<GroundReport[]>;
+
   /**
    * Find reports near a location within a time window for duplicate detection.
    *   - Same hazardType
