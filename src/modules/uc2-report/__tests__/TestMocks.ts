@@ -15,18 +15,4 @@ export class SequentialIdGenerator implements IdGenerator {
   }
 }
 
-export class InMemoryAuditRepository implements AuditRepository {
-  public entries: ReportAuditEntry[] = [];
-
-  async save(entry: ReportAuditEntry): Promise<void> {
-    this.entries.push(entry);
-  }
-
-  async findByReport(reportId: string): Promise<ReportAuditEntry[]> {
-    return this.entries.filter((e) => e.reportId === reportId);
-  }
-
-  async findAll(): Promise<ReportAuditEntry[]> {
-    return this.entries;
-  }
-}
+export { InMemoryAuditRepository } from "../adapters/InMemoryAuditRepository";
