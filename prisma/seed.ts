@@ -14,7 +14,7 @@ async function main() {
   console.log('Seeding database with required foreign key records for UC2 testing...');
 
   // 1. Seed a District
-  const districtId = 'colombo';
+  const districtId = '550e8400-e29b-41d4-a716-446655440000';
   await prisma.district.upsert({
     where: { id: districtId },
     update: {},
@@ -25,7 +25,7 @@ async function main() {
   });
 
   // 2. Seed a Citizen
-  const citizenId = 'citizen-123';
+  const citizenId = '550e8400-e29b-41d4-a716-446655440001';
   await prisma.citizen.upsert({
     where: { id: citizenId },
     update: {},
@@ -37,7 +37,7 @@ async function main() {
   });
 
   // 3. Seed an Officer
-  const officerId = 'officer-admin-1';
+  const officerId = '550e8400-e29b-41d4-a716-446655440002';
   await prisma.officer.upsert({
     where: { id: officerId },
     update: {},

@@ -52,7 +52,7 @@ export default function OfficerDashboard() {
       const payload = {
         action: actionType,
         expectedVersion: selectedReport.version,
-        officerId: "officer-admin-1", // Hardcoded until auth is added
+        officerId: "550e8400-e29b-41d4-a716-446655440002", // Officer UUID
         severityIndication: actionType === "verify" ? severity : undefined,
         reason: actionType === "reject" ? rejectReason : undefined,
       };

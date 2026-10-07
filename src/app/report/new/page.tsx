@@ -104,8 +104,8 @@ export default function NewReportPage() {
 
     const payload = {
       localId,
-      reporterId: "citizen-123",
-      districtId: "colombo",
+      reporterId: "550e8400-e29b-41d4-a716-446655440001", // Citizen UUID
+      districtId: "550e8400-e29b-41d4-a716-446655440000", // Colombo UUID
       hazardType,
       description,
       latitude: lat,
