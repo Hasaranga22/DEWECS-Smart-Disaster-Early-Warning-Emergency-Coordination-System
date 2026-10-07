@@ -3,8 +3,8 @@
 Smart Disaster Early Warning and Emergency Coordination System for Sri Lanka.
 We implement the **Group 18 Assignment 01 design** (with the improvements in our Group 20 report).
 
-- **Deadline:** 9 Oct 2026, 11:59 PM (no commits after this)
-- **Code freeze:** 9 Oct 2026, 12:00 noon (after this, bug fixes only)
+- **Deadline:** 9 Oct 2026, 11:59 PM 
+- **Code freeze:** 9 Oct 2026, 12:00 noon
 - **Stack:** Next.js (App Router) + TypeScript, **Prisma 7 + PostgreSQL (Neon / local Docker)**, Vitest (tests + coverage), PWA (offline), Vercel (deploy)
 
 > **How to read this file**
