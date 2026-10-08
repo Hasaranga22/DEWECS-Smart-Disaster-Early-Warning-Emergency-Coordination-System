@@ -5,8 +5,7 @@ import {
   isHigherSeverity,
   isValidSeverity,
   nextSeverity,
-  SEVERITIES,
-} from '../Severity';
+} from '../domain/Severity';
 
 describe('Severity domain', () => {
   it('defines correct strict severity order: ADVISORY < WATCH < WARNING < EMERGENCY', () => {
