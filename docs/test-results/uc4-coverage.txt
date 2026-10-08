@@ -1,0 +1,58 @@
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90mC:/Users/USER/Desktop/All/3y 2s/css/assiment/Asimrnt 2 project/DEWECS-Smart-Disaster-Early-Warning-Emergency-Coordination-System[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/modules/uc4-analysis/__tests__/errors.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m tests/integration/roles.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/AggregationService.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/GroundReport.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/SubmissionService.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ShareService.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/ReviewService.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/integration/uc134-to-uc4.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/PdfExporter.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m12 passed[39m[22m[90m (12)[39m
+[2m      Tests [22m [1m[32m64 passed[39m[22m[90m (64)[39m
+[2m   Start at [22m 08:22:40
+[2m   Duration [22m 1.26s[2m (transform 48%, import 34%, tests 10%, worker 8%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 2.64s[39m[2m · 48% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   95.33 |    88.04 |   97.67 |   95.29 |                   
+ uc4-analysis      |       0 |      100 |       0 |       0 |                   
+  index.ts         |       0 |      100 |       0 |       0 | 59-93             
+ ...lysis/adapters |     100 |      100 |     100 |     100 |                   
+  AuditLogger.ts   |       0 |        0 |       0 |       0 |                   
+  ...nerChannel.ts |     100 |      100 |     100 |     100 |                   
+  ...nerChannel.ts |       0 |        0 |       0 |       0 |                   
+  ...Repository.ts |       0 |        0 |       0 |       0 |                   
+  ...Repository.ts |       0 |        0 |       0 |       0 |                   
+ ...nalysis/domain |     100 |      100 |     100 |     100 |                   
+  ...ysisReport.ts |       0 |        0 |       0 |       0 |                   
+  Metrics.ts       |       0 |        0 |       0 |       0 |                   
+  ReportFilters.ts |       0 |        0 |       0 |       0 |                   
+  ReportShare.ts   |       0 |        0 |       0 |       0 |                   
+  ShareOutcome.ts  |       0 |        0 |       0 |       0 |                   
+  errors.ts        |     100 |      100 |     100 |     100 |                   
+  i18n.ts          |     100 |      100 |     100 |     100 |                   
+ ...lysis/services |   97.74 |    87.64 |     100 |   97.73 |                   
+  ...ionService.ts |     100 |     87.5 |     100 |     100 | 158               
+  PdfExporter.ts   |   93.42 |    81.48 |     100 |   93.42 | 79-82,102-103     
+  ...Calculator.ts |     100 |      100 |     100 |     100 |                   
+  ...rValidator.ts |     100 |    89.65 |     100 |     100 | 62-67             
+  ShareService.ts  |     100 |    91.66 |     100 |     100 | 81                
+  ...hotService.ts |     100 |    88.88 |     100 |     100 | 82                
+-------------------|---------|----------|---------|---------|-------------------
