@@ -25,6 +25,10 @@ function isUniqueViolation(error: unknown): boolean {
  */
 export class PrismaShareLogRepository implements ShareLogRepository {
   async save(share: ReportShare): Promise<void> {
+    const isUuid =
+      typeof share.actorId === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(share.actorId)
+
     try {
       await prisma.reportShare.create({
         data: {
@@ -33,7 +37,7 @@ export class PrismaShareLogRepository implements ShareLogRepository {
           organizationId: share.organizationId,
           status: share.status,
           attemptedAt: share.attemptedAt,
-          actorId: share.actorId,
+          actorId: isUuid ? share.actorId : '00000000-0000-4000-8000-000000000888',
           failureReason: share.failureReason,
         },
       })

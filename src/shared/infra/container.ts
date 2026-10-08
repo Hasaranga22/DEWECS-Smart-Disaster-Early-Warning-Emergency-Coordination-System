@@ -167,6 +167,17 @@ const decisionReader = new DecisionQueryService(audits);
 const organizationReader = isPrisma
   ? new PrismaOrganizationReader()
   : new InMemoryOrganizationReader();
+
+if (organizationReader instanceof InMemoryOrganizationReader) {
+  organizationReader.seed([
+    { id: "00000000-0000-4000-8000-000000000300", name: "Sample Sri Lanka Army", type: "ARMED_FORCES" },
+    { id: "00000000-0000-4000-8000-000000000200", name: "Sample World Vision Lanka", type: "NGO" },
+    { id: "00000000-0000-4000-8000-000000000400", name: "Sample Private Donor", type: "PRIVATE_DONOR" },
+    { id: "75700352-5645-41a3-acc7-c8184f09cf35", name: "Sample Sri Lanka Army", type: "ARMED_FORCES" },
+    { id: "9c343cb9-c47a-4a05-bb4d-be2641a933b4", name: "Sample World Vision Lanka", type: "NGO" },
+    { id: "656c8a22-e60d-4e32-bfb5-8c5ed132d882", name: "Sample Private Donor", type: "PRIVATE_DONOR" },
+  ]);
+}
 const partnerChannel = new MockPartnerChannel({ next: () => Math.random() }, 0.2);
 
 const auditLogger: AuditLogger = {
