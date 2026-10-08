@@ -7,7 +7,8 @@ import { PrismaTransactionRunner } from "./prisma/PrismaTransactionRunner";
 export const prodClock = new SystemClock();
 export const prodIdGenerator = new UuidGenerator();
 
-export const isPrisma = process.env.DATA_STORE === "prisma";
+const dataStoreEnv = (process.env.DATA_STORE ?? "").trim().replace(/^["']|["']$/g, "");
+export const isPrisma = dataStoreEnv === "prisma";
 
 // ============================================================================
 // Composition Root - Module Registrations
@@ -98,5 +99,26 @@ export const uc3 = createUc3Module({
   idGenerator: prodIdGenerator,
 });
 
+import { buildUc3Seed } from "@/modules/uc3-resources/seed/buildUc3Seed";
+
+if (!isPrisma) {
+  const seedData = buildUc3Seed({
+    districtsByName: {
+      Colombo: "00000000-0000-4000-8000-000000000010",
+      Gampaha: "00000000-0000-4000-8000-000000000020",
+    },
+    organizationsByName: {
+      Government: "00000000-0000-4000-8000-000000000100",
+      RedCross: "00000000-0000-4000-8000-000000000200",
+      ArmedForces: "00000000-0000-4000-8000-000000000300",
+      PrivateDonor: "00000000-0000-4000-8000-000000000400",
+    },
+  });
+  seedData.shelters.forEach((s) => shelterRepo.save(s));
+  seedData.teams.forEach((t) => teamRepo.save(t));
+  seedData.stocks.forEach((st) => stockRepo.save(st));
+}
+
 // [UC4 ANALYSIS REGISTRATION PLACEHOLDER]
 // export const uc4 = ...
+

@@ -30,8 +30,14 @@ export default function DispatchPage() {
       const res = await fetch(`/api/resources/dashboard?districtId=${DEFAULT_COLOMBO_DISTRICT_ID}`);
       if (res.ok) {
         const data = await res.json();
-        setTeams(data.teams || []);
+        const rawTeams = data.teams || [];
+        const normalizedTeams = rawTeams.map((t: any) => ({
+          ...t,
+          status: t.status || t.state?.name || "AVAILABLE",
+        }));
+        setTeams(normalizedTeams);
       }
+
 
       const backupRes = await fetch(`/api/resources/dispatch/backup-teams?districtId=${DEFAULT_COLOMBO_DISTRICT_ID}`);
       if (backupRes.ok) {

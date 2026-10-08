@@ -72,7 +72,22 @@ export class RescueTeam {
     return new RescueTeam({
       ...this,
       state: this.state.completeReturn(),
-      version: this.version + 1,
     });
   }
+
+  public toJSON() {
+
+    return {
+      id: this.id,
+      districtId: this.districtId,
+      organizationId: this.organizationId,
+      name: this.name,
+      capability: this.capability,
+      status: this.status,
+      version: this.version,
+      currentLatitude: this.currentLatitude,
+      currentLongitude: this.currentLongitude,
+    };
+  }
 }
+

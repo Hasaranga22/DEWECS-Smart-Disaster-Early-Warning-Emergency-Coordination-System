@@ -66,11 +66,37 @@ export class DashboardService {
     const notifications = await this.notificationStore.listForDistrict(districtId);
     const preselectedAlert = notifications.find((n) => n.kind === "ESCALATED" || n.kind === "ISSUED");
 
+    const formattedTeams = teams.map((t) => ({
+      id: t.id,
+      districtId: t.districtId,
+      organizationId: t.organizationId,
+      name: t.name,
+      capability: t.capability,
+      status: t.status,
+      version: t.version,
+      currentLatitude: t.currentLatitude,
+      currentLongitude: t.currentLongitude,
+    }));
+
+    const formattedShelters = shelters.map((s) => ({
+      id: s.id,
+      districtId: s.districtId,
+      organizationId: s.organizationId,
+      name: s.name,
+      address: s.address,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      capacity: s.capacity,
+      occupancy: s.occupancy,
+      status: s.status,
+      version: s.version,
+    }));
+
     return {
       districtId,
       lastRefreshedAt: this.clock.now(),
-      shelters,
-      teams,
+      shelters: formattedShelters as any,
+      teams: formattedTeams as any,
       stockByOrganization,
       openConflicts,
       unassignedDispatchRequests: unassignedRequests,
@@ -78,3 +104,4 @@ export class DashboardService {
     };
   }
 }
+

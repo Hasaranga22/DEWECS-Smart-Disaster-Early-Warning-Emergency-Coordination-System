@@ -72,7 +72,24 @@ export class Shelter {
       longitude: this.longitude,
       capacity: this.capacity,
       occupancy: validatedCount,
-      version: this.version + 1,
     });
   }
+
+  public toJSON() {
+
+    return {
+      id: this.id,
+      districtId: this.districtId,
+      organizationId: this.organizationId,
+      name: this.name,
+      address: this.address,
+      latitude: this.latitude,
+      longitude: this.longitude,
+      capacity: this.capacity,
+      occupancy: this.occupancy,
+      status: this.status,
+      version: this.version,
+    };
+  }
 }
+

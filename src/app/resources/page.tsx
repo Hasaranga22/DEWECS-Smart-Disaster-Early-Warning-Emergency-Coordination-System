@@ -92,13 +92,19 @@ export default function DashboardPage() {
       const res = await fetch(`/api/resources/dashboard?districtId=${DEFAULT_COLOMBO_DISTRICT_ID}`);
       if (res.ok) {
         const data = await res.json();
+        const rawTeams = data.teams || [];
+        const normalizedTeams = rawTeams.map((t: any) => ({
+          ...t,
+          status: t.status || t.state?.name || "AVAILABLE",
+        }));
         setShelters(data.shelters || []);
-        setTeams(data.teams || []);
+        setTeams(normalizedTeams);
         setStockGroups(data.stockByOrganization || []);
         setConflicts(data.openConflicts || []);
         setUnassignedRequests(data.unassignedDispatchRequests || []);
         setPreselectedAlert(data.preselectedFromAlert || null);
         setLastRefreshedAt(new Date(data.lastRefreshedAt || Date.now()).toLocaleTimeString());
+
       }
     } catch (err) {
       setBannerMessage("Failed to load live dashboard data. Operating on cached state.");
