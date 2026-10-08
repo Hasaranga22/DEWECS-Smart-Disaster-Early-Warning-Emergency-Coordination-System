@@ -132,3 +132,7 @@ export interface Actor {
   id: string;
   role: Role;
 }
+
+// Re-exported so contract consumers can also import Clock/IdGenerator from
+// this module (they are defined in Clock.ts).
+export type { Clock, IdGenerator } from './Clock';
