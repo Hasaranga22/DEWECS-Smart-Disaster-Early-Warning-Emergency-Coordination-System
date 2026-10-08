@@ -31,6 +31,7 @@ export const STATUS_META = {
   VERIFIED: { label: "Verified", chip: "bg-emerald-50 text-emerald-700", color: "#10b981" },
   REJECTED: { label: "Rejected", chip: "bg-red-50 text-red-700", color: "#ef4444" },
 } as const;
+export const statusMeta = (t: string) => STATUS_META[t as keyof typeof STATUS_META] ?? { label: t || "Unknown", chip: "bg-slate-100 text-slate-600", color: "#64748b" };
 
 export const SEVERITY_META = {
   LOW: { label: "Low", chip: "bg-sky-50 text-sky-700", pick: "border-sky-500 bg-sky-50 text-sky-800", color: "#0ea5e9" },
