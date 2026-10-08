@@ -1,19 +1,8 @@
-import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-
 /**
- * Global singleton for PrismaClient instance in DEWECS.
+ * Shared Prisma client access point (README §4: `infra/prisma/client.ts`).
+ *
+ * Re-exports the globalThis-backed singleton from `../prisma`, so there is
+ * exactly one PrismaClient instance no matter which import path is used.
+ * Adapters import prisma from HERE — never from `@/generated/...` directly.
  */
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL ?? "" }),
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+export { prisma } from '@/shared/infra/prisma'

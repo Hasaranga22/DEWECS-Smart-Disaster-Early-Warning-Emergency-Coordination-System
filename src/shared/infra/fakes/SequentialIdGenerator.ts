@@ -7,10 +7,9 @@ import { IdGenerator } from "../../contracts/IdGenerator";
  */
 export class SequentialIdGenerator implements IdGenerator {
   private counter = 0;
-  private readonly prefix: string;
 
-  constructor(prefix = "") {
-    this.prefix = prefix;
+  constructor(_prefix = "") {
+    // prefix retained for call-site compatibility; IDs stay UUID-shaped for tests
   }
 
   public next(): string {

@@ -108,7 +108,7 @@ export function createUc3Module(deps: Uc3ModuleDeps): Uc3Module {
   );
 
   const occupancyReader = new OccupancyEventQueryService(deps.occupancyEventRepo);
-  const distributionReader = new DistributionQueryService(deps.distributionRepo);
+  const distributionReader = new DistributionQueryService(deps.distributionRepo, deps.stockRepo);
 
   return {
     shelters: shelterService,

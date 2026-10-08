@@ -1,0 +1,192 @@
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90mC:/Users/USER/Desktop/All/3y 2s/css/assiment/Asimrnt 2 project/DEWECS-Smart-Disaster-Early-Warning-Emergency-Coordination-System[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/modules/uc4-analysis/__tests__/errors.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/GroundReport.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/AggregationService.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 81[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/SubmissionService.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ShareService.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m tests/integration/uc134-to-uc4.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m tests/integration/roles.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/ReviewService.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/PdfExporter.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 176[2mms[22m[39m
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration
+[22m[39m========================================================================
+UC4 FULL END-TO-END DB INTEGRATION — SETUP
+clock mode : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
+window     : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
+started    : 2026-10-08T16:27:10.811Z
+========================================================================
+
+(node:25184) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration
+[22m[39mseeded 3135 rows: alerts=3 attempts=2000 groundReports=51 auditEntries=51 occupancyEvents=10 distributions=4
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mA. DB connection & schema
+[22m[39m
+── A. DB connection & schema (5 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mA. DB connection & schema[2m > [22m[2mA.5: seeded row counts match SEED_SPEC (reports and shares still 0)
+[22m[39mA.5: 3135 seeded rows verified against SEED_SPEC
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mB. ReachCalculator vs DB (A02, BR3, BR4)
+[22m[39m
+── B. ReachCalculator vs DB (A02, BR3, BR4) (5 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mB. ReachCalculator vs DB (A02, BR3, BR4)[2m > [22m[2mB.5: per-channel delivered sum 1850 differs from distinct 1000 (BR4)
+[22m[39mB.5: delivered sum 1850 vs distinct 1000 (non-additive)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mC. AggregationService vs DB (A03, A06, A08)
+[22m[39m
+── C. AggregationService vs DB (A03, A06, A08) (4 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mD. SnapshotService vs DB (A03c, A04-A06, A09)
+[22m[39m
+── D. SnapshotService vs DB (A03c, A04-A06, A09) (5 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mD. SnapshotService vs DB (A03c, A04-A06, A09)[2m > [22m[2mD.5: district scope changes every metric consistently (A09)
+[22m[39mD.5: Kegalle scope fully populated, Gampaha scope fully empty
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mE. PdfExporter from DB snapshots (A11, BR12)
+[22m[39m
+── E. PdfExporter from DB snapshots (A11, BR12) (4 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mF. ShareService vs DB (A07, BR8, BR9)
+[22m[39m
+── F. ShareService vs DB (A07, BR8, BR9) (6 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mG. Business rules BR1-BR12
+[22m[39m
+── G. Business rules BR1-BR12 (12 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mG. Business rules BR1-BR12[2m > [22m[2mG.BR1: role guard rejects non-DMC actors (BR1 / API requireRole)
+[22m[39mG.BR1: SnapshotService itself performs no role check — enforcement is API-side (deviation listed in findings)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mH. Role enforcement (ROLE-01/02/03)
+[22m[39m
+── H. Role enforcement (ROLE-01/02/03) (3 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mI. API routes (in-process)
+[22m[39m
+── I. API routes (in-process) (8 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mI. API routes (in-process)[2m > [22m[2mI.4: POST /api/analysis with DMC cookie -> 201 and persists
+[22m[39m[audit] report 5946fad2-d561-421d-bf5d-32a7ff81965d generated by 98baddfb-6a25-46c5-822d-3da4e4aed78a
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mI. API routes (in-process)[2m > [22m[2mI.4: POST /api/analysis with DMC cookie -> 201 and persists
+[22m[39mI.4: route generated report 5946fad2-d561-421d-bf5d-32a7ff81965d
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mI. API routes (in-process)[2m > [22m[2mI.8: POST share -> 200 outcomes; empty -> 400; unknown report -> 404
+[22m[39m[audit] report 5946fad2-d561-421d-bf5d-32a7ff81965d shared with 3 recipient(s) by 98baddfb-6a25-46c5-822d-3da4e4aed78a
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mI. API routes (in-process)[2m > [22m[2mI.8: POST share -> 200 outcomes; empty -> 400; unknown report -> 404
+[22m[39mI.8: container organizationReader is a null stub, so all three outcomes are FAILED (see findings)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mJ. Persistence & raw SQL checks
+[22m[39m
+── J. Persistence & raw SQL checks (5 checks)
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration[2m > [22m[2mJ. Persistence & raw SQL checks[2m > [22m[2mJ.1: suite created analysis_report and report_share rows
+[22m[39mJ.1: 14 reports, 16 share rows created by this suite
+
+[90mstdout[2m | tests/integration/uc4-db-full.test.ts[2m > [22m[2mUC4 — Full End-to-End DB Integration
+[22m[39m
+rows created 3165, rows remaining after cleanup 0
+cleanup: every suite row removed
+
+Section                                                   Total   Pass   Fail   Skip
+------------------------------------------------------------------------------------
+A. DB connection & schema                                     5      5      0      0
+B. ReachCalculator vs DB (A02, BR3, BR4)                      5      5      0      0
+C. AggregationService vs DB (A03, A06, A08)                   4      4      0      0
+D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      5      0      0
+E. PdfExporter from DB snapshots (A11, BR12)                  4      4      0      0
+F. ShareService vs DB (A07, BR8, BR9)                         6      6      0      0
+G. Business rules BR1-BR12                                   12     12      0      0
+H. Role enforcement (ROLE-01/02/03)                           3      3      0      0
+I. API routes (in-process)                                    8      8      0      0
+J. Persistence & raw SQL checks                               5      5      0      0
+------------------------------------------------------------------------------------
+TOTAL                                                        57     57      0      0
+
+FINDINGS / DEVIATIONS:
+  1. Clock: the spec example 2026-09-01 is in the past, so the suite uses FIXED_NOW = 2026-11-01T00:00:00.000Z (mode: preferred); expired-clock tests use 2020-01-01T00:00:00.000Z.
+  2. BR1 / ROLE-01..03: role checks live only in the API layer (getActor + requireRole); SnapshotService and ShareService accept any Actor without checking its role.
+  3. Container (src/shared/infra/container.ts) wires EMPTY UC1/UC3 readers, so API-generated reports always carry alerts/reach/shelters/supplies = 0 while reports come from the real UC2 decision reader (42/3/6) — warningFlag stays false.
+  4. Container organizationReader returns null for every id, so API share outcomes are all FAILED with organizationName "?" even for organisations that exist in the DB (rows are still appended).
+  5. ShareService promises "unknown recipient -> FAILED outcome", but report_share.organization_id has a NOT NULL FK to organization.id: under Prisma the save throws (API 500) instead of logging FAILED. Not asserted as expected behaviour.
+  6. BR10 denominator: AggregationService sums supply_stock.on_hand once PER distribution row, so FOOD with two distributions = 5000/20000 = 25 % instead of 50 %; single-distribution types (WATER) are unaffected.
+  7. BR12: includedSections gates PDF rendering only — metrics always compute every section (asserted in G.BR12).
+  8. Supplies denominators read supply_stock.on_hand at aggregation time (stock level), not remaining stock per event.
+  9. DecisionQueryService maps UC2 action CLARIFIED -> PENDING_REVIEW; the seed produces the pending tally through NEEDS_INFO rows.
+  10. Route-level 403/400/404 mappings are exercised in Section I rather than in H, because BR1 is documented as enforced by API requireRole.
+
+duration: 156.6s
+report written to C:\Users\USER\Desktop\All\3y 2s\css\assiment\Asimrnt 2 project\DEWECS-Smart-Disaster-Early-Warning-Emergency-Coordination-System\docs\test-results\uc4-db-integration.txt
+
+ [32m✓[39m tests/integration/uc4-db-full.test.ts [2m([22m[2m57 tests[22m[2m)[22m[33m 158251[2mms[22m[39m
+   [32m✓[39m UC4 — Full End-to-End DB Integration [2m(57)[22m
+     [32m✓[39m A. DB connection & schema [2m(5)[22m
+       [33m[2m✓[22m[39m A.4: Kegalle + Gampaha districts and 3 partner orgs exist[33m 1119[2mms[22m[39m
+       [33m[2m✓[22m[39m A.5: seeded row counts match SEED_SPEC (reports and shares still 0)[33m 378[2mms[22m[39m
+     [32m✓[39m B. ReachCalculator vs DB (A02, BR3, BR4) [2m(5)[22m
+       [33m[2m✓[22m[39m B.1: distinctCitizens === 1000 for the 2000 seeded attempts[33m 9752[2mms[22m[39m
+       [33m[2m✓[22m[39m B.2: PUSH channel stats are {1000 attempted, 950 delivered, 50 failed}[33m 13934[2mms[22m[39m
+       [33m[2m✓[22m[39m B.3: SMS channel stats are {1000 attempted, 900 delivered, 100 failed}[33m 12456[2mms[22m[39m
+       [33m[2m✓[22m[39m B.5: per-channel delivered sum 1850 differs from distinct 1000 (BR4)[33m 3936[2mms[22m[39m
+     [32m✓[39m C. AggregationService vs DB (A03, A06, A08) [2m(4)[22m
+       [33m[2m✓[22m[39m C.1: aggregate -> alerts, reports and shelters metrics match the seed[33m 5786[2mms[22m[39m
+       [33m[2m✓[22m[39m C.2: reach metrics survive aggregation (A03.b)[33m 4250[2mms[22m[39m
+       [33m[2m✓[22m[39m C.4: supplies metrics carry denominators and a null percent (A08.a)[33m 8895[2mms[22m[39m
+     [32m✓[39m D. SnapshotService vs DB (A03c, A04-A06, A09) [2m(5)[22m
+       [33m[2m✓[22m[39m D.1: two generate() calls persist two distinct snapshots (A03.c)[33m 15750[2mms[22m[39m
+       [33m[2m✓[22m[39m D.2: snapshot is frozen and survives the DB round trip (A04)[33m 4822[2mms[22m[39m
+       [33m[2m✓[22m[39m D.3: empty district scope yields warningFlag = true (A05)[33m 371[2mms[22m[39m
+       [33m[2m✓[22m[39m D.4: expired clock: timeout, nothing saved, audit TIMEOUT (A06.b)[33m 478[2mms[22m[39m
+       [33m[2m✓[22m[39m D.5: district scope changes every metric consistently (A09)[33m 5191[2mms[22m[39m
+     [32m✓[39m F. ShareService vs DB (A07, BR8, BR9) [2m(6)[22m
+       [33m[2m✓[22m[39m F.1: share of 3 orgs logs [SENT, FAILED, SENT] with names (A07.a)[33m 428[2mms[22m[39m
+       [33m[2m✓[22m[39m F.5: all deliveries fail: outcomes FAILED, report survives (A07.e)[33m 565[2mms[22m[39m
+     [32m✓[39m G. Business rules BR1-BR12 [2m(12)[22m
+       [33m[2m✓[22m[39m G.BR2: snapshot metrics unchanged after source changes; write-once (BR2)[33m 9577[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR3: distinctCitizens equals COUNT(DISTINCT citizen_id) in SQL (BR3)[33m 4736[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR4: per-channel delivered sum is non-additive vs distinct (BR4)[33m 4903[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR5: all 5 readers receive one identical shared filter (BR5)[33m 4531[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR6: timeout never calls repository.save (BR6 / CountingRepository)[33m 515[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR7: empty time window yields warningFlag = true in DB (BR7)[33m 477[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR8: two share batches append 6 rows with distinct ids (BR8)[33m 911[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR9: one failed recipient does not stop the batch (BR9)[33m 609[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR10: zero denominator gives percent null; FOOD/WATER numeric (BR10)[33m 4038[2mms[22m[39m
+       [33m[2m✓[22m[39m G.BR12: includedSections gate the PDF and round-trip in DB (BR12)[33m 5420[2mms[22m[39m
+     [32m✓[39m I. API routes (in-process) [2m(8)[22m
+       [33m[2m✓[22m[39m I.4: POST /api/analysis with DMC cookie -> 201 and persists[33m 4236[2mms[22m[39m
+       [33m[2m✓[22m[39m I.8: POST share -> 200 outcomes; empty -> 400; unknown report -> 404[33m 320[2mms[22m[39m
+     [32m✓[39m J. Persistence & raw SQL checks [2m(5)[22m
+       [33m[2m✓[22m[39m J.1: suite created analysis_report and report_share rows[33m 482[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m13 passed[39m[22m[90m (13)[39m
+[2m      Tests [22m [1m[32m122 passed[39m[22m[90m (122)[39m
+[2m   Start at [22m 21:57:09
+[2m   Duration [22m 159.86s[2m (tests 97%, import 2%, transform 1%)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------|---------|----------|---------|---------|-------------------
+All files |       0 |        0 |       0 |       0 |                   
+----------|---------|----------|---------|---------|-------------------

@@ -14,9 +14,11 @@ export class OccupancyEventQueryService implements OccupancyEventReader {
     const events = await this.eventRepo.findByFilter(filter);
     return events.map((e) => ({
       id: e.id,
-      occurredAt: e.occurredAt,
+      shelterId: e.shelterId,
       districtId: e.districtId,
-      hazardType: filter.hazardType,
+      previousCount: e.previousCount,
+      newCount: e.newCount,
+      occurredAt: e.occurredAt,
     }));
   }
 }
