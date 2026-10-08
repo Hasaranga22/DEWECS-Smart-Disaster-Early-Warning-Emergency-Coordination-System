@@ -14,6 +14,8 @@
     "test:uc3": "vitest run --coverage --coverage.include=\"src/modules/uc3-resources/**\"",
     "test:uc4": "vitest run --coverage --coverage.include=\"src/modules/uc4-analysis/**\"",
     "test:integration": "vitest run tests/integration",
+    "test:uc4:db": "vitest run tests/integration/uc4-db-full.test.ts",
+    "test:uc4:db:script": "tsx scripts/uc4-full-db-test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
