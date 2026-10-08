@@ -1,5 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { buildUc3Seed } from '../src/modules/uc3-resources/seed/buildUc3Seed';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -48,6 +49,13 @@ async function main() {
       districtId: districtId,
     },
   });
+
+  // [UC3 SEED REGISTRATION HOOK - Sandaruwan]
+  const uc3Seed = buildUc3Seed({
+    districtsByName: { Colombo: districtId },
+    organizationsByName: {},
+  });
+  console.log(`UC3 seed ready: ${uc3Seed.shelters.length} shelters, ${uc3Seed.teams.length} teams.`);
 
   console.log('✅ Seeding complete!');
 }

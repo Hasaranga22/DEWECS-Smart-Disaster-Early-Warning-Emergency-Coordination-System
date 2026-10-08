@@ -1,15 +1,9 @@
+export type { IdGenerator } from "./IdGenerator";
+
 /**
- * Shared infrastructure interfaces for clocks and ID generation.
- *
- *   Never call `new Date()`, `Date.now()`, or `crypto.randomUUID()`
- *   directly inside a service or domain class.
- *   Always use Clock and IdGenerator so tests remain deterministic.
+ * Contract for getting current system time in a deterministic, testable way.
  */
-
 export interface Clock {
+  /** Returns the current Date timestamp. */
   now(): Date;
-}
-
-export interface IdGenerator {
-  next(): string;
 }
