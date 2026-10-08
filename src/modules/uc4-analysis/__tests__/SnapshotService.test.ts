@@ -6,6 +6,7 @@ import { InMemorySnapshotRepository } from '@/shared/infra/InMemorySnapshotRepos
 
 import type { AuditLogger } from '../adapters/AuditLogger'
 import { AggregationTimeoutError } from '../domain/errors'
+import type { ShareOutcome } from '../domain/ShareOutcome'
 import { AggregationService } from '../services/AggregationService'
 import { ReachCalculator } from '../services/ReachCalculator'
 import { ReportFilterValidator } from '../services/ReportFilterValidator'
@@ -31,6 +32,12 @@ class FakeAuditLogger implements AuditLogger {
 
   logFailure(reason: string, actorId: string): void {
     this.failures.push({ reason, actorId })
+  }
+
+  logShare(reportId: string, outcomes: ShareOutcome[], actorId: string): void {
+    void reportId
+    void outcomes
+    void actorId
   }
 }
 
