@@ -53,3 +53,73 @@ export interface NotificationAttempt {
   /** When this delivery attempt was made. */
   attemptAt: Date;
 }
+
+export type AlertSeverity = 'ADVISORY' | 'WATCH' | 'WARNING' | 'EMERGENCY';
+
+/** Written by UC1, read by UC4 aggregation (README §4: owner exports from contracts/types.ts). */
+export interface HazardAlert {
+  id: string;
+  hazardType: HazardType;
+  severity: AlertSeverity;
+  /** Alerts can target many districts; scoping happens inside the reader. */
+  districtId?: string;
+  occurredAt: Date;
+}
+
+/** Written by UC2, read by UC4 aggregation (README §4 + open decision #1). */
+export interface ReportDecision {
+  id: string;
+  reportId: string;
+  districtId: string;
+  hazardType: HazardType;
+  reviewStatus: ReviewStatus;
+  occurredAt: Date;
+  officerId?: string;
+  reason?: string;
+}
+
+/** Written by UC3, read by UC4 aggregation. */
+export interface OccupancyEvent {
+  id: string;
+  shelterId: string;
+  districtId: string;
+  previousCount: number;
+  newCount: number;
+  occurredAt: Date;
+}
+
+/**
+ * Written by UC3, read by UC4 aggregation. Dated row, never a running total:
+ * `distributed` is the quantity moved by this event, `total` is the planned /
+ * available quantity for the supply type in scope (0 → percent null, BR10).
+ */
+export interface Distribution {
+  id: string;
+  supplyType: string;
+  districtId: string;
+  distributed: number;
+  total: number;
+  occurredAt: Date;
+}
+
+// ── Reader contracts (UC4 aggregation — all methods async, see README §4) ──
+
+export interface AlertReader {
+  listAlerts(f: Filter): Promise<HazardAlert[]>;
+}
+
+export interface AttemptReader {
+  listAttempts(f: Filter): Promise<NotificationAttempt[]>;
+}
+
+export interface ReportDecisionReader {
+  listDecisions(f: Filter): Promise<ReportDecision[]>;
+}
+
+export interface OccupancyEventReader {
+  listEvents(f: Filter): Promise<OccupancyEvent[]>;
+}
+
+export interface DistributionReader {
+  listDistributions(f: Filter): Promise<Distribution[]>;
+}
