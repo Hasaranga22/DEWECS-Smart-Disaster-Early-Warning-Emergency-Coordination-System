@@ -4,6 +4,7 @@ import type {
   DistributionReader,
   OccupancyEventReader,
   ReportDecisionReader,
+  SupplyStockReader,
 } from '@/shared/contracts/types'
 import type { Clock, IdGenerator } from '@/shared/contracts/Clock'
 
@@ -29,6 +30,7 @@ export interface Uc4ModuleDeps {
   decisionReader: ReportDecisionReader
   occupancyReader: OccupancyEventReader
   distributionReader: DistributionReader
+  supplyStockReader: SupplyStockReader
   organizationReader: OrganizationReader
   partnerChannel: PartnerChannel
   auditLogger: AuditLogger
@@ -59,13 +61,14 @@ export function createUc4Module(deps: Uc4ModuleDeps): Uc4Module {
   const validator = new ReportFilterValidator()
   const reachCalculator = new ReachCalculator()
 
-  // 5 readers + reach calculator.
+  // 6 readers + reach calculator.
   const aggregation = new AggregationService(
     deps.alertReader,
     deps.attemptReader,
     deps.decisionReader,
     deps.occupancyReader,
     deps.distributionReader,
+    deps.supplyStockReader,
     reachCalculator,
   )
 

@@ -10,6 +10,8 @@ import type {
   OccupancyEventReader,
   ReportDecision,
   ReportDecisionReader,
+  SupplyStock,
+  SupplyStockReader,
 } from '@/shared/contracts/types'
 
 /**
@@ -70,6 +72,17 @@ export class FakeDistributionReader implements DistributionReader {
   constructor(private readonly data: Distribution[]) {}
 
   async listDistributions(filter: Filter): Promise<Distribution[]> {
+    this.receivedFilters.push(filter)
+    return this.data
+  }
+}
+
+export class FakeSupplyStockReader implements SupplyStockReader {
+  readonly receivedFilters: Filter[] = []
+
+  constructor(private readonly data: SupplyStock[]) {}
+
+  async listStocks(filter: Filter): Promise<SupplyStock[]> {
     this.receivedFilters.push(filter)
     return this.data
   }

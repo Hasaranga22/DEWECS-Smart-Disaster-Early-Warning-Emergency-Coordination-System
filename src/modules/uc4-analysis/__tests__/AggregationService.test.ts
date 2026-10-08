@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { Filter } from '@/shared/contracts/types'
+import type { Distribution, Filter } from '@/shared/contracts/types'
 
 import { AggregationTimeoutError } from '../domain/errors'
 import { AggregationService } from '../services/AggregationService'
@@ -12,6 +12,7 @@ import {
   FakeDecisionReader,
   FakeDistributionReader,
   FakeOccupancyReader,
+  FakeSupplyStockReader,
   SlowReader,
 } from './fixtures/fakeReaders'
 
@@ -32,22 +33,26 @@ const farDeadline = (): Date => new Date(Date.now() + 30_000)
 function buildService(overrides: {
   alertReader?: FakeAlertReader | SlowReader
   distributionReader?: FakeDistributionReader
+  supplyStockReader?: FakeSupplyStockReader
 } = {}): {
   service: AggregationService
   alertReader: FakeAlertReader | SlowReader
   distributionReader: FakeDistributionReader
+  supplyStockReader: FakeSupplyStockReader
 } {
   const alertReader = overrides.alertReader ?? new FakeAlertReader([])
   const distributionReader = overrides.distributionReader ?? new FakeDistributionReader([])
+  const supplyStockReader = overrides.supplyStockReader ?? new FakeSupplyStockReader([])
   const service = new AggregationService(
     alertReader,
     new FakeAttemptReader([]),
     new FakeDecisionReader([]),
     new FakeOccupancyReader([]),
     distributionReader,
+    supplyStockReader,
     new ReachCalculator(),
   )
-  return { service, alertReader, distributionReader }
+  return { service, alertReader, distributionReader, supplyStockReader }
 }
 
 describe('AggregationService', () => {
@@ -57,12 +62,14 @@ describe('AggregationService', () => {
     const decisionReader = new FakeDecisionReader([])
     const occupancyReader = new FakeOccupancyReader([])
     const distributionReader = new FakeDistributionReader([])
+    const supplyStockReader = new FakeSupplyStockReader([])
     const service = new AggregationService(
       alertReader,
       attemptReader,
       decisionReader,
       occupancyReader,
       distributionReader,
+      supplyStockReader,
       new ReachCalculator(),
     )
 
@@ -105,48 +112,70 @@ describe('AggregationService', () => {
     )
   })
 
-  it('A08.a: distribution with total === 0 → supplies.byType[type].percent === null', async () => {
+  it('A08.a: distribution with no stock → supplies.byType[type].percent === null', async () => {
+    // No supply stock for this type → total = 0 → percent = null (BR10)
     const distributionReader = new FakeDistributionReader([
       {
         id: 'distribution-001',
         supplyType: 'FOOD',
         districtId: 'district-kelani',
         distributed: 40,
-        total: 0,
+        total: 100,
         occurredAt: new Date('2026-08-05T09:00:00.000Z'),
       },
     ])
-    const { service } = buildService({ distributionReader })
+    const supplyStockReader = new FakeSupplyStockReader([])
+    const service = new AggregationService(
+      new FakeAlertReader([]),
+      new FakeAttemptReader([]),
+      new FakeDecisionReader([]),
+      new FakeOccupancyReader([]),
+      distributionReader,
+      supplyStockReader,
+      new ReachCalculator(),
+    )
 
     const metrics = await service.aggregate(filters, sourceCutoff, farDeadline())
 
     expect(metrics.supplies.byType['FOOD']).toEqual({ distributed: 40, total: 0, percent: null })
   })
 
-  it('A08.b: distribution with delivered === total → percent === 100', async () => {
-    // Two dated rows: sums must be used (100/100), not per-row averaging.
-    const distributionReader = new FakeDistributionReader([
-      {
-        id: 'distribution-002',
-        supplyType: 'WATER',
-        districtId: 'district-kelani',
-        distributed: 30,
-        total: 30,
-        occurredAt: new Date('2026-08-06T09:00:00.000Z'),
-      },
-      {
-        id: 'distribution-003',
-        supplyType: 'WATER',
-        districtId: 'district-kelani',
-        distributed: 70,
-        total: 70,
-        occurredAt: new Date('2026-08-07T09:00:00.000Z'),
-      },
-    ])
-    const { service } = buildService({ distributionReader })
+  it('A08.b: distribution with sum equals onHand → percent === 100', async () => {
+    // Supply stock: 100 on hand; two distributions summing to 100 → 100%
+    const fakeStocks = [
+      { id: 's1', organizationId: 'o1', districtId: 'd1', supplyType: 'WATER', onHand: 100, updatedAt: new Date() },
+    ]
+    const fakeDistributions = [
+      { id: 'd1', supplyType: 'WATER', districtId: 'd1', distributed: 30, total: 100, occurredAt: new Date(), organizationId: 'o1' } as any,
+      { id: 'd2', supplyType: 'WATER', districtId: 'd1', distributed: 70, total: 100, occurredAt: new Date(), organizationId: 'o1' } as any,
+    ]
+    const { service } = buildService({
+      distributionReader: new FakeDistributionReader(fakeDistributions),
+      supplyStockReader: new FakeSupplyStockReader(fakeStocks),
+    })
 
     const metrics = await service.aggregate(filters, sourceCutoff, farDeadline())
 
     expect(metrics.supplies.byType['WATER']).toEqual({ distributed: 100, total: 100, percent: 100 })
+  })
+
+  it('A08.c: FOOD with stock 10000 and 2 distributions summing to 5000 → percent 50', async () => {
+    const fakeStocks = [
+      { id: 's1', organizationId: 'o1', districtId: 'd1', supplyType: 'FOOD', onHand: 10000, updatedAt: new Date() },
+    ]
+    const fakeDistributions: Distribution[] = [
+      { id: 'd1', supplyType: 'FOOD', districtId: 'd1', distributed: 3000, total: 10000, occurredAt: new Date() },
+      { id: 'd2', supplyType: 'FOOD', districtId: 'd1', distributed: 2000, total: 10000, occurredAt: new Date() },
+    ]
+    const { service } = buildService({
+      distributionReader: new FakeDistributionReader(fakeDistributions),
+      supplyStockReader: new FakeSupplyStockReader(fakeStocks),
+    })
+
+    const metrics = await service.aggregate(filters, sourceCutoff, farDeadline())
+
+    expect(metrics.supplies.byType['FOOD'].distributed).toBe(5000)
+    expect(metrics.supplies.byType['FOOD'].total).toBe(10000)
+    expect(metrics.supplies.byType['FOOD'].percent).toBe(50)
   })
 })

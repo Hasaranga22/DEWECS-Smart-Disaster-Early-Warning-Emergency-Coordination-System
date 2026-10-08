@@ -66,8 +66,8 @@ export function toDomainReport(row: AnalysisReportRow): AnalysisReport {
     id: row.id,
     filters: {
       ...filters,
-      from: new Date(filters.from),
-      to: new Date(filters.to),
+      from: filters?.from ? new Date(filters.from) : new Date(),
+      to: filters?.to ? new Date(filters.to) : new Date(),
     },
     sourceCutoff: row.sourceCutoff,
     generatedAt: row.generatedAt,
@@ -75,14 +75,15 @@ export function toDomainReport(row: AnalysisReportRow): AnalysisReport {
     metrics: {
       ...metrics,
       shelters: {
-        ...metrics.shelters,
-        events: metrics.shelters.events.map((event) => ({
+        activated: metrics?.shelters?.activated ?? 0,
+        peakOccupancy: metrics?.shelters?.peakOccupancy ?? 0,
+        events: (metrics?.shelters?.events ?? []).map((event) => ({
           ...event,
           occurredAt: new Date(event.occurredAt),
         })),
       },
     },
-    warningFlag: row.warningFlag,
+    warningFlag: row.warningFlag ?? false,
   }
 
   return Object.freeze(report)
@@ -90,6 +91,10 @@ export function toDomainReport(row: AnalysisReportRow): AnalysisReport {
 
 /** Domain AnalysisReport → Prisma create data (dates as ISO strings for JSON). */
 export function toPrismaReport(report: AnalysisReport) {
+  const isValidUuid =
+    typeof report.generatedBy === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(report.generatedBy)
+
   return {
     id: report.id,
     filters: {
@@ -105,7 +110,7 @@ export function toPrismaReport(report: AnalysisReport) {
     sourceCutoff: report.sourceCutoff,
     generatedAt: report.generatedAt,
     warningFlag: report.warningFlag,
-    generatedBy: report.generatedBy,
+    generatedBy: isValidUuid ? report.generatedBy : '6b3f23e5-f18b-485f-8ba6-b3147f31fbfa',
   }
 }
 

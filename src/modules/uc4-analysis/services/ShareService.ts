@@ -64,38 +64,52 @@ export class ShareService {
     const outcomes: ShareOutcome[] = []
 
     // 4. One recipient at a time — individual failures never break the batch.
-    for (const organizationId of organizationIds) {
-      const organization = this.organizations.getById(organizationId)
+    for (const orgId of organizationIds) {
+      const org = this.organizations.getById(orgId)
       const attemptedAt = this.clock.now()
 
-      let status: ReportShare['status']
-      let failureReason: string | undefined
+      // Unknown org → return FAILED outcome without DB save
+      // (cannot satisfy NOT NULL FK constraint on report_share.organization_id)
+      if (!org) {
+        outcomes.push({
+          id: this.idGenerator.next(),
+          reportId,
+          organizationId: orgId,
+          status: 'FAILED',
+          attemptedAt,
+          actorId: actor.id,
+          failureReason: 'Unknown organization',
+          organizationName: '?',
+        })
+        continue
+      }
+
+      // Known org — existing logic
+      let share: ReportShare
       try {
-        if (organization === null) {
-          throw new Error('Unknown')
+        await this.channel.send(report, org)
+        share = {
+          id: this.idGenerator.next(),
+          reportId,
+          organizationId: orgId,
+          status: 'SENT',
+          attemptedAt,
+          actorId: actor.id,
         }
-        await this.channel.send(report, organization)
-        status = 'SENT'
-      } catch (error) {
-        status = 'FAILED'
-        failureReason = error instanceof Error ? error.message : String(error)
+      } catch (err: any) {
+        share = {
+          id: this.idGenerator.next(),
+          reportId,
+          organizationId: orgId,
+          status: 'FAILED',
+          attemptedAt,
+          actorId: actor.id,
+          failureReason: err.message ?? 'Unknown',
+        }
       }
 
-      // ALWAYS save — success and failure alike (append-only history).
-      const row: ReportShare = {
-        id: this.idGenerator.next(),
-        reportId,
-        organizationId,
-        status,
-        attemptedAt,
-        actorId: actor.id,
-      }
-      if (failureReason !== undefined) {
-        row.failureReason = failureReason
-      }
-      await this.shareLog.save(row)
-
-      outcomes.push({ ...row, organizationName: organization?.name ?? '?' })
+      await this.shareLog.save(share)
+      outcomes.push({ ...share, organizationName: org.name })
     }
 
     // 5. One audit entry for the whole batch.

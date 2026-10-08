@@ -136,3 +136,16 @@ export interface Actor {
 // Re-exported so contract consumers can also import Clock/IdGenerator from
 // this module (they are defined in Clock.ts).
 export type { Clock, IdGenerator } from './Clock';
+
+export interface SupplyStock {
+  id: string
+  organizationId: string
+  districtId: string
+  supplyType: string
+  onHand: number
+  updatedAt: Date
+}
+
+export interface SupplyStockReader {
+  listStocks(f: Filter): Promise<SupplyStock[]>
+}

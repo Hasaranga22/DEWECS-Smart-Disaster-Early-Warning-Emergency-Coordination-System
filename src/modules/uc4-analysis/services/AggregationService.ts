@@ -5,6 +5,8 @@ import type {
   Filter,
   OccupancyEventReader,
   ReportDecisionReader,
+  SupplyStock,
+  SupplyStockReader,
 } from '@/shared/contracts/types'
 
 import { AggregationTimeoutError } from '../domain/errors'
@@ -50,6 +52,7 @@ export class AggregationService {
     private readonly decisionReader: ReportDecisionReader,
     private readonly occupancyReader: OccupancyEventReader,
     private readonly distributionReader: DistributionReader,
+    private readonly supplyStockReader: SupplyStockReader,
     private readonly reachCalculator: ReachCalculator,
   ) {}
 
@@ -84,14 +87,15 @@ export class AggregationService {
     })
 
     try {
-      // Step 2: 5 parallel reader calls racing the deadline.
-      const [alerts, attempts, decisions, occupancyEvents, distributions] = await Promise.race([
+      // Step 2: 6 parallel reader calls racing the deadline.
+      const [alerts, attempts, decisions, occupancyEvents, distributions, supplyStocks] = await Promise.race([
         Promise.all([
           this.alertReader.listAlerts(sharedFilter),
           this.attemptReader.listAttempts(sharedFilter),
           this.decisionReader.listDecisions(sharedFilter),
           this.occupancyReader.listEvents(sharedFilter),
           this.distributionReader.listDistributions(sharedFilter),
+          this.supplyStockReader.listStocks(sharedFilter),
         ]),
         timeout,
       ])
@@ -133,16 +137,24 @@ export class AggregationService {
         })),
       }
 
-      // supplies — group dated rows by supplyType; zero denominator → null (BR10)
+      // supplies — sum distributed per type from distributions, onHand per type from stocks; zero denominator → null (BR10)
       const byType: Metrics['supplies']['byType'] = {}
-      for (const row of distributions) {
-        const entry = byType[row.supplyType] ?? { distributed: 0, total: 0, percent: null }
-        entry.distributed += row.distributed
-        entry.total += row.total
-        byType[row.supplyType] = entry
+      const distributedByType: Record<string, number> = {}
+      for (const d of distributions) {
+        distributedByType[d.supplyType] = (distributedByType[d.supplyType] ?? 0) + d.distributed
       }
-      for (const entry of Object.values(byType)) {
-        entry.percent = entry.total > 0 ? Math.round((entry.distributed / entry.total) * 100) : null
+      const totalByType: Record<string, number> = {}
+      for (const s of supplyStocks) {
+        totalByType[s.supplyType] = (totalByType[s.supplyType] ?? 0) + s.onHand
+      }
+      for (const supplyType of Object.keys(distributedByType)) {
+        const distributed = distributedByType[supplyType]
+        const total = totalByType[supplyType] ?? 0
+        byType[supplyType] = {
+          distributed,
+          total,
+          percent: total > 0 ? Math.round((distributed / total) * 100) : null,
+        }
       }
 
       // Step 5: return

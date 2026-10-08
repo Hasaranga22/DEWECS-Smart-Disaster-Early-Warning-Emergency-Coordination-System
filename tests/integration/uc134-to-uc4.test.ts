@@ -271,12 +271,20 @@ function buildUc4Module() {
   const occupancyReader = new InlineOccupancyReader(occupancyEvents)
   const distributionReader = new InlineDistributionReader(distributions)
 
+  const supplyStockReader = {
+    listStocks: async () => [
+      { id: 'stock-food', organizationId: 'org-1', districtId, supplyType: 'FOOD', onHand: 6000, updatedAt: new Date('2026-08-01T00:00:00.000Z') },
+      { id: 'stock-water', organizationId: 'org-1', districtId, supplyType: 'WATER', onHand: 3000, updatedAt: new Date('2026-08-01T00:00:00.000Z') },
+    ],
+  }
+
   const aggregation = new AggregationService(
     alertReader,
     attemptReader,
     decisionReader,
     occupancyReader,
     distributionReader,
+    supplyStockReader,
     new ReachCalculator(),
   )
 

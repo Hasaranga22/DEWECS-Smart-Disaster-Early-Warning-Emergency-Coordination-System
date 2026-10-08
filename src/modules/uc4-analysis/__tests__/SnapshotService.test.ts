@@ -17,6 +17,7 @@ import {
   FakeDecisionReader,
   FakeDistributionReader,
   FakeOccupancyReader,
+  FakeSupplyStockReader,
   SlowReader,
 } from './fixtures/fakeReaders'
 
@@ -90,6 +91,7 @@ function buildService(
     new FakeDecisionReader([]),
     new FakeOccupancyReader([]),
     new FakeDistributionReader([]),
+    new FakeSupplyStockReader([]),
     new ReachCalculator(),
   )
 

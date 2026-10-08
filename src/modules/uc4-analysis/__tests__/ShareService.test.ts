@@ -171,7 +171,7 @@ describe('ShareService', () => {
     expect(shareLog.count()).toBe(0)
   })
 
-  it('A07.f: unknown organization → FAILED with organizationName "?"', async () => {
+  it('A07.f: unknown organization returns FAILED outcome without DB save', async () => {
     const { service, repository, shareLog, audit } = buildService({ rngValues: [] })
     await repository.save(report)
 
@@ -179,9 +179,9 @@ describe('ShareService', () => {
 
     expect(outcomes).toHaveLength(1)
     expect(outcomes[0].status).toBe('FAILED')
+    expect(outcomes[0].failureReason).toBe('Unknown organization')
     expect(outcomes[0].organizationName).toBe('?')
-    expect(outcomes[0].failureReason).toBe('Unknown')
-    expect(shareLog.count()).toBe(1)
+    expect(shareLog.count()).toBe(0)   // no row saved for unknown org
     expect(audit.shares).toEqual([{ reportId: 'report-1', outcomeCount: 1, actorId: actor.id }])
   })
 

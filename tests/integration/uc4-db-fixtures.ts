@@ -26,6 +26,8 @@ import type {
   OccupancyEventReader,
   ReportDecision,
   ReportDecisionReader,
+  SupplyStock,
+  SupplyStockReader,
 } from '@/shared/contracts/types'
 import type { Actor, Clock, IdGenerator } from '@/shared/contracts/types'
 import { Prisma } from '@/generated/prisma/client'
@@ -169,6 +171,51 @@ export function dmcActor(seed: SeedData): Actor {
 }
 
 export async function seedData(): Promise<SeedData> {
+  // ── PART A: Defensive pre-cleanup — remove leftover 'UC4 Test' rows ──
+  // This makes seedData() idempotent across multiple test runs.
+  // Only delete rows that were created by this test suite (identified by 'UC4' prefix).
+  // We do NOT delete the Kegalle district here - we'll handle it below.
+  const existingOrgs = await prisma.organization.findMany({
+    where: { name: { startsWith: 'UC4 Test' } },
+    select: { id: true },
+  })
+  const existingOfficers = await prisma.officer.findMany({
+    where: { name: { startsWith: 'UC4 ' } },
+    select: { id: true },
+  })
+
+  // Delete organizations and officers first (they're parents)
+  // But we need to delete their children first to avoid FK violations
+  // For organizations: delete shelter, rescueTeam, supplyStock, reportShare, distribution
+  await prisma.reportShare.deleteMany({ where: { organizationId: { in: existingOrgs.map(o => o.id) } } }).catch(() => {})
+  await prisma.shelter.deleteMany({ where: { organizationId: { in: existingOrgs.map(o => o.id) } } }).catch(() => {})
+  await prisma.supplyStock.deleteMany({ where: { organizationId: { in: existingOrgs.map(o => o.id) } } }).catch(() => {})
+  await prisma.distribution.deleteMany({ where: { organizationId: { in: existingOrgs.map(o => o.id) } } }).catch(() => {})
+  await prisma.organization.deleteMany({ where: { id: { in: existingOrgs.map(o => o.id) } } }).catch(() => {})
+
+  // For officers: delete hazardAlert, reportAuditEntry, occupancyEvent, distribution, analysisReport, reportShare
+  await prisma.hazardAlert.deleteMany({ where: { issuedById: { in: existingOfficers.map(o => o.id) } } }).catch(() => {})
+  await prisma.analysisReport.deleteMany({ where: { generatedBy: { in: existingOfficers.map(o => o.id) } } }).catch(() => {})
+  await prisma.officer.deleteMany({ where: { id: { in: existingOfficers.map(o => o.id) } } }).catch(() => {})
+
+  // Now handle Kegalle district if it exists from a previous run
+  const existingKegalle = await prisma.district.findUnique({ where: { name: 'Kegalle' } })
+  if (existingKegalle) {
+    const kegalleId = existingKegalle.id
+    // Delete all child data for this district
+    await prisma.alertTargetDistrict.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.notificationAttempt.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.reportAuditEntry.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.groundReport.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.occupancyEvent.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.distribution.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.shelter.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.supplyStock.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    await prisma.citizen.deleteMany({ where: { districtId: kegalleId } }).catch(() => {})
+    // Delete the district itself
+    await prisma.district.delete({ where: { id: kegalleId } }).catch(() => {})
+  }
+
   // ── Districts: reuse baseline rows, create Kegalle (the event district) ──
   const createdDistrictIds: string[] = []
   let kegalle = await prisma.district.findUnique({ where: { name: 'Kegalle' } })
@@ -181,7 +228,14 @@ export async function seedData(): Promise<SeedData> {
     throw new Error('Baseline district "Gampaha" is missing — run `npx prisma db seed` first.')
   }
 
-  // ── Officers (FK targets for analysis_report / hazard_alert / events) ──
+  // ── PART B: Create entities (after cleanup) ──
+  // Officers (FK targets for analysis_report / hazard_alert / events)
+  // Delete any existing UC4 officers first to avoid conflicts
+  const existingOfficersToDelete = await prisma.officer.findMany({
+    where: { name: { in: ['UC4 DMC Official', 'UC4 Duty Officer', 'UC4 District Officer'] } },
+    select: { id: true },
+  })
+  await prisma.officer.deleteMany({ where: { id: { in: existingOfficersToDelete.map(o => o.id) } } }).catch(() => {})
   const dmc = await prisma.officer.create({
     data: { name: 'UC4 DMC Official', role: 'DMC_OFFICIAL' },
   })
@@ -193,19 +247,27 @@ export async function seedData(): Promise<SeedData> {
   })
   const officerIds = [dmc.id, duty.id, districtOfficer.id]
 
-  // ── Partner organisations (unique names → always created by this suite) ──
-  const ngo = await prisma.organization.create({
-    data: { name: 'UC4 Test Relief NGO', type: 'NGO' },
+  // Partner organisations (unique names on 'name' field → upsert to handle any edge cases)
+  const ngo = await prisma.organization.upsert({
+    where: { name: 'UC4 Test Relief NGO' },
+    update: {},
+    create: { name: 'UC4 Test Relief NGO', type: 'NGO' },
   })
-  const armed = await prisma.organization.create({
-    data: { name: 'UC4 Test Armed Forces', type: 'ARMED_FORCES' },
+  const armed = await prisma.organization.upsert({
+    where: { name: 'UC4 Test Armed Forces' },
+    update: {},
+    create: { name: 'UC4 Test Armed Forces', type: 'ARMED_FORCES' },
   })
-  const donor = await prisma.organization.create({
-    data: { name: 'UC4 Test Private Donors', type: 'PRIVATE_DONOR' },
+  const donor = await prisma.organization.upsert({
+    where: { name: 'UC4 Test Private Donors' },
+    update: {},
+    create: { name: 'UC4 Test Private Donors', type: 'PRIVATE_DONOR' },
   })
   const createdOrgIds = [ngo.id, armed.id, donor.id]
 
   // ── Reporter citizen (FK target for ground_report.reporter_id) ──
+  // Delete any existing UC4 Reporter first to avoid unique constraint issues
+  await prisma.citizen.deleteMany({ where: { name: 'UC4 Reporter' } }).catch(() => {})
   const reporter = await prisma.citizen.create({
     data: { name: 'UC4 Reporter', isVolunteer: false, districtId: kegalle.id },
   })
@@ -637,6 +699,7 @@ export interface DbReaders {
   decisions: ReportDecisionReader
   occupancy: OccupancyEventReader
   distributions: DistributionReader
+  supplyStocks: SupplyStockReader
 }
 
 function windowClause(filter: Filter): { gte?: Date; lte?: Date } | undefined {
@@ -752,6 +815,26 @@ export function realDecisionReader(): ReportDecisionReader {
   return new DecisionQueryService(new PrismaAuditRepository())
 }
 
+export class PrismaSupplyStockReaderImpl implements SupplyStockReader {
+  async listStocks(filter: Filter): Promise<SupplyStock[]> {
+    const clauses: Prisma.SupplyStockWhereInput[] = []
+    if (filter.districtId !== undefined) clauses.push({ districtId: filter.districtId })
+    if (filter.cutoff !== undefined) clauses.push({ updatedAt: { lte: filter.cutoff } })
+    const rows = await prisma.supplyStock.findMany({
+      where: clauses.length > 0 ? { AND: clauses } : {},
+      orderBy: { updatedAt: 'asc' },
+    })
+    return rows.map((row) => ({
+      id: row.id,
+      organizationId: row.organizationId,
+      districtId: row.districtId,
+      supplyType: row.supplyType,
+      onHand: row.onHand,
+      updatedAt: row.updatedAt,
+    }))
+  }
+}
+
 export function dbReaders(): DbReaders {
   return {
     alerts: new PrismaAlertReader(),
@@ -759,6 +842,7 @@ export function dbReaders(): DbReaders {
     decisions: realDecisionReader(),
     occupancy: new PrismaOccupancyReader(),
     distributions: new PrismaDistributionReader(),
+    supplyStocks: new PrismaSupplyStockReaderImpl(),
   }
 }
 
@@ -771,6 +855,7 @@ export function neverReaders(): DbReaders {
     decisions: { listDecisions: () => never<ReportDecision[]>() },
     occupancy: { listEvents: () => never<OccupancyEvent[]>() },
     distributions: { listDistributions: () => never<Distribution[]>() },
+    supplyStocks: { listStocks: () => never<SupplyStock[]>() },
   }
 }
 
@@ -786,6 +871,7 @@ export class RecordingReaders implements DbReaders {
   readonly decisions: ReportDecisionReader
   readonly occupancy: OccupancyEventReader
   readonly distributions: DistributionReader
+  readonly supplyStocks: SupplyStockReader
 
   constructor(inner: DbReaders = dbReaders()) {
     this.alerts = {
@@ -816,6 +902,12 @@ export class RecordingReaders implements DbReaders {
       listDistributions: async (filter) => {
         this.filters.push(filter)
         return inner.distributions.listDistributions(filter)
+      },
+    }
+    this.supplyStocks = {
+      listStocks: async (filter) => {
+        this.filters.push(filter)
+        return inner.supplyStocks.listStocks(filter)
       },
     }
   }
@@ -890,6 +982,7 @@ export function makeAggregation(readers: DbReaders): AggregationService {
     readers.decisions,
     readers.occupancy,
     readers.distributions,
+    readers.supplyStocks,
     new ReachCalculator(),
   )
 }

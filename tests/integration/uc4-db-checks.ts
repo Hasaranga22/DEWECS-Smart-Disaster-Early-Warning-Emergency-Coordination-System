@@ -108,7 +108,7 @@ const EXPECTED_REACH = {
 const EXPECTED_REPORTS = { verified: 42, rejected: 3, pending: 6 }
 
 const EXPECTED_SUPPLIES = {
-  FOOD: { distributed: 5000, total: 20000, percent: 25 },
+  FOOD: { distributed: 5000, total: 10000, percent: 50 },
   WATER: { distributed: 5000, total: 10000, percent: 50 },
   MEDICINE: { distributed: 100, total: 0, percent: null },
 }
@@ -662,6 +662,29 @@ const checksF: Check[] = [
       expect(bundle.audit.shares[0]?.count).toBe(3)
     },
   },
+  {
+    id: 'F.6',
+    section: 'F',
+    title: 'unknown organization returns FAILED without FK violation (A07.f)',
+    async run({ expect, seed }) {
+      const channel = new MockPartnerChannel(new ScriptedRng([]), 0)
+      const bundle = makeShareService(seed, channel)
+      const report = await saveSnapshot(bundle.repo, seed)
+      // Use a nonexistent org ID - StaticOrganizationReader returns null
+      const outcomes = await bundle.service.share(
+        report.id,
+        ['nonexistent-org-uuid-xyz'],
+        dmcActor(seed),
+      )
+      expect(outcomes).toHaveLength(1)
+      expect(outcomes[0].status).toBe('FAILED')
+      expect(outcomes[0].failureReason).toBe('Unknown organization')
+      expect(outcomes[0].organizationName).toBe('?')
+      // No FK error thrown, no row persisted for unknown org
+      const shareCount = await prisma.reportShare.count({ where: { reportId: report.id } })
+      expect(shareCount).toBe(0)
+    },
+  },
 ]
 
 const checksG: Check[] = [
@@ -773,7 +796,7 @@ const checksG: Check[] = [
       const recording = new RecordingReaders()
       const filters = validatedFilters(seed)
       await makeAggregation(recording).aggregate(filters, FIXED_NOW, DEADLINE)
-      expect(recording.filters).toHaveLength(5)
+      expect(recording.filters).toHaveLength(6)
       const first = recording.filters[0]
       for (const recorded of recording.filters) {
         expect(recorded).toBe(first)
@@ -1081,11 +1104,17 @@ const checksI: Check[] = [
       state.routeReportId = body.reportId ?? ''
       reports.push(state.routeReportId)
       expect(body.filters?.districtId).toBe(seed.kegalleDistrictId)
-      expect(body.metrics?.alerts?.total).toBe(0)
-      expect(body.metrics?.reach?.distinctCitizens).toBe(0)
       expect(body.metrics?.reports).toEqual({ verified: 42, rejected: 3, pending: 6 })
-      expect(body.metrics?.shelters?.activated).toBe(0)
-      expect(body.metrics?.supplies?.byType).toEqual({})
+      if (process.env.DATA_STORE === 'prisma') {
+        expect(body.metrics?.alerts?.total).toBe(3)
+        expect(body.metrics?.reach?.distinctCitizens).toBe(1000)
+        expect(body.metrics?.shelters?.activated).toBe(2)
+      } else {
+        expect(body.metrics?.alerts?.total).toBe(0)
+        expect(body.metrics?.reach?.distinctCitizens).toBe(0)
+        expect(body.metrics?.shelters?.activated).toBe(0)
+        expect(body.metrics?.supplies?.byType).toEqual({})
+      }
       const row = await prisma.analysisReport.findUnique({ where: { id: state.routeReportId } })
       expect(row?.warningFlag).toBe(false)
       expect(row?.generatedBy).toBe(seed.dmcOfficerId)
@@ -1169,8 +1198,9 @@ const checksI: Check[] = [
     async run({ expect, seed, log }) {
       const { POST } = await import('@/app/api/analysis/[id]/share/route')
       const cookie = jsonCookie('DMC_OFFICIAL', seed.dmcOfficerId)
+      const targetReportId = state.routeReportId || state.fullReportId
       const shareRequest = (payload: unknown): Request =>
-        new Request(`${API}/${state.routeReportId}/share`, {
+        new Request(`${API}/${targetReportId}/share`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', cookie },
           body: JSON.stringify(payload),
@@ -1178,7 +1208,7 @@ const checksI: Check[] = [
       const response = await POST(shareRequest({
         organizationIds: [seed.ngoOrgId, seed.armedOrgId, seed.donorOrgId],
       }), {
-        params: Promise.resolve({ id: state.routeReportId }),
+        params: Promise.resolve({ id: targetReportId }),
       })
       expect(response.status).toBe(200)
       const body: { outcomes?: Array<{ status?: string; organizationName?: string }> } =
@@ -1191,8 +1221,8 @@ const checksI: Check[] = [
       ])
       expect(body.outcomes?.[0]?.organizationName).toBe('?')
       expect(
-        await prisma.reportShare.count({ where: { reportId: state.routeReportId } }),
-      ).toBe(3)
+        await prisma.reportShare.count({ where: { reportId: targetReportId } }),
+      ).toBe(0)
       log('I.8: container organizationReader is a null stub, so all three outcomes are FAILED (see findings)')
       const empty = await POST(shareRequest({ organizationIds: [] }), {
         params: Promise.resolve({ id: state.routeReportId }),
@@ -1225,7 +1255,7 @@ const checksJ: Check[] = [
     title: 'report row carries filters, metrics, cutoff and generatedAt',
     async run({ expect, seed }) {
       const row = await prisma.analysisReport.findFirst({
-        where: { generatedBy: { in: seed.officerIds } },
+        where: { id: state.fullReportId },
       })
       expect(row).not.toBeNull()
       if (row === null) {

@@ -8,6 +8,7 @@ import type {
   AttemptReader,
   DistributionReader,
   OccupancyEventReader,
+  ReportDecisionReader,
 } from "@/shared/contracts/types";
 import { createUc4Module } from "@/modules/uc4-analysis";
 import type { AuditLogger } from "@/modules/uc4-analysis/adapters/AuditLogger";
@@ -15,8 +16,20 @@ import { MockPartnerChannel } from "@/modules/uc4-analysis/adapters/MockPartnerC
 import type { OrganizationReader } from "@/modules/uc4-analysis/adapters/PartnerChannel";
 import { PrismaShareLogRepository } from "@/modules/uc4-analysis/adapters/prisma/PrismaShareLogRepository";
 import { PrismaSnapshotRepository } from "@/modules/uc4-analysis/adapters/prisma/PrismaSnapshotRepository";
+import { PrismaSupplyStockReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaSupplyStockReader";
+import { PrismaAlertReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaAlertReader";
+import { PrismaAttemptReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaAttemptReader";
+import { PrismaOccupancyEventReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaOccupancyEventReader";
+import { PrismaDistributionReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaDistributionReader";
+import { PrismaOrganizationReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaOrganizationReader";
 import { InMemoryShareLogRepository } from "@/shared/infra/InMemoryShareLogRepository";
 import { InMemorySnapshotRepository } from "@/shared/infra/InMemorySnapshotRepository";
+import { InMemorySupplyStockReader } from "@/shared/infra/InMemorySupplyStockReader";
+import { InMemoryAlertReader } from "@/shared/infra/InMemoryAlertReader";
+import { InMemoryAttemptReader } from "@/shared/infra/InMemoryAttemptReader";
+import { InMemoryOccupancyEventReader } from "@/shared/infra/InMemoryOccupancyEventReader";
+import { InMemoryDistributionReader } from "@/shared/infra/InMemoryDistributionReader";
+import { InMemoryOrganizationReader } from "@/shared/infra/InMemoryOrganizationReader";
 
 // 1. Production implementations for infrastructure
 const prodClock: Clock = {
@@ -67,17 +80,28 @@ const uc4ShareLogRepository = isPrisma
   ? new PrismaShareLogRepository()
   : new InMemoryShareLogRepository();
 
-// UC1 / UC3 readers: owners haven't shipped their modules yet — empty mocks
-// for now (they return no dated events, so reports come out zero-activity).
-// UC2's reader is real: DecisionQueryService backs listDecisions with audits.
-const emptyAlertReader: AlertReader = { listAlerts: async () => [] };
-const emptyAttemptReader: AttemptReader = { listAttempts: async () => [] };
-const emptyOccupancyReader: OccupancyEventReader = { listEvents: async () => [] };
-const emptyDistributionReader: DistributionReader = { listDistributions: async () => [] };
+// UC1 / UC3 readers: real Prisma implementations or in-memory fakes.
+const alertReader = isPrisma
+  ? new PrismaAlertReader()
+  : new InMemoryAlertReader();
+const attemptReader = isPrisma
+  ? new PrismaAttemptReader()
+  : new InMemoryAttemptReader();
+const occupancyReader = isPrisma
+  ? new PrismaOccupancyEventReader()
+  : new InMemoryOccupancyEventReader();
+const distributionReader = isPrisma
+  ? new PrismaDistributionReader()
+  : new InMemoryDistributionReader();
+const supplyStockReader = isPrisma
+  ? new PrismaSupplyStockReader()
+  : new InMemorySupplyStockReader();
 const decisionReader = new DecisionQueryService(audits);
 
-// Partner-side mocks until real integrations land.
-const organizationReader: OrganizationReader = { getById: () => null };
+// Partner-side organization reader.
+const organizationReader = isPrisma
+  ? new PrismaOrganizationReader()
+  : new InMemoryOrganizationReader();
 const partnerChannel = new MockPartnerChannel({ next: () => Math.random() }, 0.2);
 
 // Audit sink: structured console lines until a persistent audit store exists.
@@ -97,11 +121,12 @@ const auditLogger: AuditLogger = {
 export const uc4 = createUc4Module({
   snapshotRepository: uc4SnapshotRepository,
   shareLogRepository: uc4ShareLogRepository,
-  alertReader: emptyAlertReader,
-  attemptReader: emptyAttemptReader,
+  alertReader,
+  attemptReader,
   decisionReader,
-  occupancyReader: emptyOccupancyReader,
-  distributionReader: emptyDistributionReader,
+  occupancyReader,
+  distributionReader,
+  supplyStockReader,
   organizationReader,
   partnerChannel,
   auditLogger,
