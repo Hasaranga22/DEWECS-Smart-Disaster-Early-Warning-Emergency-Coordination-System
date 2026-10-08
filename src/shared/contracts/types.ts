@@ -123,3 +123,12 @@ export interface OccupancyEventReader {
 export interface DistributionReader {
   listDistributions(f: Filter): Promise<Distribution[]>;
 }
+
+/** Roles offered by the role switcher (README §3). */
+export type Role = 'CITIZEN' | 'DUTY_OFFICER' | 'DMC_OFFICIAL' | 'DISTRICT_OFFICER';
+
+/** Authenticated caller injected into services by the API layer (getActor). */
+export interface Actor {
+  id: string;
+  role: Role;
+}

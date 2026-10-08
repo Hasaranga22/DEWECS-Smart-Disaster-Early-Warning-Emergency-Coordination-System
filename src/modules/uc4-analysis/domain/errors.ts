@@ -42,6 +42,16 @@ export class PdfExportError extends Error {
   }
 }
 
+export class DuplicateSnapshotError extends Error {
+  public id: string
+
+  constructor(id: string) {
+    super(`Snapshot ${id} already exists — reports are write-once`)
+    this.name = 'DuplicateSnapshotError'
+    this.id = id
+  }
+}
+
 export class ForbiddenError extends Error {
   public role: string
   public action: string
