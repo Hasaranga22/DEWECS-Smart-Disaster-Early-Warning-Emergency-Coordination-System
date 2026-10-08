@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from 'next/link';
+import { Suspense } from 'react';
+import { RoleSwitcherLoader } from '@/components/RoleSwitcherLoader';
+
+const NAV = [
+  { href: '/warnings', label: 'Warnings' },
+  { href: '/report', label: 'Report' },
+  { href: '/officer/reports', label: 'Review' },
+  { href: '/resources', label: 'Resources' },
+  { href: '/analysis', label: 'Analysis' },
+];
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,7 +34,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">{children}
+        <header className="flex items-center justify-between border-b px-4 py-3">
+  <nav className="flex gap-4 text-sm">
+    <Link href="/" className="font-semibold">DEWECS</Link>
+    {NAV.map((n) => (
+      <Link key={n.href} href={n.href}>{n.label}</Link>
+    ))}
+  </nav>
+  <Suspense fallback={null}>
+    <RoleSwitcherLoader />
+  </Suspense>
+</header>
+<main className="p-4">{children}</main>
+      </body>
     </html>
   );
 }
