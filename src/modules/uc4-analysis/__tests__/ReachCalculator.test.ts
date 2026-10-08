@@ -37,7 +37,7 @@ describe('ReachCalculator', () => {
   })
 
   it('A02.f: QUEUED status attempts are counted in attempted but not delivered or failed', () => {
-    const queuedAttempts = [
+    const queuedAttempts: import('@/shared/contracts/types').NotificationAttempt[] = [
       {
         id: 'q-1',
         citizenId: 'C001',
@@ -70,7 +70,7 @@ describe('ReachCalculator', () => {
   })
 
   it('A02.g: SENT status attempts are counted in attempted but not delivered or failed', () => {
-    const sentAttempts = [
+    const sentAttempts: import('@/shared/contracts/types').NotificationAttempt[] = [
       {
         id: 's-1',
         citizenId: 'C001',
