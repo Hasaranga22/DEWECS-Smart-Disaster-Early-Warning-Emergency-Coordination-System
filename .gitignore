@@ -4,9 +4,11 @@
 /node_modules
 /.pnp
 .pnp.js
+.yarn/install-state.gz
 
 # testing
 /coverage
+*.lcov
 
 # next.js
 /.next/
@@ -14,20 +16,36 @@
 
 # production
 /build
+/dist
 /src/generated/
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.pem
+*.key
+*.p12
+*.crt
 
-# debug
+# debug / logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+*.log
 
-# local env files
-.env*.local
+# local env files / secrets (keep .env.example tracked)
 .env
+.env.*
+!.env.example
+
+# local tooling / caches
+.freebuff/
+.turbo/
+.cache/
+.eslintcache
+.prettiercache
 
 # vercel
 .vercel
@@ -35,3 +53,23 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE / editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+
+# OS
+ehthumbs.db
+
+# prisma local
+prisma/*.db
+prisma/*.db-journal
+*.sqlite
+*.sqlite3
+
+# docker / local data
+docker-data/
