@@ -1,4 +1,4 @@
-import { CITIZENS, RIVER_BASINS } from '@/shared/seed';
+import { CITIZENS, D, RIVER_BASINS } from '@/shared/seed';
 import type { AlertRepository } from './adapters/AlertRepository';
 import type { ChannelGateway } from './adapters/ChannelGateway';
 import { InMemoryAlertRepository } from './adapters/InMemoryAlertRepository';
@@ -9,6 +9,7 @@ import type { Clock } from './ports/Clock';
 import type { DistrictNotificationStore } from './ports/DistrictNotificationStore';
 import type { IdGenerator } from './ports/IdGenerator';
 import type { VerifiedEvidenceProvider } from './ports/VerifiedEvidenceProvider';
+import type { VerifiedEvidence } from './ports/types';
 import { AlertQueryService } from './services/AlertQueryService';
 import { type BasinProvider, type CitizenProvider, TargetResolver } from './services/TargetResolver';
 import { WarningService } from './services/WarningService';
@@ -106,6 +107,9 @@ export function createUc1Module(deps: Uc1ModuleDependencies = {}): Uc1Module {
   );
 
   const queryService = new AlertQueryService(alertRepo, basinProvider);
+  const evidenceProvider =
+    deps.evidenceProvider ??
+    new DefaultVerifiedEvidenceProvider();
 
   return {
     warningService,
@@ -117,6 +121,63 @@ export function createUc1Module(deps: Uc1ModuleDependencies = {}): Uc1Module {
     pushGateway,
     clock,
     idGen,
-    evidenceProvider: deps.evidenceProvider,
+    evidenceProvider,
   };
 }
+
+class DefaultVerifiedEvidenceProvider implements VerifiedEvidenceProvider {
+  public async listVerified(districtId?: string): Promise<VerifiedEvidence[]> {
+    const list: VerifiedEvidence[] = [
+      {
+        reportId: 'rep-001',
+        hazardType: 'FLOOD',
+        districtId: D.COLOMBO,
+        lat: 6.9271,
+        lng: 79.8612,
+        severityIndication: 'HIGH',
+        confidence: 'FULL',
+        corroborationCount: 3,
+        decidedAt: new Date('2026-10-08T09:30:00.000Z'),
+        occurredAt: new Date('2026-10-08T09:15:00.000Z'),
+      },
+      {
+        reportId: 'rep-002',
+        hazardType: 'FLOOD',
+        districtId: D.GAMPAHA,
+        lat: 7.084,
+        lng: 79.9937,
+        severityIndication: 'MEDIUM',
+        confidence: 'FULL',
+        corroborationCount: 2,
+        decidedAt: new Date('2026-10-08T09:40:00.000Z'),
+        occurredAt: new Date('2026-10-08T09:20:00.000Z'),
+      },
+      {
+        reportId: 'rep-003',
+        hazardType: 'LANDSLIDE',
+        districtId: D.KEGALLE,
+        lat: 7.2513,
+        lng: 80.3464,
+        severityIndication: 'HIGH',
+        confidence: 'REDUCED',
+        corroborationCount: 1,
+        decidedAt: new Date('2026-10-08T09:45:00.000Z'),
+        occurredAt: new Date('2026-10-08T09:30:00.000Z'),
+      },
+    ];
+    if (districtId) {
+      return list.filter((r) => r.districtId === districtId);
+    }
+    return list;
+  }
+}
+
+const g = globalThis as unknown as { uc1Module?: Uc1Module };
+
+export function getUc1Module(): Uc1Module {
+  if (!g.uc1Module) {
+    g.uc1Module = createUc1Module();
+  }
+  return g.uc1Module;
+}
+
