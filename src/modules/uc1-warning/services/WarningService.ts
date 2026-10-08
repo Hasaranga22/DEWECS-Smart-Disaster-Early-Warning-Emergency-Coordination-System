@@ -4,11 +4,9 @@ import type { ChannelGateway } from '../adapters/ChannelGateway';
 import {
   type AlertTarget,
   HazardAlert,
-  type NotificationChannel,
   NotificationAttempt,
   NotFoundError,
   type Severity,
-  ValidationError,
   ZeroRecipientsNotConfirmedError,
 } from '../domain';
 import type { Clock } from '../ports/Clock';

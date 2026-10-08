@@ -34,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}
+      <body className="min-h-full flex flex-col">
         <header className="flex items-center justify-between border-b px-4 py-3">
   <nav className="flex gap-4 text-sm">
     <Link href="/" className="font-semibold">DEWECS</Link>

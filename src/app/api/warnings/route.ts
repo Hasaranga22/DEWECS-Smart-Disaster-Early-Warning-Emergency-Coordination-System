@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getUc1Module } from '@/modules/uc1-warning';
 import { getActor, requireRole } from '@/shared/access';
+import type { HazardType } from '@/shared/domain';
 import { handleApiError } from './errorHandler';
 
 const issueSchema = z.object({
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
 
     const alerts = await uc1.queryService.listAlerts({
       districtId,
-      hazardType: hazardTypeParam ? (hazardTypeParam as any) : undefined,
+      hazardType: hazardTypeParam ? (hazardTypeParam as HazardType) : undefined,
       from: fromParam ? new Date(fromParam) : undefined,
       to: toParam ? new Date(toParam) : undefined,
     });

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ROLE_COOKIE } from '@/shared/access';
 import { D } from '@/shared/seed';
 import { POST as previewHandler } from '@/app/api/warnings/preview/route';
@@ -12,7 +12,7 @@ describe('UC1 API Route Handlers', () => {
     url: string,
     method: string,
     role: string | null = 'DMC_OFFICIAL',
-    body?: any,
+    body?: unknown,
   ): Request {
     const headers = new Headers();
     if (role) {
@@ -119,5 +119,22 @@ describe('UC1 API Route Handlers', () => {
       params: Promise.resolve({ id: issueData.alert.id }),
     });
     expect(escRes.status).toBe(422);
+
+    // List warnings
+    const listReq = makeRequest('http://localhost/api/warnings', 'GET', 'DMC_OFFICIAL');
+    const listRes = await getWarningsHandler(listReq);
+    expect(listRes.status).toBe(200);
+
+    // Cancel warning
+    const cancelReq = makeRequest(
+      `http://localhost/api/warnings/${issueData.alert.id}/cancel`,
+      'POST',
+      'DMC_OFFICIAL',
+      { reason: 'Cyclone moved away from coast' },
+    );
+    const cancelRes = await cancelHandler(cancelReq, {
+      params: Promise.resolve({ id: issueData.alert.id }),
+    });
+    expect(cancelRes.status).toBe(200);
   });
 });
