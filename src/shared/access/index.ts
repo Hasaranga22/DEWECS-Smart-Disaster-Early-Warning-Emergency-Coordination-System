@@ -67,7 +67,13 @@ export async function getActor(request: Request): Promise<Actor> {
 
   // Format 2: bare role name.
   if (isRole(raw)) {
-    return { id: `cookie-${raw.toLowerCase()}`, role: raw }
+    const roleUuids: Record<Role, string> = {
+      DMC_OFFICIAL: '00000000-0000-4000-8000-000000000888',
+      DUTY_OFFICER: '00000000-0000-4000-8000-000000000777',
+      DISTRICT_OFFICER: '00000000-0000-4000-8000-000000000999',
+      CITIZEN: '00000000-0000-4000-8000-000000000555',
+    }
+    return { id: roleUuids[raw] ?? '00000000-0000-4000-8000-000000000888', role: raw }
   }
 
   throw new ForbiddenError('UNKNOWN', 'access this endpoint')

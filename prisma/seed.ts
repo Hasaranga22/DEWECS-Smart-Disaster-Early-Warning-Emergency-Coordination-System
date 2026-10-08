@@ -106,6 +106,42 @@ async function main() {
     },
   });
 
+  const dmcOfficialId = '00000000-0000-4000-8000-000000000888';
+  await prisma.officer.upsert({
+    where: { id: dmcOfficialId },
+    update: {},
+    create: {
+      id: dmcOfficialId,
+      name: 'DMC Official',
+      role: 'DMC_OFFICIAL',
+      districtId: colomboId,
+    },
+  });
+
+  const dutyOfficerId = '00000000-0000-4000-8000-000000000777';
+  await prisma.officer.upsert({
+    where: { id: dutyOfficerId },
+    update: {},
+    create: {
+      id: dutyOfficerId,
+      name: 'Duty Officer',
+      role: 'DUTY_OFFICER',
+      districtId: colomboId,
+    },
+  });
+
+  const fallbackOfficerId = '6b3f23e5-f18b-485f-8ba6-b3147f31fbfa';
+  await prisma.officer.upsert({
+    where: { id: fallbackOfficerId },
+    update: {},
+    create: {
+      id: fallbackOfficerId,
+      name: 'System Analysis Fallback Officer',
+      role: 'DMC_OFFICIAL',
+      districtId: colomboId,
+    },
+  });
+
   // 5. Build & Persist UC3 Seed Entities
   const uc3Seed = buildUc3Seed({
     districtsByName: { Colombo: colomboId, Gampaha: gampahaId },
