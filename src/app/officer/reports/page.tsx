@@ -8,7 +8,7 @@ import {
   Hourglass, X, Crosshair, ImageOff, Check,
 } from "lucide-react";
 import {
-  OfficerReport, HAZARD_META, HAZARD_KEYS, STATUS_META, SEVERITY_META, hazardMeta, parsePhotos, timeAgo,
+  OfficerReport, HAZARD_META, HAZARD_KEYS, statusMeta, SEVERITY_META, hazardMeta, parsePhotos, timeAgo,
 } from "@/modules/uc2-report/client/reportUi";
 
 const DisasterMap = dynamic(() => import("@/modules/uc2-report/client/DisasterMap"), {
@@ -79,7 +79,7 @@ function ReportCard({ report, onVerify, onReject, onBroadcast, onFocus, onPhoto 
 }) {
   const h = hazardMeta(report.hazardType);
   const photos = parsePhotos(report.photo);
-  const status = STATUS_META[report.reviewStatus];
+  const status = statusMeta(report.reviewStatus);
   const isHighVerified = report.reviewStatus === "VERIFIED" && report.severityIndication === "HIGH";
 
   return (

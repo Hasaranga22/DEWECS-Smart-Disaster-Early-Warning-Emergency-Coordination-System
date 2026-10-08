@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { OfficerReport, hazardMeta, STATUS_META, SEVERITY_META } from "./reportUi";
+import { OfficerReport, hazardMeta, statusMeta, SEVERITY_META } from "./reportUi";
 
 interface DisasterMapProps {
   reports: OfficerReport[];
@@ -74,8 +74,8 @@ export default function DisasterMap({ reports, focusedId, onSelect }: DisasterMa
                     <strong className="text-sm text-slate-900">{hazardMeta(r.hazardType).label}</strong>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_META[r.reviewStatus].chip}`}>
-                      {STATUS_META[r.reviewStatus].label}
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusMeta(r.reviewStatus).chip}`}>
+                      {statusMeta(r.reviewStatus).label}
                     </span>
                     {r.severityIndication && (
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${SEVERITY_META[r.severityIndication].chip}`}>

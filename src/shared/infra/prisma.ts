@@ -1,19 +1,27 @@
 import { PrismaClient } from "@/generated/prisma/client";
+import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-
-// Next.js development server clears Node's require cache during Fast Refresh.
-// This causes a new PrismaClient instance to be created every time a file changes,
-// which exhausts the database connection limit very quickly.
-// The solution is to store the instance on the `globalThis` object, which is not cleared.
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  pgPool: Pool | undefined;
 };
+
+// Next.js Fast Refresh will re-run this file, creating a massive connection leak
+// if we don't cache the Pool itself across reloads.
+if (!globalForPrisma.pgPool) {
+  globalForPrisma.pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 10, // Avoid connection exhaustion
+  });
+}
+
+const pool = globalForPrisma.pgPool;
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+    adapter: new PrismaPg(pool),
   });
 
 if (process.env.NODE_ENV !== "production") {
