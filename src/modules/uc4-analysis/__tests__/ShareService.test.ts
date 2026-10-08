@@ -171,6 +171,32 @@ describe('ShareService', () => {
     expect(shareLog.count()).toBe(0)
   })
 
+  it('A07.f: unknown organization → FAILED with organizationName "?"', async () => {
+    const { service, repository, shareLog, audit } = buildService({ rngValues: [] })
+    await repository.save(report)
+
+    const outcomes = await service.share('report-1', ['unknown-org'], actor)
+
+    expect(outcomes).toHaveLength(1)
+    expect(outcomes[0].status).toBe('FAILED')
+    expect(outcomes[0].organizationName).toBe('?')
+    expect(outcomes[0].failureReason).toBe('Unknown')
+    expect(shareLog.count()).toBe(1)
+    expect(audit.shares).toEqual([{ reportId: 'report-1', outcomeCount: 1, actorId: actor.id }])
+  })
+
+  it('A07.g: alternating SENT/FAILED sequence via deterministic RNG', async () => {
+    // RNG sequence: success (>=0.5), fail (<0.5), success, fail, success
+    const { service, repository, shareLog, audit } = buildService({ rngValues: [0.9, 0.1, 0.8, 0.2, 0.6] })
+    await repository.save(report)
+
+    const outcomes = await service.share('report-1', ['org-1', 'org-2', 'org-3'], actor)
+
+    expect(outcomes.map((o) => o.status)).toEqual(['SENT', 'FAILED', 'SENT'])
+    expect(shareLog.count()).toBe(3)
+    expect(audit.shares).toEqual([{ reportId: 'report-1', outcomeCount: 3, actorId: actor.id }])
+  })
+
   it('A07.e: all failures (RNG [0.1, 0.1, 0.1]) → outcomes all FAILED, shareLog.count() === 3', async () => {
     const { service, repository, shareLog, audit } = buildService({
       rngValues: [0.1, 0.1, 0.1],

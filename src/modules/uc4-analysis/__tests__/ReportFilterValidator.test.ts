@@ -91,6 +91,11 @@ describe('ReportFilterValidator', () => {
     ])
   })
 
+  it('collects fields from array-index issues (e.g. invalid enum in includedSections)', () => {
+    // includedSections with invalid enum value triggers array index path
+    expect(fieldsOf(() => validator.validate({ ...baseInput, includedSections: ['ALERTS', 'UNKNOWN'] }))).toEqual(['includedSections'])
+  })
+
   it('reports shape errors for invalid enum / uuid values', () => {
     expect(fieldsOf(() => validator.validate({ ...baseInput, language: 'FR' }))).toEqual(['language'])
     expect(fieldsOf(() => validator.validate({ ...baseInput, hazardType: 'TSUNAMI' }))).toEqual(['hazardType'])

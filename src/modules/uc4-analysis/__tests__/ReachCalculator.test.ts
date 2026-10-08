@@ -36,6 +36,60 @@ describe('ReachCalculator', () => {
     })
   })
 
+  it('A02.f: QUEUED status attempts are counted in attempted but not delivered or failed', () => {
+    const queuedAttempts = [
+      {
+        id: 'q-1',
+        citizenId: 'C001',
+        channel: 'PUSH',
+        deliveryStatus: 'QUEUED',
+        occurredAt: new Date('2026-08-01T06:00:00.000Z'),
+        districtId: 'district-kelani',
+        hazardType: 'FLOOD',
+        alertId: 'alert-001',
+        attemptAt: new Date('2026-08-01T06:01:00.000Z'),
+      },
+      {
+        id: 'q-2',
+        citizenId: 'C001',
+        channel: 'SMS',
+        deliveryStatus: 'QUEUED',
+        occurredAt: new Date('2026-08-01T06:00:00.000Z'),
+        districtId: 'district-kelani',
+        hazardType: 'FLOOD',
+        alertId: 'alert-001',
+        attemptAt: new Date('2026-08-01T06:01:00.000Z'),
+      },
+    ]
+    const metrics = calculator.compute(queuedAttempts)
+
+    // QUEUED counts as attempted but neither delivered nor failed
+    expect(metrics.distinctCitizens).toBe(0)
+    expect(metrics.perChannel.PUSH).toEqual({ attempted: 1, delivered: 0, failed: 0 })
+    expect(metrics.perChannel.SMS).toEqual({ attempted: 1, delivered: 0, failed: 0 })
+  })
+
+  it('A02.g: SENT status attempts are counted in attempted but not delivered or failed', () => {
+    const sentAttempts = [
+      {
+        id: 's-1',
+        citizenId: 'C001',
+        channel: 'PUSH',
+        deliveryStatus: 'SENT',
+        occurredAt: new Date('2026-08-01T06:00:00.000Z'),
+        districtId: 'district-kelani',
+        hazardType: 'FLOOD',
+        alertId: 'alert-001',
+        attemptAt: new Date('2026-08-01T06:01:00.000Z'),
+      },
+    ]
+    const metrics = calculator.compute(sentAttempts)
+
+    // SENT counts as attempted but neither delivered nor failed
+    expect(metrics.distinctCitizens).toBe(0)
+    expect(metrics.perChannel.PUSH).toEqual({ attempted: 1, delivered: 0, failed: 0 })
+  })
+
   it('A02.e: filter only C001\'s two attempts → distinctCitizens === 1 (proves G04 fix)', () => {
     const c001Attempts = fakeAttempts.filter((attempt) => attempt.citizenId === 'C001')
     const metrics = calculator.compute(c001Attempts)
