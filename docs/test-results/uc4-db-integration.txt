@@ -1,0 +1,108 @@
+UC4 Full End-to-End DB Integration Test
+========================================
+generated : 2026-10-08T07:13:04.018Z
+duration  : 117.5s
+clock     : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
+window    : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
+database  : PostgreSQL via Prisma (DATABASE_URL configured, value not shown)
+
+checks    : 56 total, 56 passed, 0 failed, 0 skipped
+
+Section                                                   Total   Pass   Fail   Skip
+------------------------------------------------------------------------------------
+A. DB connection & schema                                     5      5      0      0
+B. ReachCalculator vs DB (A02, BR3, BR4)                      5      5      0      0
+C. AggregationService vs DB (A03, A06, A08)                   4      4      0      0
+D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      5      0      0
+E. PdfExporter from DB snapshots (A11, BR12)                  4      4      0      0
+F. ShareService vs DB (A07, BR8, BR9)                         5      5      0      0
+G. Business rules BR1-BR12                                   12     12      0      0
+H. Role enforcement (ROLE-01/02/03)                           3      3      0      0
+I. API routes (in-process)                                    8      8      0      0
+J. Persistence & raw SQL checks                               5      5      0      0
+------------------------------------------------------------------------------------
+TOTAL                                                        56     56      0      0
+
+rows created by suite : 3167
+rows after cleanup    : 0
+cleanup failures      : none
+
+FINDINGS / DEVIATIONS:
+  1. Clock: the spec example 2026-09-01 is in the past, so the suite uses FIXED_NOW = 2026-11-01T00:00:00.000Z (mode: preferred); expired-clock tests use 2020-01-01T00:00:00.000Z.
+  2. BR1 / ROLE-01..03: role checks live only in the API layer (getActor + requireRole); SnapshotService and ShareService accept any Actor without checking its role.
+  3. Container (src/shared/infra/container.ts) wires EMPTY UC1/UC3 readers, so API-generated reports always carry alerts/reach/shelters/supplies = 0 while reports come from the real UC2 decision reader (42/3/6) — warningFlag stays false.
+  4. Container organizationReader returns null for every id, so API share outcomes are all FAILED with organizationName "?" even for organisations that exist in the DB (rows are still appended).
+  5. ShareService promises "unknown recipient -> FAILED outcome", but report_share.organization_id has a NOT NULL FK to organization.id: under Prisma the save throws (API 500) instead of logging FAILED. Not asserted as expected behaviour.
+  6. BR10 denominator: AggregationService sums supply_stock.on_hand once PER distribution row, so FOOD with two distributions = 5000/20000 = 25 % instead of 50 %; single-distribution types (WATER) are unaffected.
+  7. BR12: includedSections gates PDF rendering only — metrics always compute every section (asserted in G.BR12).
+  8. Supplies denominators read supply_stock.on_hand at aggregation time (stock level), not remaining stock per event.
+  9. DecisionQueryService maps UC2 action CLARIFIED -> PENDING_REVIEW; the seed produces the pending tally through NEEDS_INFO rows.
+  10. Route-level 403/400/404 mappings are exercised in Section I rather than in H, because BR1 is documented as enforced by API requireRole.
+
+LOG TRANSCRIPT:
+========================================================================
+UC4 FULL END-TO-END DB INTEGRATION — SETUP
+clock mode : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
+window     : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
+started    : 2026-10-08T07:11:04.601Z
+========================================================================
+seeded 3135 rows: alerts=3 attempts=2000 groundReports=51 auditEntries=51 occupancyEvents=10 distributions=4
+
+── A. DB connection & schema (5 checks)
+A.5: 3135 seeded rows verified against SEED_SPEC
+
+── B. ReachCalculator vs DB (A02, BR3, BR4) (5 checks)
+B.5: delivered sum 1850 vs distinct 1000 (non-additive)
+
+── C. AggregationService vs DB (A03, A06, A08) (4 checks)
+
+── D. SnapshotService vs DB (A03c, A04-A06, A09) (5 checks)
+D.5: Kegalle scope fully populated, Gampaha scope fully empty
+
+── E. PdfExporter from DB snapshots (A11, BR12) (4 checks)
+
+── F. ShareService vs DB (A07, BR8, BR9) (5 checks)
+
+── G. Business rules BR1-BR12 (12 checks)
+G.BR1: SnapshotService itself performs no role check — enforcement is API-side (deviation listed in findings)
+
+── H. Role enforcement (ROLE-01/02/03) (3 checks)
+
+── I. API routes (in-process) (8 checks)
+I.4: route generated report 4d6c1321-7fef-4478-9b7b-64603c123006
+I.8: container organizationReader is a null stub, so all three outcomes are FAILED (see findings)
+
+── J. Persistence & raw SQL checks (5 checks)
+J.1: 13 reports, 19 share rows created by this suite
+
+rows created 3167, rows remaining after cleanup 0
+cleanup: every suite row removed
+
+Section                                                   Total   Pass   Fail   Skip
+------------------------------------------------------------------------------------
+A. DB connection & schema                                     5      5      0      0
+B. ReachCalculator vs DB (A02, BR3, BR4)                      5      5      0      0
+C. AggregationService vs DB (A03, A06, A08)                   4      4      0      0
+D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      5      0      0
+E. PdfExporter from DB snapshots (A11, BR12)                  4      4      0      0
+F. ShareService vs DB (A07, BR8, BR9)                         5      5      0      0
+G. Business rules BR1-BR12                                   12     12      0      0
+H. Role enforcement (ROLE-01/02/03)                           3      3      0      0
+I. API routes (in-process)                                    8      8      0      0
+J. Persistence & raw SQL checks                               5      5      0      0
+------------------------------------------------------------------------------------
+TOTAL                                                        56     56      0      0
+
+FINDINGS / DEVIATIONS:
+  1. Clock: the spec example 2026-09-01 is in the past, so the suite uses FIXED_NOW = 2026-11-01T00:00:00.000Z (mode: preferred); expired-clock tests use 2020-01-01T00:00:00.000Z.
+  2. BR1 / ROLE-01..03: role checks live only in the API layer (getActor + requireRole); SnapshotService and ShareService accept any Actor without checking its role.
+  3. Container (src/shared/infra/container.ts) wires EMPTY UC1/UC3 readers, so API-generated reports always carry alerts/reach/shelters/supplies = 0 while reports come from the real UC2 decision reader (42/3/6) — warningFlag stays false.
+  4. Container organizationReader returns null for every id, so API share outcomes are all FAILED with organizationName "?" even for organisations that exist in the DB (rows are still appended).
+  5. ShareService promises "unknown recipient -> FAILED outcome", but report_share.organization_id has a NOT NULL FK to organization.id: under Prisma the save throws (API 500) instead of logging FAILED. Not asserted as expected behaviour.
+  6. BR10 denominator: AggregationService sums supply_stock.on_hand once PER distribution row, so FOOD with two distributions = 5000/20000 = 25 % instead of 50 %; single-distribution types (WATER) are unaffected.
+  7. BR12: includedSections gates PDF rendering only — metrics always compute every section (asserted in G.BR12).
+  8. Supplies denominators read supply_stock.on_hand at aggregation time (stock level), not remaining stock per event.
+  9. DecisionQueryService maps UC2 action CLARIFIED -> PENDING_REVIEW; the seed produces the pending tally through NEEDS_INFO rows.
+  10. Route-level 403/400/404 mappings are exercised in Section I rather than in H, because BR1 is documented as enforced by API requireRole.
+
+duration: 117.5s
