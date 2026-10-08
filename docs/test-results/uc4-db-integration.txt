@@ -1,7 +1,7 @@
 UC4 Full End-to-End DB Integration Test
 ========================================
-generated : 2026-10-08T17:15:56.814Z
-duration  : 180.2s
+generated : 2026-10-08T17:57:14.463Z
+duration  : 180.9s
 clock     : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
 window    : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
 database  : PostgreSQL via Prisma (DATABASE_URL configured, value not shown)
@@ -44,7 +44,7 @@ LOG TRANSCRIPT:
 UC4 FULL END-TO-END DB INTEGRATION — SETUP
 clock mode : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
 window     : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
-started    : 2026-10-08T17:12:54.285Z
+started    : 2026-10-08T17:54:10.249Z
 ========================================================================
 seeded 3135 rows: alerts=3 attempts=2000 groundReports=51 auditEntries=51 occupancyEvents=10 distributions=4
 
@@ -69,7 +69,7 @@ G.BR1: SnapshotService itself performs no role check — enforcement is API-side
 ── H. Role enforcement (ROLE-01/02/03) (3 checks)
 
 ── I. API routes (in-process) (8 checks)
-I.4: route generated report 94f70dc4-2a98-413c-a43f-c0a24747f171
+I.4: route generated report b4775e80-aa86-4af9-a9c1-a2719d22bad9
 I.8: container organizationReader is a null stub, so all three outcomes are FAILED (see findings)
 
 ── J. Persistence & raw SQL checks (5 checks)
@@ -105,4 +105,4 @@ FINDINGS / DEVIATIONS:
   9. DecisionQueryService maps UC2 action CLARIFIED -> PENDING_REVIEW; the seed produces the pending tally through NEEDS_INFO rows.
   10. Route-level 403/400/404 mappings are exercised in Section I rather than in H, because BR1 is documented as enforced by API requireRole.
 
-duration: 180.2s
+duration: 180.9s
