@@ -15,7 +15,7 @@ import { EscalateModal } from './components/EscalateModal';
 import { CancelModal } from './components/CancelModal';
 import { computeEffectiveTarget } from './components/TargetPicker';
 
-export function WarningsClient({ actorRole }: WarningsClientProps) {
+export function WarningsClient({ actorRole, actorDistrictId }: WarningsClientProps) {
   const isDmcOfficial = actorRole === 'DMC_OFFICIAL';
 
   const [activeTab, setActiveTab] = useState<'composer' | 'active'>(isDmcOfficial ? 'composer' : 'active');
@@ -224,11 +224,14 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
           {step === 3 && dispatchResult && (
             <ResultStep
               dispatchResult={dispatchResult}
+              actorRole={actorRole}
+              actorDistrictId={actorDistrictId}
               onRetry={handleRetry}
               onResetToActiveList={handleResetWorkflow}
               loading={loading}
             />
           )}
+
         </div>
       )}
 

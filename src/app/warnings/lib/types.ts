@@ -4,7 +4,9 @@ import type { Severity } from './constants';
 export interface WarningsClientProps {
   actorRole: Role;
   actorUserId: string;
+  actorDistrictId?: string;
 }
+
 
 export interface EvidenceItem {
   reportId: string;

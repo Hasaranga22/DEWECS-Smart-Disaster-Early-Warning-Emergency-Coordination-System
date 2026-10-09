@@ -308,4 +308,50 @@ describe('UC1 API Routes', () => {
     expect(found).toBeDefined();
     expect(found.title).toBe('Kelani Ganga Basin Flash Flood Alert');
   });
+
+  it('GET /api/warnings/[id]: strips attempts and metrics for CITIZEN role, returns public fields only', async () => {
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'WARNING',
+        message: 'Severe flood in Colombo',
+        target: { districtIds: [D.COLOMBO] },
+      }),
+    });
+    const issueRes = await issueRoute(issueReq);
+    const created = await issueRes.json();
+
+    // Officer request returns attempts and counts
+    const officerGetReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}`, {
+      headers: { cookie: dmcCookie },
+    });
+    const officerRes = await getAlertRoute(officerGetReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(officerRes.status).toBe(200);
+    const officerData = await officerRes.json();
+    expect(officerData.attempts).toBeDefined();
+    expect(officerData.distinctCitizensReached).toBeDefined();
+
+    // Citizen request returns ONLY alert public fields
+    const citizenGetReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}`, {
+      headers: { cookie: citizenCookie },
+    });
+    const citizenRes = await getAlertRoute(citizenGetReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(citizenRes.status).toBe(200);
+    const citizenData = await citizenRes.json();
+    expect(citizenData.alert).toBeDefined();
+    expect(citizenData.alert.hazardType).toBe('FLOOD');
+    expect(citizenData.alert.severity).toBe('WARNING');
+    expect(citizenData.alert.message).toBe('Severe flood in Colombo');
+    expect(citizenData.attempts).toBeUndefined();
+    expect(citizenData.distinctCitizensReached).toBeUndefined();
+    expect(citizenData.totalAttempts).toBeUndefined();
+    expect(citizenData.channelSummary).toBeUndefined();
+  });
 });
+

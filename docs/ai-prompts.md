@@ -105,4 +105,32 @@
 - **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (67/67 tests passing).
 - Committed as `uc1: split warnings client into components, show citizen names`.
 
+## Prompt 9: UC1 Delivery Results by District & Collapsed Attempts Log (Privacy Enhancements)
+- **Prompt:**
+  1. Replace per-citizen attempt log as default view in delivery outcome step with a District Summary Table:
+     - One row per targeted district using district names: Targeted citizens, Reached (distinct citizens with ≥1 DELIVERED attempt), SMS delivered, SMS failed, Push delivered, Push failed, Not reached, and small progress bar for reached/targeted.
+     - Total row at bottom matching the "Distinct citizens reached" stat card exactly.
+     - District Officers see only their assigned district's row.
+  2. Add "Needs follow-up" panel:
+     - Citizens with NO delivered attempt on any channel, grouped by district, showing short ID (`...[shortId]`) and failure reason (no citizen names, phone numbers, or push tokens).
+     - Displays "All targeted citizens were reached" if every citizen was reached.
+  3. Full notification attempts log collapsed by default behind "View full attempt log (N attempts)" button:
+     - Grouped by district in expandable sections, displaying short IDs (`...[shortId]`), channel, kind, status badge, failure note.
+     - Only rendered for `DMC_OFFICIAL` and `DUTY_OFFICER`.
+     - No 36-character UUIDs displayed anywhere.
+  4. Privacy check: `GET /api/warnings/[id]` strips attempts, distinctCitizensReached, totalAttempts, and channelSummary when actor role is `CITIZEN` (public alert fields only). Added test in `ApiRoutes.test.ts`. Citizen receipt page does not count or list other citizens.
+- **Files Changed:**
+  - `src/app/api/warnings/[id]/route.ts` (privacy strip for CITIZEN role)
+  - `src/modules/uc1-warning/__tests__/ApiRoutes.test.ts` (added unit test for citizen privacy)
+  - `src/app/warnings/components/DistrictSummaryTable.tsx` (new: district summary table with progress bars & total row)
+  - `src/app/warnings/components/NeedsFollowUpPanel.tsx` (new: unreached citizens panel grouped by district)
+  - `src/app/warnings/components/AttemptsTable.tsx` (collapsed full log, expandable by district, short IDs, role restricted)
+  - `src/app/warnings/components/ResultStep.tsx` (integrated summary table, follow-up panel, and attempts log)
+  - `src/app/warnings/WarningsClient.tsx` (passed actorRole and actorDistrictId to ResultStep)
+  - `src/app/warnings/lib/types.ts` (added actorDistrictId to WarningsClientProps)
+  - `src/app/warnings/page.tsx` (passed actor.districtId to WarningsClient)
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (68/68 tests passing).
+- Committed as `uc1: group delivery results by district, collapse attempt log`.
+
+
 

@@ -19,6 +19,33 @@ export async function GET(
       return NextResponse.json({ error: `Alert with ID ${id} not found` }, { status: 404 });
     }
 
+    const alertPayload = {
+      id: alert.id,
+      title: alert.title ?? null,
+      hazardType: alert.hazardType,
+      severity: alert.severity,
+      status: alert.status,
+      message: alert.message,
+      target: alert.target,
+      issuedBy: alert.issuedBy,
+      occurredAt: alert.occurredAt.toISOString(),
+      expiresAt: alert.expiresAt?.toISOString() ?? null,
+      cancelledAt: alert.cancelledAt?.toISOString() ?? null,
+      cancellationReason: alert.cancellationReason,
+      escalations: alert.escalations.map((e) => ({
+        id: e.id,
+        fromSeverity: e.fromSeverity,
+        toSeverity: e.toSeverity,
+        occurredAt: e.occurredAt.toISOString(),
+        byOfficerId: e.byOfficerId,
+        reason: e.reason,
+      })),
+    };
+
+    if (actor.role === 'CITIZEN') {
+      return NextResponse.json({ alert: alertPayload });
+    }
+
     const attempts = await uc1.alertRepo.findAttemptsByAlertId(id);
 
     const smsAttempts = attempts.filter((a) => a.channel === 'SMS');
@@ -28,28 +55,8 @@ export async function GET(
     );
 
     return NextResponse.json({
-      alert: {
-        id: alert.id,
-        title: alert.title ?? null,
-        hazardType: alert.hazardType,
-        severity: alert.severity,
-        status: alert.status,
-        message: alert.message,
-        target: alert.target,
-        issuedBy: alert.issuedBy,
-        occurredAt: alert.occurredAt.toISOString(),
-        expiresAt: alert.expiresAt?.toISOString() ?? null,
-        cancelledAt: alert.cancelledAt?.toISOString() ?? null,
-        cancellationReason: alert.cancellationReason,
-        escalations: alert.escalations.map((e) => ({
-          id: e.id,
-          fromSeverity: e.fromSeverity,
-          toSeverity: e.toSeverity,
-          occurredAt: e.occurredAt.toISOString(),
-          byOfficerId: e.byOfficerId,
-          reason: e.reason,
-        })),
-      },
+      alert: alertPayload,
+
       distinctCitizensReached: deliveredCitizenIds.size,
       totalAttempts: attempts.length,
       channelSummary: {

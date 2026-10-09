@@ -1,10 +1,15 @@
 import React from 'react';
 import Link from 'next/link';
 import type { DispatchResultData } from '../lib/types';
+import type { Role } from '@/shared/domain';
+import { DistrictSummaryTable } from './DistrictSummaryTable';
+import { NeedsFollowUpPanel } from './NeedsFollowUpPanel';
 import { AttemptsTable } from './AttemptsTable';
 
 interface ResultStepProps {
   dispatchResult: DispatchResultData;
+  actorRole?: Role;
+  actorDistrictId?: string;
   onRetry: (alertId: string) => void;
   onResetToActiveList: () => void;
   loading: boolean;
@@ -12,6 +17,8 @@ interface ResultStepProps {
 
 export function ResultStep({
   dispatchResult,
+  actorRole,
+  actorDistrictId,
   onRetry,
   onResetToActiveList,
   loading,
@@ -20,6 +27,8 @@ export function ResultStep({
     dispatchResult.channelSummary.sms.delivered + dispatchResult.channelSummary.push.delivered;
   const failedTotal =
     dispatchResult.channelSummary.sms.failed + dispatchResult.channelSummary.push.failed;
+
+  const attempts = dispatchResult.attempts || [];
 
   return (
     <div className="space-y-6 rounded-xl border-2 border-slate-200 bg-white p-6 shadow-sm w-full">
@@ -34,7 +43,7 @@ export function ResultStep({
             )}
             <p className="mt-1 text-sm font-medium">
               Active alert registered (ID:{' '}
-              <span className="font-mono font-bold">{dispatchResult.alert.id}</span>).
+              <span className="font-mono font-bold">...{dispatchResult.alert.id.slice(-6)}</span>).
               Saved to database before gateway dispatch.
             </p>
           </div>
@@ -85,9 +94,29 @@ export function ResultStep({
         </div>
       </div>
 
-      {/* Attempts Table */}
-      {dispatchResult.attempts && dispatchResult.attempts.length > 0 && (
-        <AttemptsTable attempts={dispatchResult.attempts} />
+      {/* Needs follow-up panel */}
+      {attempts.length > 0 && (
+        <NeedsFollowUpPanel
+          attempts={attempts}
+          actorRole={actorRole}
+          actorDistrictId={actorDistrictId}
+        />
+      )}
+
+      {/* District Summary Table */}
+      {attempts.length > 0 && (
+        <DistrictSummaryTable
+          attempts={attempts}
+          target={dispatchResult.alert.target}
+          distinctCitizensReached={dispatchResult.distinctCitizensReached}
+          actorRole={actorRole}
+          actorDistrictId={actorDistrictId}
+        />
+      )}
+
+      {/* Full Attempts Log (collapsed by default, DMC_OFFICIAL and DUTY_OFFICER only) */}
+      {attempts.length > 0 && (
+        <AttemptsTable attempts={attempts} actorRole={actorRole} />
       )}
 
       {/* Actions */}
