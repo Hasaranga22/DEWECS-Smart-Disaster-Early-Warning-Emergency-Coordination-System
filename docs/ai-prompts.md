@@ -37,7 +37,7 @@
 > Great work. Proceed with API routes (step 11) and UI (step 12...").
 
 **Checked / Actions Planned:**
-- Implementing Step 11: Next.js App Router API endpoints in `src/app/api/warnings/**`:
+- Implemented Step 11: Next.js App Router API endpoints in `src/app/api/warnings/**`:
   - `POST /api/warnings/preview`
   - `POST /api/warnings`
   - `GET /api/warnings`
@@ -45,6 +45,12 @@
   - `POST /api/warnings/[id]/escalate`
   - `POST /api/warnings/[id]/cancel`
   - `POST /api/warnings/[id]/retry`
-- Using Zod validation, `getActor(request)` and `requireRole()` role enforcement, single service method delegation, and standardized HTTP error code mapping (400, 403, 404, 409, 422, 503).
-- Creating API route tests verifying error mappings and authorization.
-- Implementing Step 12: Next.js UI pages in `src/app/warnings/` (Composer, Preview, Delivery Result, Active Alerts List with inline escalate/cancel reasons) and `src/app/alerts/[id]` (citizen alert receipt at phone width with device-side alarm audio and actions).
+  - `GET /api/warnings/evidence`
+- Enforced role checks with `getActor` and `requireRole`.
+- Verified domain error mapping to HTTP 400, 403, 404, 422, 503 via 11 API route tests.
+- Implemented Step 12: Next.js App Router UI pages:
+  - `/warnings`: Composer (with read-only verified ground evidence panel), Preview (labelled "estimated recipients", distinct citizens, zero-recipient confirmation), Result (confirmed delivered/failed per channel, distinct citizens reached, retry failed attempts), and Active Alerts list (inline escalate/cancel with validation reasons).
+  - `/alerts/[id]`: Phone-width citizen alert receipt (`max-w-md`) with simulated Web Audio device alarm, delivery receipt state, action checklist, and escalation history.
+- Implemented Step 13: `PrismaAlertRepository` and mappers in `adapters/prisma/`, supporting `DATA_STORE=memory|prisma`.
+- Verified `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx prisma validate` (valid), and `npx vitest run --coverage` (62 tests passing, 89.44% statement coverage).
+- Committed with message `uc1: add UI screens, evidence panel, audio alarm simulation and Prisma adapter`.
