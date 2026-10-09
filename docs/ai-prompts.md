@@ -95,4 +95,14 @@
 - **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (67/67 tests passing), `npx prisma validate` (valid schema).
 - Committed as `uc1: more districts, basins, search and custom title`.
 
+## Prompt 8: UC1 WarningsClient Component Splitting & Citizen Names Display
+- **Prompt:**
+  1. Split `src/app/warnings/WarningsClient.tsx` into small focused client components in `src/app/warnings/components/` and lib modules in `src/app/warnings/lib/` (target under 250 lines per file, typed props, no `any`).
+  2. Components created/extracted: `WarningsHeader.tsx`, `KpiStrip.tsx`, `Stepper.tsx`, `ComposerStep.tsx`, `TargetPicker.tsx`, `EvidencePanel.tsx`, `PreviewStep.tsx`, `ResultStep.tsx`, `AttemptsTable.tsx`, `ActiveAlertsGrid.tsx`, `AlertCard.tsx`, `EscalateModal.tsx`, `CancelModal.tsx`, and `components/ui.tsx`.
+  3. Shared helpers and types placed in `src/app/warnings/lib/` (`helpers.ts`, `constants.ts`, `types.ts`).
+  4. Show citizen's NAME (looked up from seed citizens by ID) as the main text in `AttemptsTable`, with the last 6 characters of ID in smaller grey text underneath (`...[shortId]`), falling back to short ID if not found.
+  5. Split `src/app/alerts/[id]/AlertDetailClient.tsx` into small components under `src/app/alerts/[id]/components/` (`EmergencyHeader.tsx`, `ActionChecklist.tsx`, `HotlinesBar.tsx`) keeping each file well under 250 lines.
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (67/67 tests passing).
+- Committed as `uc1: split warnings client into components, show citizen names`.
+
 
