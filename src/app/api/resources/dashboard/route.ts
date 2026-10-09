@@ -11,7 +11,7 @@ const querySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const actor = await getActor(request);
-    requireRole(actor, ["DISTRICT_OFFICER"]);
+    requireRole(actor, ["DISTRICT_OFFICER", "DMC_OFFICIAL", "DUTY_OFFICER"]);
 
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
     const { districtId } = querySchema.parse(searchParams);
