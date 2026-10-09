@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getUc1Module } from '@/modules/uc1-warning/container';
 import { getActor, requireRole } from '@/shared/access';
-import { D, RIVER_BASINS } from '@/shared/seed';
 import { handleApiError } from '../errorHandler';
+import { isAlertTargetingDistrict, resolveOfficerDistrict, summarizeAttempts } from '../targetHelper';
 
 export async function GET(
   request: Request,
@@ -52,22 +52,9 @@ export async function GET(
     let scopedAttempts = attempts;
 
     if (actor.role === 'DISTRICT_OFFICER') {
-      const officerDistrict = request.headers.get('x-district-id') || actor.districtId || D.COLOMBO;
+      const officerDistrict = resolveOfficerDistrict(request, actor);
 
-      const targetDistricts = new Set<string>();
-      if (alert.target.districtIds) {
-        for (const d of alert.target.districtIds) targetDistricts.add(d);
-      }
-      if (alert.target.basinId) {
-        const basin = RIVER_BASINS.find((b) => b.id === alert.target.basinId);
-        if (basin) {
-          for (const d of basin.districtIds) targetDistricts.add(d);
-        }
-      }
-
-      const isTargeted =
-        targetDistricts.has(officerDistrict) ||
-        attempts.some((a) => a.districtId === officerDistrict);
+      const isTargeted = isAlertTargetingDistrict(alert, officerDistrict, attempts);
 
       if (!isTargeted) {
         return NextResponse.json(
@@ -79,30 +66,13 @@ export async function GET(
       scopedAttempts = attempts.filter((a) => a.districtId === officerDistrict);
     }
 
-    const smsAttempts = scopedAttempts.filter((a) => a.channel === 'SMS');
-    const pushAttempts = scopedAttempts.filter((a) => a.channel === 'PUSH');
-    const deliveredCitizenIds = new Set(
-      scopedAttempts.filter((a) => a.status === 'DELIVERED').map((a) => a.citizenId),
-    );
+    const { totalAttempts, distinctCitizensReached, channelSummary } = summarizeAttempts(scopedAttempts);
 
     return NextResponse.json({
       alert: alertPayload,
-
-
-      distinctCitizensReached: deliveredCitizenIds.size,
-      totalAttempts: scopedAttempts.length,
-      channelSummary: {
-        sms: {
-          sent: smsAttempts.length,
-          delivered: smsAttempts.filter((a) => a.status === 'DELIVERED').length,
-          failed: smsAttempts.filter((a) => a.status === 'FAILED').length,
-        },
-        push: {
-          sent: pushAttempts.length,
-          delivered: pushAttempts.filter((a) => a.status === 'DELIVERED').length,
-          failed: pushAttempts.filter((a) => a.status === 'FAILED').length,
-        },
-      },
+      distinctCitizensReached,
+      totalAttempts,
+      channelSummary,
       attempts: scopedAttempts.map((a) => ({
         id: a.id,
         alertId: a.alertId,

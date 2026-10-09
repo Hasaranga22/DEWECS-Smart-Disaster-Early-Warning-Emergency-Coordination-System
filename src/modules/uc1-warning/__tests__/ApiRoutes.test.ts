@@ -6,7 +6,7 @@ import { GET as getAlertRoute } from '@/app/api/warnings/[id]/route';
 import { POST as previewRoute } from '@/app/api/warnings/preview/route';
 import { GET as getWarningsRoute, POST as issueRoute } from '@/app/api/warnings/route';
 import { resetUc1ModuleForTesting } from '@/modules/uc1-warning/container';
-import { D } from '@/shared/seed';
+import { D, KELANI_BASIN_ID } from '@/shared/seed';
 
 describe('UC1 API Routes', () => {
   beforeEach(() => {
@@ -436,6 +436,141 @@ describe('UC1 API Routes', () => {
     const errData = await officerRes.json();
     expect(errData.error).toContain('Access denied');
   });
+
+  it('GET /api/warnings: Colombo District Officer sees only Colombo-targeting alerts out of a mixed set, DMC sees all, Citizen gets 403', async () => {
+    // 1. Alert targeting Colombo directly
+    const colomboAlertRes = await issueRoute(
+      new Request('http://localhost:3000/api/warnings', {
+        method: 'POST',
+        headers: { cookie: dmcCookie },
+        body: JSON.stringify({
+          hazardType: 'FLOOD',
+          severity: 'WARNING',
+          message: 'Colombo urban flooding',
+          target: { districtIds: [D.COLOMBO] },
+        }),
+      }),
+    );
+    expect(colomboAlertRes.status).toBe(201);
+    const colomboAlert = await colomboAlertRes.json();
+
+    // 2. Alert targeting Gampaha only
+    const gampahaAlertRes = await issueRoute(
+      new Request('http://localhost:3000/api/warnings', {
+        method: 'POST',
+        headers: { cookie: dmcCookie },
+        body: JSON.stringify({
+          hazardType: 'LANDSLIDE',
+          severity: 'WATCH',
+          message: 'Gampaha landslide watch',
+          target: { districtIds: [D.GAMPAHA] },
+        }),
+      }),
+    );
+    expect(gampahaAlertRes.status).toBe(201);
+    const gampahaAlert = await gampahaAlertRes.json();
+
+    // 3. Alert targeting Kelani Basin (spans Colombo, Gampaha, Kegalle)
+    const basinAlertRes = await issueRoute(
+      new Request('http://localhost:3000/api/warnings', {
+        method: 'POST',
+        headers: { cookie: dmcCookie },
+        body: JSON.stringify({
+          hazardType: 'FLOOD',
+          severity: 'EMERGENCY',
+          message: 'Kelani river basin major flood',
+          target: { basinId: KELANI_BASIN_ID },
+        }),
+      }),
+    );
+    expect(basinAlertRes.status).toBe(201);
+    const basinAlert = await basinAlertRes.json();
+
+    // 4. Alert targeting Galle initially, then escalated with expandDistrictIds to Colombo
+    const galleAlertRes = await issueRoute(
+      new Request('http://localhost:3000/api/warnings', {
+        method: 'POST',
+        headers: { cookie: dmcCookie },
+        body: JSON.stringify({
+          hazardType: 'CYCLONE',
+          severity: 'WATCH',
+          message: 'Southern coast cyclone alert',
+          target: { districtIds: [D.GALLE] },
+        }),
+      }),
+    );
+    expect(galleAlertRes.status).toBe(201);
+    const galleAlert = await galleAlertRes.json();
+
+    const escalateRes = await escalateRoute(
+      new Request(`http://localhost:3000/api/warnings/${galleAlert.alert.id}/escalate`, {
+        method: 'POST',
+        headers: { cookie: dmcCookie },
+        body: JSON.stringify({
+          newSeverity: 'WARNING',
+          reason: 'Storm path expanded to Colombo',
+          expandDistrictIds: [D.COLOMBO],
+        }),
+      }),
+      { params: Promise.resolve({ id: galleAlert.alert.id }) },
+    );
+    expect(escalateRes.status).toBe(200);
+
+    // 5. DMC Official sees all alerts
+    const dmcListRes = await getWarningsRoute(
+      new Request('http://localhost:3000/api/warnings', {
+        headers: { cookie: dmcCookie },
+      }),
+    );
+    expect(dmcListRes.status).toBe(200);
+    const dmcListData = await dmcListRes.json();
+    const dmcIds = new Set(dmcListData.map((a: { id: string }) => a.id));
+    expect(dmcIds.has(colomboAlert.alert.id)).toBe(true);
+    expect(dmcIds.has(gampahaAlert.alert.id)).toBe(true);
+    expect(dmcIds.has(basinAlert.alert.id)).toBe(true);
+    expect(dmcIds.has(galleAlert.alert.id)).toBe(true);
+
+    // 6. Colombo District Officer sees only Colombo-targeting alerts
+    const officerListRes = await getWarningsRoute(
+      new Request('http://localhost:3000/api/warnings', {
+        headers: { cookie: 'dewecs_role=DISTRICT_OFFICER' },
+      }),
+    );
+    expect(officerListRes.status).toBe(200);
+    const officerListData = await officerListRes.json();
+    const officerIds = new Set(officerListData.map((a: { id: string }) => a.id));
+
+    // Direct Colombo -> seen
+    expect(officerIds.has(colomboAlert.alert.id)).toBe(true);
+    // Kelani Basin (spans Colombo) -> seen
+    expect(officerIds.has(basinAlert.alert.id)).toBe(true);
+    // Galle alert escalated to Colombo -> seen
+    expect(officerIds.has(galleAlert.alert.id)).toBe(true);
+    // Gampaha-only alert -> NOT seen
+    expect(officerIds.has(gampahaAlert.alert.id)).toBe(false);
+
+    // Check that attempt counts and channel summaries in list payload are scoped to Colombo
+    const officerColomboItem = officerListData.find((a: { id: string }) => a.id === colomboAlert.alert.id);
+    expect(officerColomboItem).toBeDefined();
+    expect(officerColomboItem.totalAttempts).toBeGreaterThan(0);
+    expect(officerColomboItem.channelSummary).toBeDefined();
+
+    // For basin alert (which targeted multiple districts), officer only gets Colombo scoped attempts
+    const officerBasinItem = officerListData.find((a: { id: string }) => a.id === basinAlert.alert.id);
+    const dmcBasinItem = dmcListData.find((a: { id: string }) => a.id === basinAlert.alert.id);
+    expect(officerBasinItem).toBeDefined();
+    expect(dmcBasinItem).toBeDefined();
+    expect(officerBasinItem.totalAttempts).toBeLessThan(dmcBasinItem.totalAttempts);
+
+    // 7. Citizen gets 403 on the list
+    const citizenListRes = await getWarningsRoute(
+      new Request('http://localhost:3000/api/warnings', {
+        headers: { cookie: citizenCookie },
+      }),
+    );
+    expect(citizenListRes.status).toBe(403);
+  });
 });
+
 
 

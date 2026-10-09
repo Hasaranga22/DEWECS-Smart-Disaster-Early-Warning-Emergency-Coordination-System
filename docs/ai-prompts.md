@@ -171,8 +171,21 @@
 - **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (70/70 tests passing).
 - Committed as `uc1: show invalid-action reasons, full expiry dates, light receipt background`.
 
-
-
-
-
-
+## Prompt 13: Scope District Officer Alert List Server-Side in GET /api/warnings
+- **Prompt:**
+  1. In `GET /api/warnings` (the list route), scope alerts server-side:
+     - `DMC_OFFICIAL` and `DUTY_OFFICER` receive all alerts.
+     - `DISTRICT_OFFICER` receives only alerts that target their assigned district (directly, via a river basin that spans it, or via an escalation expansion).
+     - Resolves the District Officer's district using `x-district-id` header override, `actor.districtId`, or fallback to `D.COLOMBO`.
+  2. Created a shared helper `src/app/api/warnings/targetHelper.ts` containing `resolveOfficerDistrict`, `isAlertTargetingDistrict`, and `summarizeAttempts` to eliminate duplicated logic between `GET /api/warnings` and `GET /api/warnings/[id]`.
+  3. Scoped attempt counts (`totalAttempts`, `attemptsCount`, `distinctCitizensReached`) and channel summaries (`channelSummary.sms`, `channelSummary.push`) in the list payload to the officer's district when requested by a `DISTRICT_OFFICER`.
+  4. Preserved HTTP 403 Forbidden for the `CITIZEN` role on `GET /api/warnings`.
+  5. Added comprehensive test in `src/modules/uc1-warning/__tests__/ApiRoutes.test.ts` verifying Colombo District Officer sees only Colombo-targeting alerts out of a mixed set, DMC sees all, and Citizen receives 403.
+- **Files Changed:**
+  - `src/app/api/warnings/targetHelper.ts`
+  - `src/app/api/warnings/route.ts`
+  - `src/app/api/warnings/[id]/route.ts`
+  - `src/modules/uc1-warning/__tests__/ApiRoutes.test.ts`
+  - `docs/ai-prompts.md`
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (71/71 tests passing).
+- Committed as `uc1: scope district officer alert list server-side`.

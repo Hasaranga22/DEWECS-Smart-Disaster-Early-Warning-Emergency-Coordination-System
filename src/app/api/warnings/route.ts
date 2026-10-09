@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getUc1Module } from '@/modules/uc1-warning/container';
 import { getActor, requireRole } from '@/shared/access';
 import { handleApiError } from './errorHandler';
+import { isAlertTargetingDistrict, resolveOfficerDistrict, summarizeAttempts } from './targetHelper';
 
 const issueSchema = z
   .object({
@@ -104,8 +105,27 @@ export async function GET(request: Request) {
       hazardType: hazardTypeParam ? (hazardTypeParam as import('@/shared/domain').HazardType) : undefined,
     });
 
-    return NextResponse.json(
-      alerts.map((a) => ({
+    const isDistrictOfficer = actor.role === 'DISTRICT_OFFICER';
+    const officerDistrict = isDistrictOfficer ? resolveOfficerDistrict(request, actor) : undefined;
+
+    const enrichedAlerts = [];
+
+    for (const a of alerts) {
+      const attempts = await uc1.alertRepo.findAttemptsByAlertId(a.id);
+
+      if (isDistrictOfficer) {
+        if (!isAlertTargetingDistrict(a, officerDistrict!, attempts)) {
+          continue;
+        }
+      }
+
+      const scopedAttempts = isDistrictOfficer
+        ? attempts.filter((att) => att.districtId === officerDistrict)
+        : attempts;
+
+      const { totalAttempts, distinctCitizensReached, channelSummary } = summarizeAttempts(scopedAttempts);
+
+      enrichedAlerts.push({
         id: a.id,
         title: a.title ?? null,
         hazardType: a.hazardType,
@@ -126,8 +146,14 @@ export async function GET(request: Request) {
           byOfficerId: e.byOfficerId,
           reason: e.reason,
         })),
-      })),
-    );
+        totalAttempts,
+        attemptsCount: totalAttempts,
+        distinctCitizensReached,
+        channelSummary,
+      });
+    }
+
+    return NextResponse.json(enrichedAlerts);
   } catch (err: unknown) {
     return handleApiError(err);
   }
