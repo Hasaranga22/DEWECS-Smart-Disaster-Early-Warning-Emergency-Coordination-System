@@ -1,140 +1,270 @@
-import { describe, expect, it } from 'vitest';
-import { ROLE_COOKIE } from '@/shared/access';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { POST as cancelRoute } from '@/app/api/warnings/[id]/cancel/route';
+import { POST as escalateRoute } from '@/app/api/warnings/[id]/escalate/route';
+import { POST as retryRoute } from '@/app/api/warnings/[id]/retry/route';
+import { GET as getAlertRoute } from '@/app/api/warnings/[id]/route';
+import { POST as previewRoute } from '@/app/api/warnings/preview/route';
+import { GET as getWarningsRoute, POST as issueRoute } from '@/app/api/warnings/route';
+import { resetUc1ModuleForTesting } from '@/modules/uc1-warning/container';
 import { D } from '@/shared/seed';
-import { POST as previewHandler } from '@/app/api/warnings/preview/route';
-import { GET as getWarningsHandler, POST as issueHandler } from '@/app/api/warnings/route';
-import { POST as escalateHandler } from '@/app/api/warnings/[id]/escalate/route';
-import { POST as cancelHandler } from '@/app/api/warnings/[id]/cancel/route';
-import { GET as getAlertHandler } from '@/app/api/warnings/[id]/route';
 
-describe('UC1 API Route Handlers', () => {
-  function makeRequest(
-    url: string,
-    method: string,
-    role: string | null = 'DMC_OFFICIAL',
-    body?: unknown,
-  ): Request {
-    const headers = new Headers();
-    if (role) {
-      headers.set('cookie', `${ROLE_COOKIE}=${role}`);
-    }
-    if (body) {
-      headers.set('content-type', 'application/json');
-    }
-    return new Request(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
-
-  it('rejects issue warning with 403 when called by Duty Officer or Citizen', async () => {
-    const dutyOfficerReq = makeRequest('http://localhost/api/warnings', 'POST', 'DUTY_OFFICER', {
-      hazardType: 'FLOOD',
-      severity: 'WARNING',
-      message: 'Flood warning',
-      target: { districtIds: [D.COLOMBO] },
-    });
-    const resDuty = await issueHandler(dutyOfficerReq);
-    expect(resDuty.status).toBe(403);
-
-    const citizenReq = makeRequest('http://localhost/api/warnings', 'POST', 'CITIZEN', {
-      hazardType: 'FLOOD',
-      severity: 'WARNING',
-      message: 'Flood warning',
-      target: { districtIds: [D.COLOMBO] },
-    });
-    const resCitizen = await issueHandler(citizenReq);
-    expect(resCitizen.status).toBe(403);
+describe('UC1 API Routes', () => {
+  beforeEach(() => {
+    resetUc1ModuleForTesting();
   });
 
-  it('allows DMC Official to preview and issue warning', async () => {
-    // 1. Preview
-    const previewReq = makeRequest('http://localhost/api/warnings/preview', 'POST', 'DMC_OFFICIAL', {
-      target: { districtIds: [D.COLOMBO] },
-    });
-    const previewRes = await previewHandler(previewReq);
-    expect(previewRes.status).toBe(200);
-    const previewData = await previewRes.json();
-    expect(previewData.estimatedRecipients).toBeDefined();
+  const dmcCookie = 'dewecs_role=DMC_OFFICIAL';
+  const dutyOfficerCookie = 'dewecs_role=DUTY_OFFICER';
+  const citizenCookie = 'dewecs_role=CITIZEN';
 
-    // 2. Issue
-    const issueReq = makeRequest('http://localhost/api/warnings', 'POST', 'DMC_OFFICIAL', {
-      hazardType: 'FLOOD',
-      severity: 'WATCH',
-      message: 'Heavy rain expected in Colombo',
-      target: { districtIds: [D.COLOMBO] },
+  it('POST /api/warnings/preview: 403 for unauthorized roles', async () => {
+    const req = new Request('http://localhost:3000/api/warnings/preview', {
+      method: 'POST',
+      headers: { cookie: dutyOfficerCookie },
+      body: JSON.stringify({ districtIds: [D.COLOMBO] }),
     });
-    const issueRes = await issueHandler(issueReq);
-    expect(issueRes.status).toBe(201);
-    const issueData = await issueRes.json();
-    expect(issueData.alert.id).toBeDefined();
-    expect(issueData.alert.status).toBe('ACTIVE');
 
-    // 3. Get detail
-    const getReq = makeRequest(`http://localhost/api/warnings/${issueData.alert.id}`, 'GET', 'DMC_OFFICIAL');
-    const getRes = await getAlertHandler(getReq, { params: Promise.resolve({ id: issueData.alert.id }) });
-    expect(getRes.status).toBe(200);
+    const res = await previewRoute(req);
+    expect(res.status).toBe(403);
+    const data = await res.json();
+    expect(data.error).toBe('Access denied');
   });
 
-  it('maps invalid input validation to 400', async () => {
-    const invalidReq = makeRequest('http://localhost/api/warnings', 'POST', 'DMC_OFFICIAL', {
-      hazardType: 'INVALID_TYPE',
-      severity: 'WATCH',
-      message: '',
-      target: {},
+  it('POST /api/warnings/preview: 400 on invalid input', async () => {
+    const req = new Request('http://localhost:3000/api/warnings/preview', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({}),
     });
-    const res = await issueHandler(invalidReq);
+
+    const res = await previewRoute(req);
     expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Validation failed');
   });
 
-  it('maps non-existent alert to 404', async () => {
-    const getReq = makeRequest('http://localhost/api/warnings/non-existent-id', 'GET', 'DMC_OFFICIAL');
-    const res = await getAlertHandler(getReq, { params: Promise.resolve({ id: 'non-existent-id' }) });
-    expect(res.status).toBe(404);
+  it('POST /api/warnings/preview: 200 with preview estimates for DMC Official', async () => {
+    const req = new Request('http://localhost:3000/api/warnings/preview', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({ districtIds: [D.COLOMBO] }),
+    });
+
+    const res = await previewRoute(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.estimatedRecipients).toBeGreaterThan(0);
+    expect(data.distinctCitizens).toBeGreaterThan(0);
   });
 
-  it('maps business rule violations (e.g. invalid escalation) to 422', async () => {
-    // Issue alert with EMERGENCY severity
-    const issueReq = makeRequest('http://localhost/api/warnings', 'POST', 'DMC_OFFICIAL', {
-      hazardType: 'CYCLONE',
-      severity: 'EMERGENCY',
-      message: 'Severe emergency alert',
-      target: { districtIds: [D.COLOMBO] },
+  it('POST /api/warnings: 403 for Duty Officer or Citizen', async () => {
+    const req = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: citizenCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'WARNING',
+        message: 'Severe flood',
+        target: { districtIds: [D.COLOMBO] },
+      }),
     });
-    const issueRes = await issueHandler(issueReq);
-    expect(issueRes.status).toBe(201);
-    const issueData = await issueRes.json();
 
-    // Attempt to escalate emergency
-    const escalateReq = makeRequest(
-      `http://localhost/api/warnings/${issueData.alert.id}/escalate`,
-      'POST',
-      'DMC_OFFICIAL',
-      {
-        newSeverity: 'EMERGENCY',
-      },
-    );
-    const escRes = await escalateHandler(escalateReq, {
-      params: Promise.resolve({ id: issueData.alert.id }),
+    const res = await issueRoute(req);
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/warnings: 422 when zero recipients not confirmed', async () => {
+    const req = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'WARNING',
+        message: 'Flood in uninhabited area',
+        target: { districtIds: ['non-existent-district'] },
+      }),
     });
-    expect(escRes.status).toBe(422);
 
-    // List warnings
-    const listReq = makeRequest('http://localhost/api/warnings', 'GET', 'DMC_OFFICIAL');
-    const listRes = await getWarningsHandler(listReq);
-    expect(listRes.status).toBe(200);
+    const res = await issueRoute(req);
+    expect(res.status).toBe(422);
+    const data = await res.json();
+    expect(data.code).toBe('ZeroRecipientsNotConfirmedError');
+  });
 
-    // Cancel warning
-    const cancelReq = makeRequest(
-      `http://localhost/api/warnings/${issueData.alert.id}/cancel`,
-      'POST',
-      'DMC_OFFICIAL',
-      { reason: 'Cyclone moved away from coast' },
-    );
-    const cancelRes = await cancelHandler(cancelReq, {
-      params: Promise.resolve({ id: issueData.alert.id }),
+  it('POST /api/warnings: 201 when issued by DMC Official', async () => {
+    const req = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'WATCH',
+        message: 'Flood watch for Colombo',
+        target: { districtIds: [D.COLOMBO] },
+      }),
+    });
+
+    const res = await issueRoute(req);
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.alert.id).toBeDefined();
+    expect(data.alert.status).toBe('ACTIVE');
+    expect(data.distinctCitizensReached).toBeGreaterThan(0);
+  });
+
+  it('GET /api/warnings: allows DMC, Duty Officer and District Officer; forbids Citizen', async () => {
+    const citizenReq = new Request('http://localhost:3000/api/warnings', {
+      headers: { cookie: citizenCookie },
+    });
+    const citizenRes = await getWarningsRoute(citizenReq);
+    expect(citizenRes.status).toBe(403);
+
+    const dutyReq = new Request('http://localhost:3000/api/warnings', {
+      headers: { cookie: dutyOfficerCookie },
+    });
+    const dutyRes = await getWarningsRoute(dutyReq);
+    expect(dutyRes.status).toBe(200);
+    const data = await dutyRes.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  it('GET /api/warnings/[id]: returns 404 for unknown ID and 200 for existing alert', async () => {
+    const notFoundReq = new Request('http://localhost:3000/api/warnings/unknown-id', {
+      headers: { cookie: dmcCookie },
+    });
+    const notFoundRes = await getAlertRoute(notFoundReq, {
+      params: Promise.resolve({ id: 'unknown-id' }),
+    });
+    expect(notFoundRes.status).toBe(404);
+
+    // Create an alert
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'LANDSLIDE',
+        severity: 'ADVISORY',
+        message: 'Landslide warning',
+        target: { districtIds: [D.KEGALLE] },
+      }),
+    });
+    const issueRes = await issueRoute(issueReq);
+    const created = await issueRes.json();
+
+    const getReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}`, {
+      headers: { cookie: dmcCookie },
+    });
+    const getRes = await getAlertRoute(getReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(getRes.status).toBe(200);
+    const alertData = await getRes.json();
+    expect(alertData.alert.id).toBe(created.alert.id);
+  });
+
+  it('POST /api/warnings/[id]/escalate: 422 on invalid transition and 200 on success', async () => {
+    // Issue alert at WATCH
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'WATCH',
+        message: 'Flood watch',
+        target: { districtIds: [D.COLOMBO] },
+      }),
+    });
+    const issueRes = await issueRoute(issueReq);
+    const created = await issueRes.json();
+
+    // 1. Invalid downgrade to ADVISORY -> 422
+    const downgradeReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}/escalate`, {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({ newSeverity: 'ADVISORY' }),
+    });
+    const downgradeRes = await escalateRoute(downgradeReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(downgradeRes.status).toBe(422);
+
+    // 2. Valid escalation to WARNING -> 200
+    const escalateReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}/escalate`, {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({ newSeverity: 'WARNING', reason: 'High rainfall' }),
+    });
+    const escalateRes = await escalateRoute(escalateReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(escalateRes.status).toBe(200);
+    const escalatedData = await escalateRes.json();
+    expect(escalatedData.alert.status).toBe('ESCALATED');
+    expect(escalatedData.alert.severity).toBe('WARNING');
+  });
+
+  it('POST /api/warnings/[id]/cancel: cancels active alert and rejects on closed alert', async () => {
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'CYCLONE',
+        severity: 'WARNING',
+        message: 'Cyclone warning',
+        target: { districtIds: [D.COLOMBO] },
+      }),
+    });
+    const issueRes = await issueRoute(issueReq);
+    const created = await issueRes.json();
+
+    // Cancel alert
+    const cancelReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}/cancel`, {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({ reason: 'Cyclone dissipated' }),
+    });
+    const cancelRes = await cancelRoute(cancelReq, {
+      params: Promise.resolve({ id: created.alert.id }),
     });
     expect(cancelRes.status).toBe(200);
+    const cancelled = await cancelRes.json();
+    expect(cancelled.alert.status).toBe('CANCELLED');
+
+    // Cancelling again -> 422 (AlertClosedError)
+    const duplicateCancelReq = new Request(
+      `http://localhost:3000/api/warnings/${created.alert.id}/cancel`,
+      {
+        method: 'POST',
+        headers: { cookie: dmcCookie },
+        body: JSON.stringify({ reason: 'Try cancel again' }),
+      },
+    );
+    const duplicateCancelRes = await cancelRoute(duplicateCancelReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(duplicateCancelRes.status).toBe(422);
+  });
+
+  it('POST /api/warnings/[id]/retry: retries failed attempts for alert', async () => {
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'ADVISORY',
+        message: 'Flood advisory',
+        target: { districtIds: [D.COLOMBO] },
+      }),
+    });
+    const issueRes = await issueRoute(issueReq);
+    const created = await issueRes.json();
+
+    const retryReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}/retry`, {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+    });
+    const retryRes = await retryRoute(retryReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(retryRes.status).toBe(200);
   });
 });

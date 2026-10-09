@@ -15,11 +15,15 @@ import { AccessDeniedError } from '@/shared/access/errors';
 
 export function handleApiError(error: unknown): NextResponse {
   if (error instanceof ZodError) {
-    const issues = error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }));
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of error.issues) {
+      const path = issue.path.join('.');
+      fieldErrors[path] = issue.message;
+    }
     return NextResponse.json(
       {
         error: 'Validation failed',
-        details: issues,
+        fields: fieldErrors,
       },
       { status: 400 },
     );
@@ -63,6 +67,7 @@ export function handleApiError(error: unknown): NextResponse {
     return NextResponse.json(
       {
         error: error.message,
+        code: error.constructor.name,
       },
       { status: 422 },
     );
@@ -77,7 +82,7 @@ export function handleApiError(error: unknown): NextResponse {
     );
   }
 
-  const message = error instanceof Error ? error.message : 'Internal server error';
+  const message = error instanceof Error ? error.message : 'Internal Server Error';
   return NextResponse.json(
     {
       error: message,
