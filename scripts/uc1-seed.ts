@@ -18,23 +18,70 @@ async function main() {
 
   // 1. Districts (25)
   for (const d of DISTRICTS) {
-    await prisma.district.upsert({
-      where: { id: d.id },
-      create: { id: d.id, name: d.name },
-      update: { name: d.name },
+    const existingByName = await prisma.district.findUnique({
+      where: { name: d.name },
     });
+
+    if (existingByName) {
+      if (existingByName.id !== d.id) {
+        // Cascade update the PK from previous/legacy ID to deterministic seed ID
+        await prisma.$executeRaw`
+          UPDATE district SET id = ${d.id}::uuid WHERE id = ${existingByName.id}::uuid
+        `;
+      }
+    } else {
+      const existingById = await prisma.district.findUnique({
+        where: { id: d.id },
+      });
+      if (existingById) {
+        await prisma.district.update({
+          where: { id: d.id },
+          data: { name: d.name },
+        });
+      } else {
+        await prisma.district.create({
+          data: { id: d.id, name: d.name },
+        });
+      }
+    }
   }
-  console.log(`✓ Upserted ${DISTRICTS.length} districts`);
+  console.log(`✓ Handled ${DISTRICTS.length} districts`);
 
   // 2. River Basins (7)
   for (const b of RIVER_BASINS) {
-    await prisma.riverBasin.upsert({
-      where: { id: b.id },
-      create: { id: b.id, name: b.name, description: b.description },
-      update: { name: b.name, description: b.description },
+    const existingBasin = await prisma.riverBasin.findFirst({
+      where: {
+        OR: [
+          { name: b.name },
+          { name: `${b.name} Basin` },
+          { name: `${b.name} Ganga Basin` },
+          { name: `${b.name} River Basin` },
+        ],
+      },
     });
+
+    if (existingBasin) {
+      if (existingBasin.id !== b.id) {
+        await prisma.$executeRaw`
+          UPDATE river_basin 
+          SET id = ${b.id}::uuid, name = ${b.name}, description = ${b.description} 
+          WHERE id = ${existingBasin.id}::uuid
+        `;
+      } else {
+        await prisma.riverBasin.update({
+          where: { id: b.id },
+          data: { name: b.name, description: b.description },
+        });
+      }
+    } else {
+      await prisma.riverBasin.upsert({
+        where: { id: b.id },
+        create: { id: b.id, name: b.name, description: b.description },
+        update: { name: b.name, description: b.description },
+      });
+    }
   }
-  console.log(`✓ Upserted ${RIVER_BASINS.length} river basins`);
+  console.log(`✓ Handled ${RIVER_BASINS.length} river basins`);
 
   // 3. Basin-District mappings
   let basinDistrictsCount = 0;
@@ -53,7 +100,7 @@ async function main() {
       basinDistrictsCount++;
     }
   }
-  console.log(`✓ Upserted ${basinDistrictsCount} basin-district mappings`);
+  console.log(`✓ Handled ${basinDistrictsCount} basin-district mappings`);
 
   // 4. Officers (27)
   for (const o of OFFICERS) {
@@ -76,7 +123,7 @@ async function main() {
       },
     });
   }
-  console.log(`✓ Upserted ${OFFICERS.length} officers`);
+  console.log(`✓ Handled ${OFFICERS.length} officers`);
 
   // 5. Citizens (49)
   for (const c of CITIZENS) {
@@ -101,7 +148,7 @@ async function main() {
       },
     });
   }
-  console.log(`✓ Upserted ${CITIZENS.length} citizens`);
+  console.log(`✓ Handled ${CITIZENS.length} citizens`);
 
   console.log('UC1 shared seed completed successfully.');
 }
