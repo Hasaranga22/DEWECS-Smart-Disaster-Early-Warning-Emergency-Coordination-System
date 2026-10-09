@@ -144,6 +144,18 @@
 - **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (70/70 tests passing).
 - Committed as `uc1: scope district officer data server-side`.
 
+## Prompt 11: Clarify Preview Reach Wording & Info Note
+- **Prompt:**
+  1. In `PreviewStep.tsx`, updated the main recipient number label from "Estimated recipients" to "Estimated reachable registered citizens".
+  2. Under that number, added an info note box (`text-slate-600`, info icon `ℹ️`, light blue-grey background `bg-slate-100 border border-slate-200`): "Residents without a registered phone number or push token cannot be reached by this system. Consider public broadcast channels (cell broadcast, sirens, radio) for full coverage."
+  3. Kept all counts, breakdowns, zero-recipient confirmation, result step, and citizen receipt intact.
+- **Files Changed:**
+  - `src/app/warnings/components/PreviewStep.tsx`
+  - `docs/ai-prompts.md`
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (70/70 tests passing).
+- Committed as `uc1: clarify preview reach wording`.
+
+
 
 
 

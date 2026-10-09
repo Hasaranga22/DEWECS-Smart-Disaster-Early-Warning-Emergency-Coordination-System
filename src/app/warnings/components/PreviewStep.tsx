@@ -42,14 +42,22 @@ export function PreviewStep({
 
         {/* Key Estimates Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border-2 border-slate-200 bg-white p-5 text-center shadow-sm">
-            <span className="text-xs font-bold uppercase text-slate-600 tracking-wider">
-              Estimated Recipients
-            </span>
-            <p className="mt-2 text-4xl font-black text-blue-700">
-              {previewData.estimatedRecipients}
-            </p>
-            <span className="mt-1 block text-xs font-semibold text-slate-600">Unique registered citizens</span>
+          <div className="rounded-xl border-2 border-slate-200 bg-white p-5 text-center shadow-sm flex flex-col justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase text-slate-600 tracking-wider">
+                Estimated reachable registered citizens
+              </span>
+              <p className="mt-2 text-4xl font-black text-blue-700">
+                {previewData.estimatedRecipients}
+              </p>
+              <span className="mt-1 block text-xs font-semibold text-slate-600">Unique registered citizens</span>
+            </div>
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-100 p-2.5 text-left text-xs text-slate-600">
+              <span className="text-slate-500 font-bold shrink-0 text-xs">ℹ️</span>
+              <p className="text-[11px] leading-relaxed text-slate-600">
+                Residents without a registered phone number or push token cannot be reached by this system. Consider public broadcast channels (cell broadcast, sirens, radio) for full coverage.
+              </p>
+            </div>
           </div>
 
           <div className="rounded-xl border-2 border-slate-200 bg-white p-5 text-center shadow-sm">
