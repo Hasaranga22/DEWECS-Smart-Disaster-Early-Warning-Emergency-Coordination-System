@@ -1,0 +1,148 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/dissa/Desktop/Projects/DEWECS-Smart-Disaster-Early-Warning-Emergency-Coordination-System
+      Coverage enabled with v8
+
+ Ô£ô src/modules/uc1-warning/__tests__/TargetResolver.test.ts > TargetResolver service > resolves unique citizens for a single target district with appropriate channels 4ms
+ Ô£ô src/modules/uc1-warning/__tests__/TargetResolver.test.ts > TargetResolver service > resolves river basin target into Colombo + Gampaha + Kegalle unique citizens 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/TargetResolver.test.ts > TargetResolver service > deduplicates when overlapping districts and basin targets are both specified 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/TargetResolver.test.ts > TargetResolver service > correctly handles excludeCitizenIds for target widening 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/TargetResolver.test.ts > TargetResolver service > returns empty array when target has no districts or unknown basin 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/TargetResolver.test.ts > TargetResolver service > resolves multi-basin district union with no duplicate citizens 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/Severity.test.ts > Severity domain > defines correct strict severity order: ADVISORY < WATCH < WARNING < EMERGENCY 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/Severity.test.ts > Severity domain > correctly compares severities with compareSeverity 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/Severity.test.ts > Severity domain > correctly checks isHigherSeverity 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/Severity.test.ts > Severity domain > returns the next higher severity level or null if at EMERGENCY 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/Severity.test.ts > Severity domain > validates severities with isValidSeverity 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/Gateways.test.ts > Channel Gateways (MockSmsGateway and MockPushGateway) > MockSmsGateway succeeds deterministically when failure rate is 0 4ms
+ Ô£ô src/modules/uc1-warning/__tests__/Gateways.test.ts > Channel Gateways (MockSmsGateway and MockPushGateway) > MockSmsGateway fails deterministically when randomSource is below failure rate 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/Gateways.test.ts > Channel Gateways (MockSmsGateway and MockPushGateway) > MockPushGateway respects injectable failure rate and random source 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/NotificationAttempt.test.ts > NotificationAttempt domain entity > creates an attempt with default QUEUED status and validates fields 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/NotificationAttempt.test.ts > NotificationAttempt domain entity > rejects missing required attributes 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/NotificationAttempt.test.ts > NotificationAttempt domain entity > updates status on markSent, markDelivered, and markFailed 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > successfully creates an ACTIVE alert with valid parameters 3ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > rejects empty message, missing id, or empty target 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > rejects hazardType OTHER for warnings 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > escalates severity strictly UP (ADVISORY -> WATCH -> WARNING -> EMERGENCY) 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > throws MaxSeverityError when attempting to escalate an EMERGENCY alert 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > throws InvalidSeverityTransitionError when attempting to downgrade or stay at same severity 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > cancels from ACTIVE or ESCALATED with cancellation details 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > throws AlertClosedError when trying to escalate or cancel an already CANCELLED alert 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > transitions to EXPIRED when checkExpiration is called past expiresAt 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > correctly widens target districts during escalation 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > stores and returns custom title when provided 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/HazardAlert.test.ts > HazardAlert domain entity and state machine > rejects custom title exceeding 80 characters 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/AlertQueryService.test.ts > AlertQueryService (implementing AlertReader and AttemptReader) > filters alerts by date range (from, to) and cutoff 4ms
+ Ô£ô src/modules/uc1-warning/__tests__/AlertQueryService.test.ts > AlertQueryService (implementing AlertReader and AttemptReader) > filters alerts by hazardType 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/AlertQueryService.test.ts > AlertQueryService (implementing AlertReader and AttemptReader) > filters alerts by districtId, including river basin spanning districts 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/AlertQueryService.test.ts > AlertQueryService (implementing AlertReader and AttemptReader) > filters notification attempts by districtId, hazardType, and date 1ms
+ Ô£ô src/shared/seed/__tests__/seed.test.ts > shared seed integrity > has 25 districts and 49 citizens 4ms
+ Ô£ô src/shared/seed/__tests__/seed.test.ts > shared seed integrity > every citizen belongs to a real district 0ms
+ Ô£ô src/shared/seed/__tests__/seed.test.ts > shared seed integrity > every basin district exists 0ms
+ Ô£ô src/shared/seed/__tests__/seed.test.ts > shared seed integrity > no citizen is unreachable by both channels 0ms
+ Ô£ô src/shared/seed/__tests__/seed.test.ts > shared seed integrity > has all officer roles and ids are unique 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > W01: preview shows estimated recipients and unique citizens with breakdown 5ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > W02: ACTIVE alert is saved before any attempts are made 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > W03: partial SMS failure continues other channels; distinct citizens reached 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > W04: escalate notifies district officers again 3ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > W05: invalid escalate/cancel changes nothing (assert repo state before == after) 3ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > W06: zero recipients needs confirmation, count is zero 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > cancel sends cancellation notice to previously targeted recipients 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > retryFailed creates new attempts and keeps old FAILED rows 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > expireDueAlerts transitions active alerts past expiresAt to EXPIRED 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/WarningService.test.ts > WarningService > stores and returns custom title when issued via WarningService 0ms
+ Ô£ô src/shared/access/__tests__/access.test.ts > access > maps a valid cookie value to that role 2ms
+ Ô£ô src/shared/access/__tests__/access.test.ts > access > falls back to Citizen for missing or invalid values 0ms
+ Ô£ô src/shared/access/__tests__/access.test.ts > access > reads the role from a Cookie header 19ms
+ Ô£ô src/shared/access/__tests__/access.test.ts > access > allows a permitted role 2ms
+ Ô£ô src/shared/access/__tests__/access.test.ts > access > denies a Duty Officer from issuing warnings 0ms
+ Ô£ô src/shared/access/__tests__/access.test.ts > access > gives the District Officer a district 0ms
+ Ô£ô src/modules/uc1-warning/__tests__/Uc1Module.test.ts > createUc1Module factory > instantiates the UC1 module with all required services and adapters 3ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings/preview: 403 for unauthorized roles 7ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings/preview: 400 on invalid input 3ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings/preview: 200 with preview estimates for DMC Official 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings: 403 for Duty Officer or Citizen 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings: 422 when zero recipients not confirmed 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings: 201 when issued by DMC Official 3ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > GET /api/warnings: allows DMC, Duty Officer and District Officer; forbids Citizen 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > GET /api/warnings/[id]: returns 404 for unknown ID and 200 for existing alert 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings/[id]/escalate: 422 on invalid transition and 200 on success 3ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings/[id]/cancel: cancels active alert and rejects on closed alert 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > POST /api/warnings/[id]/retry: retries failed attempts for alert 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > stores custom title on issue and returns it in detail and list endpoints 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > GET /api/warnings/[id]: strips attempts and metrics for CITIZEN role, returns public fields only 1ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > GET /api/warnings/[id]: DISTRICT_OFFICER receives only attempts, counts and channel summaries for their district 2ms
+ Ô£ô src/modules/uc1-warning/__tests__/ApiRoutes.test.ts > UC1 API Routes > GET /api/warnings/[id]: DISTRICT_OFFICER receives 403 when alert does not target their district 1ms
+
+ Test Files  11 passed (11)
+      Tests  70 passed (70)
+   Start at  16:34:53
+   Duration  921ms (transform 52%, import 31%, worker 11%, tests 5%)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   89.91 |    82.42 |   84.54 |   90.17 |                   
+ ...es/uc1-warning |      75 |     86.2 |      75 |   77.77 |                   
+  container.ts     |   54.54 |    66.66 |     100 |   54.54 | 11-18             
+  index.ts         |   88.23 |     91.3 |   66.66 |   93.75 | 93                
+ ...rning/adapters |   80.85 |       75 |      72 |   81.39 |                   
+  ...Repository.ts |       0 |        0 |       0 |       0 |                   
+  ...nelGateway.ts |       0 |        0 |       0 |       0 |                   
+  ...Repository.ts |   66.66 |       50 |      70 |   64.28 | 26-27,36,44-45    
+  ...ationStore.ts |      50 |      100 |      40 |      60 | 12,20             
+  ...ushGateway.ts |    92.3 |    83.33 |      80 |   91.66 | 24                
+  ...SmsGateway.ts |     100 |    83.33 |     100 |     100 | 18                
+  index.ts         |       0 |        0 |       0 |       0 |                   
+ ...adapters/fakes |   81.81 |    66.66 |   77.77 |   81.81 |                   
+  FakeClock.ts     |   83.33 |       60 |   83.33 |   83.33 | 19                
+  ...dGenerator.ts |      80 |      100 |   66.66 |      80 | 17                
+ ...warning/domain |   91.33 |    87.09 |   86.84 |   91.26 |                   
+  ...Escalation.ts |       0 |        0 |       0 |       0 |                   
+  AlertStatus.ts   |      50 |        0 |       0 |      50 | 5                 
+  HazardAlert.ts   |   95.38 |    92.18 |     100 |   95.38 | 160,189,202       
+  ...ionAttempt.ts |   91.89 |    81.81 |     100 |   91.89 | 48,51,54          
+  Severity.ts      |     100 |      100 |     100 |     100 |                   
+  errors.ts        |   69.23 |        0 |      60 |   69.23 | 20-26,50,62       
+  index.ts         |       0 |        0 |       0 |       0 |                   
+ ...-warning/ports |       0 |        0 |       0 |       0 |                   
+  AlertReader.ts   |       0 |        0 |       0 |       0 |                   
+  AttemptReader.ts |       0 |        0 |       0 |       0 |                   
+  Clock.ts         |       0 |        0 |       0 |       0 |                   
+  ...ationStore.ts |       0 |        0 |       0 |       0 |                   
+  Filter.ts        |       0 |        0 |       0 |       0 |                   
+  IdGenerator.ts   |       0 |        0 |       0 |       0 |                   
+  ...ceProvider.ts |       0 |        0 |       0 |       0 |                   
+  types.ts         |       0 |        0 |       0 |       0 |                   
+ ...rning/services |   92.75 |    79.16 |     100 |    92.5 |                   
+  ...eryService.ts |    92.3 |    85.71 |     100 |    92.3 | 65,68,71          
+  ...etResolver.ts |     100 |    89.65 |     100 |     100 | 36,44,54          
+  ...ingService.ts |   91.17 |    69.69 |     100 |   90.83 | ...90-296,409-411 
+  index.ts         |       0 |        0 |       0 |       0 |                   
+ shared/access     |   80.95 |    76.92 |   88.88 |   81.25 |                   
+  access.ts        |     100 |    87.5 |     100 |     100 | 19                
+  actors.ts        |     100 |      100 |     100 |     100 |                   
+  errors.ts        |     100 |      100 |     100 |     100 |                   
+  index.ts         |       0 |        0 |       0 |       0 |                   
+  roleActions.ts   |       0 |        0 |       0 |       0 | 1-8               
+ shared/domain     |     100 |      100 |     100 |     100 |                   
+  Citizen.ts       |       0 |        0 |       0 |       0 |                   
+  District.ts      |       0 |        0 |       0 |       0 |                   
+  HazardType.ts    |     100 |      100 |     100 |     100 |                   
+  Officer.ts       |       0 |        0 |       0 |       0 |                   
+  Organization.ts  |     100 |      100 |     100 |     100 |                   
+  RiverBasin.ts    |       0 |        0 |       0 |       0 |                   
+  Role.ts          |     100 |      100 |     100 |     100 |                   
+  index.ts         |       0 |        0 |       0 |       0 |                   
+ shared/seed       |     100 |      100 |     100 |     100 |                   
+  basins.ts        |     100 |      100 |     100 |     100 |                   
+  citizens.ts      |     100 |      100 |     100 |     100 |                   
+  districts.ts     |     100 |      100 |     100 |     100 |                   
+  ids.ts           |     100 |      100 |     100 |     100 |                   
+  index.ts         |       0 |        0 |       0 |       0 |                   
+  officers.ts      |     100 |      100 |     100 |     100 |                   
+  organizations.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------
