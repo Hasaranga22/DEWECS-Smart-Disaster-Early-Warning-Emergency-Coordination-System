@@ -119,29 +119,30 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
   };
 
   return (
-    <div className="mx-auto max-w-md pb-12">
-      {/* Back button */}
-      <div className="mb-3 flex items-center justify-between">
-        <Link
-          href="/warnings"
-          className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline"
-        >
-          ← Back to Warnings
-        </Link>
-        <button
-          onClick={() => setIsOfflineSimulated(!isOfflineSimulated)}
-          className={`text-xs px-2.5 py-1 rounded border transition font-semibold ${
-            isOfflineSimulated
-              ? 'bg-amber-100 text-amber-950 border-amber-300 font-bold'
-              : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
-          }`}
-        >
-          {isOfflineSimulated ? 'Simulating Offline Mode' : 'Simulate Offline'}
-        </button>
-      </div>
+    <div className="flex flex-col items-center justify-center py-6 w-full">
+      <div className="w-full max-w-md mx-auto pb-12">
+        {/* Back button */}
+        <div className="mb-3 flex items-center justify-between">
+          <Link
+            href="/warnings"
+            className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline"
+          >
+            ← Back to Warnings Dashboard
+          </Link>
+          <button
+            onClick={() => setIsOfflineSimulated(!isOfflineSimulated)}
+            className={`text-xs px-2.5 py-1 rounded border transition font-semibold cursor-pointer ${
+              isOfflineSimulated
+                ? 'bg-amber-100 text-amber-950 border-amber-300 font-bold'
+                : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            {isOfflineSimulated ? 'Simulating Offline Mode' : 'Simulate Offline'}
+          </button>
+        </div>
 
-      {/* Phone Screen Container */}
-      <div className="overflow-hidden rounded-2xl border-4 border-slate-800 bg-white shadow-2xl">
+        {/* Phone Screen Container - subtle phone-like card */}
+        <div className="overflow-hidden rounded-3xl border-4 border-slate-800 bg-white shadow-2xl ring-1 ring-slate-900/10">
         {/* Device Top Status Bar */}
         <div className="flex items-center justify-between bg-slate-950 px-4 py-1.5 text-[10px] font-mono text-slate-200">
           <span>DEWECS SRI LANKA</span>
@@ -276,5 +277,6 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
         </div>
       </div>
     </div>
+  </div>
   );
 }

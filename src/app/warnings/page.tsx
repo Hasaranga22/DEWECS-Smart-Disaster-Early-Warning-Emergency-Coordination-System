@@ -41,7 +41,7 @@ export default function WarningsPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-5xl py-12 text-center text-sm font-medium text-slate-700 animate-pulse">
+        <div className="w-full py-12 text-center text-sm font-medium text-slate-700 animate-pulse">
           Loading Hazard Warning Console...
         </div>
       }

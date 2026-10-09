@@ -39,7 +39,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-100 text-slate-900">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 lg:px-8 py-3.5 shadow-sm w-full">
           <nav className="flex items-center gap-6 text-sm font-medium">
             <Link href="/" className="text-lg font-black tracking-tight text-blue-700">
               DEWECS
@@ -58,7 +58,7 @@ export default function RootLayout({
             <RoleSwitcherLoader />
           </Suspense>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 w-full px-6 lg:px-8 py-6">{children}</main>
       </body>
     </html>
   );

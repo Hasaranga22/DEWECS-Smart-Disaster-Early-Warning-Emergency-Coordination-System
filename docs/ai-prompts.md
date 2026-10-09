@@ -68,3 +68,17 @@
 - **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (62/62 tests passing).
 - Committed as `uc1: fix ui contrast and layout`.
 
+### Prompt 5 (Full-Width Spread-Out Dashboard Layout)
+- **Prompt:** Layout change for UC1: turn `/warnings` into a full-width spread-out dashboard instead of a narrow centered column. No changes to logic, services, API routes, or tests.
+  1. Remove centered max-width wrappers from `<main>` in `layout.tsx` and from top level of `WarningsClient.tsx` and `page.tsx` (use `px-6 lg:px-8`, full width header nav).
+  2. Structure: Top bar row with tabs, 4-stat KPI strip (Active warnings, Escalated, Cancelled/Expired, Citizens reached in last alert), full-width stepper.
+  3. Main area: 12-column grid (`lg:grid-cols-12`) with 8 cols composer and 4 cols sticky verified evidence with scroll.
+  4. Spread fields in composer: hazard type & severity side by side in 2 cols, districts in 3-4 col checkbox grid, message and expiry side by side in 3 cols.
+  5. Preview step: left 8 cols for recipient estimates and channel breakdown in card grids, right 4 cols sticky summary and issue actions.
+  6. Delivery outcome step: stat cards in a row plus attempts table full width with horizontal scroll.
+  7. Active warnings tab: responsive 3-column card grid (`grid-cols-1 md:grid-cols-2 xl:grid-cols-3`).
+  8. Responsive: stack to single column below `lg`.
+  9. `/alerts/[id]` stays phone-width centered receipt (`max-w-md mx-auto`) on light neutral background with subtle phone-like card.
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (62/62 tests passing).
+- Committed as `uc1: dashboard layout`.
+
