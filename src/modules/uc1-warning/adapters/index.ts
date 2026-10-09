@@ -6,3 +6,5 @@ export * from './InMemoryAlertRepository';
 export * from './InMemoryDistrictNotificationStore';
 export * from './MockPushGateway';
 export * from './MockSmsGateway';
+export * from './prisma/mappers';
+export * from './prisma/PrismaAlertRepository';

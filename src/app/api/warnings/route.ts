@@ -98,7 +98,7 @@ export async function GET(request: Request) {
       from: fromParam ? new Date(fromParam) : undefined,
       to: toParam ? new Date(toParam) : undefined,
       districtId,
-      hazardType: hazardTypeParam as any,
+      hazardType: hazardTypeParam ? (hazardTypeParam as import('@/shared/domain').HazardType) : undefined,
     });
 
     return NextResponse.json(
