@@ -2,6 +2,23 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { DISTRICTS, RIVER_BASINS } from '@/shared/seed';
+
+const DISTRICT_NAME_BY_ID = new Map(DISTRICTS.map((d) => [d.id, d.name]));
+function getDistrictName(districtId: string): string {
+  return DISTRICT_NAME_BY_ID.get(districtId) ?? districtId;
+}
+
+function getTargetDisplayName(target: { districtIds?: string[]; basinId?: string }): string {
+  if (target.districtIds && target.districtIds.length > 0) {
+    return target.districtIds.map(getDistrictName).join(', ');
+  }
+  if (target.basinId) {
+    const basin = RIVER_BASINS.find((b) => b.id === target.basinId);
+    return basin ? basin.name : target.basinId;
+  }
+  return 'Sri Lanka (Island-wide)';
+}
 
 interface AlertDetailClientProps {
   alert: {
@@ -107,16 +124,16 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
       <div className="mb-3 flex items-center justify-between">
         <Link
           href="/warnings"
-          className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+          className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline"
         >
           ← Back to Warnings
         </Link>
         <button
           onClick={() => setIsOfflineSimulated(!isOfflineSimulated)}
-          className={`text-xs px-2 py-0.5 rounded border transition ${
+          className={`text-xs px-2.5 py-1 rounded border transition font-semibold ${
             isOfflineSimulated
-              ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
-              : 'bg-slate-100 text-slate-600 border-slate-200'
+              ? 'bg-amber-100 text-amber-950 border-amber-300 font-bold'
+              : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
           }`}
         >
           {isOfflineSimulated ? 'Simulating Offline Mode' : 'Simulate Offline'}
@@ -126,7 +143,7 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
       {/* Phone Screen Container */}
       <div className="overflow-hidden rounded-2xl border-4 border-slate-800 bg-white shadow-2xl">
         {/* Device Top Status Bar */}
-        <div className="flex items-center justify-between bg-slate-950 px-4 py-1.5 text-[10px] font-mono text-slate-300">
+        <div className="flex items-center justify-between bg-slate-950 px-4 py-1.5 text-[10px] font-mono text-slate-200">
           <span>DEWECS SRI LANKA</span>
           <span>4G LTE • 100%</span>
         </div>
@@ -152,7 +169,7 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
           <div className="border-b border-red-200 bg-red-100 p-3 text-center text-xs font-bold text-red-900">
             ⚠️ THIS HAZARD WARNING HAS BEEN CANCELLED
             {alert.cancellationReason && (
-              <p className="mt-1 text-xs font-normal">Reason: {alert.cancellationReason}</p>
+              <p className="mt-1 text-xs font-medium">Reason: {alert.cancellationReason}</p>
             )}
           </div>
         )}
@@ -161,30 +178,30 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
         <div className="space-y-4 p-5 text-slate-900">
           {/* Target Area Card */}
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
               AFFECTED LOCATION / RIVER BASIN
             </span>
             <p className="mt-0.5 text-base font-bold text-slate-900">
-              {alert.target.districtIds?.join(', ') || alert.target.basinId || 'Sri Lanka'}
+              {getTargetDisplayName(alert.target)}
             </p>
           </div>
 
           {/* Warning Message */}
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
               OFFICIAL DMC INSTRUCTION
             </span>
-            <p className="mt-2 text-sm leading-relaxed text-slate-800 font-medium">
+            <p className="mt-2 text-sm leading-relaxed text-slate-900 font-medium">
               {alert.message}
             </p>
           </div>
 
           {/* Immediate Action Checklist */}
-          <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-950">
-            <p className="font-bold uppercase tracking-wider text-blue-800">
+          <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-950">
+            <p className="font-bold uppercase tracking-wider text-blue-900">
               IMMEDIATE CITIZEN ACTIONS:
             </p>
-            <ul className="list-disc space-y-1 pl-4">
+            <ul className="list-disc space-y-1 pl-4 text-blue-950">
               <li>Move to higher ground if situated near river banks or steep slopes.</li>
               <li>Keep battery-operated radio tuned to disaster updates.</li>
               <li>Disconnect non-essential electrical appliances.</li>
@@ -194,7 +211,7 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
 
           {/* Alarm Siren Trigger (Device Behavior Requirement) */}
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
-            <p className="text-[11px] text-slate-600 mb-2">
+            <p className="text-xs text-slate-700 mb-2 font-medium">
               Audible siren triggers on device receipt:
             </p>
             <button
@@ -211,13 +228,13 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
           </div>
 
           {/* Delivery Status Receipt */}
-          <div className="flex items-center justify-between border-t pt-3 text-[11px] text-slate-500">
+          <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-700 font-medium">
             <span>Device Receipt Status:</span>
             <span
-              className={`rounded px-2 py-0.5 font-bold ${
+              className={`rounded px-2.5 py-0.5 text-xs font-bold ${
                 isOfflineSimulated
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-emerald-100 text-emerald-800'
+                  ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                  : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
               }`}
             >
               {isOfflineSimulated ? 'QUEUED (OFFLINE)' : 'DELIVERED (CONFIRMED ✓)'}
@@ -226,15 +243,15 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
 
           {/* Escalation History Timeline */}
           {alert.escalations && alert.escalations.length > 0 && (
-            <div className="rounded border bg-slate-50 p-3 text-xs space-y-1.5">
-              <span className="font-bold text-slate-700">Escalation Progression:</span>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-1.5">
+              <span className="font-bold text-slate-800">Escalation Progression:</span>
               {alert.escalations.map((esc) => (
-                <div key={esc.id} className="border-l-2 border-purple-500 pl-2 text-[11px] text-slate-600">
+                <div key={esc.id} className="border-l-2 border-purple-600 pl-2 text-xs text-slate-700">
                   <span className="font-bold text-slate-900">
                     {esc.fromSeverity} → {esc.toSeverity}
                   </span>{' '}
                   ({new Date(esc.occurredAt).toLocaleTimeString()})
-                  {esc.reason ? <p className="italic text-slate-500">{esc.reason}</p> : null}
+                  {esc.reason ? <p className="italic text-slate-600">{esc.reason}</p> : null}
                 </div>
               ))}
             </div>
@@ -242,7 +259,7 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
 
           {/* Emergency Hotlines */}
           <div className="rounded-lg bg-slate-900 p-3 text-center text-white text-xs">
-            <p className="font-bold uppercase tracking-wider text-slate-300">
+            <p className="font-bold uppercase tracking-wider text-slate-200">
               NATIONAL EMERGENCY HOTLINES
             </p>
             <div className="mt-1 flex justify-center gap-4 text-sm font-extrabold text-amber-400">
@@ -254,7 +271,7 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
         </div>
 
         {/* Phone Bottom Bezel */}
-        <div className="bg-slate-950 py-2 text-center text-[10px] text-slate-500">
+        <div className="bg-slate-950 py-2.5 text-center text-[11px] font-medium text-slate-300">
           DEWECS National Disaster Early Warning Authority
         </div>
       </div>

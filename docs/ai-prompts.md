@@ -54,3 +54,17 @@
 - Implemented Step 13: `PrismaAlertRepository` and mappers in `adapters/prisma/`, supporting `DATA_STORE=memory|prisma`.
 - Verified `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx prisma validate` (valid), and `npx vitest run --coverage` (62 tests passing, 89.44% statement coverage).
 - Committed with message `uc1: add UI screens, evidence panel, audio alarm simulation and Prisma adapter`.
+
+### Prompt 4 (UI/UX Contrast & Layout Refinements)
+- **Prompt:** UI/UX fixes only for UC1. Light theme in `globals.css` (`#f3f4f6` background, `slate-900` text, dark mode overrides removed), exactly one Role Switcher in header on the right, high contrast across all text elements (WCAG AA), replace raw UUIDs with human-readable district names in evidence and alert receipt cards, make Issue Warning clearly primary, and verify typecheck, lint, and tests.
+- **Changes Made:**
+  - `src/app/globals.css`: Reset body background to neutral `#f3f4f6` and text color to `#0f172a`, removing dark mode inversion.
+  - `src/app/layout.tsx`: Kept single `RoleSwitcherLoader` in `<Suspense>` on the right of header; set body to `bg-slate-100 text-slate-900` and nav links to high-contrast slate.
+  - `src/components/RoleSwitcher.tsx`: Dark text, white background, visible border and clear focus ring.
+  - `src/app/warnings/WarningsClient.tsx`: Converted raw UUIDs to district names (`getDistrictName`) in Verified Evidence and active warnings; fixed contrast across headings, tabs, steps, badges, inputs, and disabled button tooltips.
+  - `src/app/warnings/page.tsx`: Improved contrast on access-restricted fallback screen.
+  - `src/app/alerts/[id]/AlertDetailClient.tsx`: Resolved target district and basin names via seed lookup, improved contrast on phone receipt cards, checklist, badges, and bezel.
+  - `src/app/alerts/[id]/page.tsx`: Fixed contrast on loading skeleton.
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (62/62 tests passing).
+- Committed as `uc1: fix ui contrast and layout`.
+

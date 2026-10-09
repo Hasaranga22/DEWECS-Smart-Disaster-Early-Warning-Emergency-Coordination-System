@@ -5,6 +5,22 @@ import { useEffect, useState } from 'react';
 import type { HazardType, Role } from '@/shared/domain';
 import { DISTRICTS, KELANI_BASIN_ID, RIVER_BASINS } from '@/shared/seed';
 
+const DISTRICT_NAME_BY_ID = new Map(DISTRICTS.map((d) => [d.id, d.name]));
+function getDistrictName(districtId: string): string {
+  return DISTRICT_NAME_BY_ID.get(districtId) ?? districtId;
+}
+
+function getTargetDisplayName(target: { districtIds?: string[]; basinId?: string }): string {
+  if (target.districtIds && target.districtIds.length > 0) {
+    return target.districtIds.map(getDistrictName).join(', ');
+  }
+  if (target.basinId) {
+    const basin = RIVER_BASINS.find((b) => b.id === target.basinId);
+    return basin ? basin.name : target.basinId;
+  }
+  return 'Sri Lanka (Island-wide)';
+}
+
 interface WarningsClientProps {
   actorRole: Role;
   actorUserId: string;
@@ -353,24 +369,25 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-col gap-2 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
             Hazard Warnings & Bulletins
           </h1>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm font-medium text-slate-600">
             DMC Location-Specific Multi-Channel Early Warning System (UC1)
           </p>
         </div>
 
-        <div className="flex rounded-lg border bg-white p-1 text-sm shadow-sm">
+        <div className="flex rounded-lg border-2 border-slate-300 bg-white p-1 text-sm shadow-sm">
           {isDmcOfficial && (
             <button
               onClick={() => setActiveTab('composer')}
-              className={`rounded px-4 py-1.5 font-medium transition ${
+              className={`rounded px-4 py-1.5 font-bold transition cursor-pointer ${
                 activeTab === 'composer'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               Issue Warning
@@ -378,10 +395,10 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
           )}
           <button
             onClick={() => setActiveTab('active')}
-            className={`rounded px-4 py-1.5 font-medium transition ${
+            className={`rounded px-4 py-1.5 font-bold transition cursor-pointer ${
               activeTab === 'active'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             Active Warnings ({alertsList.length})
@@ -390,9 +407,9 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
       </div>
 
       {errorMsg && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          <p className="font-semibold">Error</p>
-          <p>{errorMsg}</p>
+        <div className="rounded-lg border-2 border-red-300 bg-red-50 p-4 text-sm text-red-900 shadow-sm">
+          <p className="font-bold">Error Notice</p>
+          <p className="mt-1 font-medium">{errorMsg}</p>
         </div>
       )}
 
@@ -400,42 +417,42 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
       {activeTab === 'composer' && isDmcOfficial && (
         <div className="space-y-6">
           {/* Progress Steps Header */}
-          <div className="flex items-center justify-between border-b bg-white p-4 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between border-2 border-slate-200 bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center gap-3">
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                  step === 1 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold ${
+                  step === 1 ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-slate-200 text-slate-800'
                 }`}
               >
                 1
               </span>
-              <span className={step === 1 ? 'font-bold text-slate-900' : 'text-slate-500'}>
+              <span className={`text-sm ${step === 1 ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-700'}`}>
                 Composer & Evidence
               </span>
             </div>
-            <div className="h-0.5 w-12 bg-slate-200" />
+            <div className="h-0.5 w-12 bg-slate-300" />
             <div className="flex items-center gap-3">
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                  step === 2 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold ${
+                  step === 2 ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-slate-200 text-slate-800'
                 }`}
               >
                 2
               </span>
-              <span className={step === 2 ? 'font-bold text-slate-900' : 'text-slate-500'}>
+              <span className={`text-sm ${step === 2 ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-700'}`}>
                 Preview & Estimates
               </span>
             </div>
-            <div className="h-0.5 w-12 bg-slate-200" />
+            <div className="h-0.5 w-12 bg-slate-300" />
             <div className="flex items-center gap-3">
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                  step === 3 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold ${
+                  step === 3 ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-slate-200 text-slate-800'
                 }`}
               >
                 3
               </span>
-              <span className={step === 3 ? 'font-bold text-slate-900' : 'text-slate-500'}>
+              <span className={`text-sm ${step === 3 ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-700'}`}>
                 Delivery Outcome
               </span>
             </div>
@@ -445,22 +462,22 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
           {step === 1 && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Main Composer Form */}
-              <div className="space-y-6 rounded-lg border bg-white p-6 shadow-sm lg:col-span-2">
-                <h2 className="text-lg font-bold text-slate-900">1. Draft Hazard Warning</h2>
+              <div className="space-y-6 rounded-lg border-2 border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+                <h2 className="text-lg font-extrabold text-slate-900">1. Draft Hazard Warning</h2>
 
                 {/* Hazard Type */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">Hazard Type</label>
+                  <label className="block text-sm font-bold text-slate-900">Hazard Type</label>
                   <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {HAZARD_TYPES.map((hz) => (
                       <button
                         key={hz}
                         type="button"
                         onClick={() => setHazardType(hz)}
-                        className={`rounded-lg border p-3 text-center text-sm font-medium transition ${
+                        className={`rounded-lg p-3 text-center text-sm font-bold transition shadow-xs ${
                           hazardType === hz
-                            ? 'border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-600'
-                            : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                            ? 'border-2 border-blue-600 bg-blue-100 text-blue-950 ring-2 ring-blue-600'
+                            : 'border-2 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:border-slate-400'
                         }`}
                       >
                         {hz}
@@ -471,14 +488,14 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
 
                 {/* Severity Level */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">Severity Level</label>
+                  <label className="block text-sm font-bold text-slate-900">Severity Level</label>
                   <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {SEVERITIES.map((s) => {
-                      const colors: Record<Severity, string> = {
-                        ADVISORY: 'border-yellow-300 text-yellow-800 bg-yellow-50',
-                        WATCH: 'border-orange-300 text-orange-800 bg-orange-50',
-                        WARNING: 'border-red-400 text-red-800 bg-red-50',
-                        EMERGENCY: 'border-purple-500 text-purple-900 bg-purple-50',
+                      const selectedStyles: Record<Severity, string> = {
+                        ADVISORY: 'border-2 border-amber-500 bg-amber-100 text-amber-950 ring-2 ring-amber-500',
+                        WATCH: 'border-2 border-orange-500 bg-orange-100 text-orange-950 ring-2 ring-orange-500',
+                        WARNING: 'border-2 border-red-500 bg-red-100 text-red-950 ring-2 ring-red-500',
+                        EMERGENCY: 'border-2 border-purple-600 bg-purple-100 text-purple-950 ring-2 ring-purple-600',
                       };
                       const isSelected = severity === s;
                       return (
@@ -486,8 +503,10 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                           key={s}
                           type="button"
                           onClick={() => setSeverity(s)}
-                          className={`rounded-lg border p-3 text-center text-sm font-bold transition ${
-                            isSelected ? `${colors[s]} ring-2 ring-current` : 'border-slate-200 text-slate-700'
+                          className={`rounded-lg p-3 text-center text-sm font-bold transition shadow-xs ${
+                            isSelected
+                              ? selectedStyles[s]
+                              : 'border-2 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:border-slate-400'
                           }`}
                         >
                           {s}
@@ -500,36 +519,38 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                 {/* Target Geography */}
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-slate-700">
+                    <label className="block text-sm font-bold text-slate-900">
                       Target Area (Districts or River Basin)
                     </label>
                     <button
                       type="button"
                       onClick={handleKelaniToggle}
-                      className={`text-xs font-semibold px-2 py-1 rounded border transition ${
+                      className={`text-xs font-bold px-3 py-1.5 rounded-md border-2 transition shadow-xs ${
                         useKelaniBasin
                           ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                          : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
                       }`}
                     >
                       {useKelaniBasin ? '✓ Kelani Basin Selected' : '+ Select Kelani Basin (Col, Gam, Keg)'}
                     </button>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                     {DISTRICTS.map((d) => {
                       const checked = selectedDistricts.includes(d.id);
                       return (
                         <label
                           key={d.id}
-                          className={`flex items-center gap-2 rounded border p-2.5 text-sm transition cursor-pointer ${
-                            checked ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-slate-200 text-slate-700'
+                          className={`flex items-center gap-2.5 rounded-lg border-2 p-2.5 text-sm transition cursor-pointer font-semibold ${
+                            checked
+                              ? 'border-blue-600 bg-blue-100 text-blue-950 shadow-xs'
+                              : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => handleDistrictToggle(d.id)}
-                            className="rounded text-blue-600 focus:ring-blue-500"
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span>{d.name}</span>
                         </label>
@@ -541,41 +562,39 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                 {/* Warning Message */}
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-slate-700">
+                    <label className="block text-sm font-bold text-slate-900">
                       Public Warning Message
                     </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMessage(
-                            `URGENT: Heavy flooding expected along the Kelani river bank. Evacuate low-lying areas immediately and head to designated shelters.`,
-                          )
-                        }
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Insert Flood Template
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMessage(
+                          `URGENT: Heavy flooding expected along the Kelani river bank. Evacuate low-lying areas immediately and head to designated shelters.`,
+                        )
+                      }
+                      className="text-xs font-bold text-blue-700 hover:underline"
+                    >
+                      Insert Flood Template
+                    </button>
                   </div>
                   <textarea
                     rows={4}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Enter urgent instructions, affected GN divisions, evacuation routes..."
-                    className="mt-2 w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="mt-2 w-full rounded-lg border-2 border-slate-300 bg-white p-3 text-sm font-medium text-slate-900 placeholder-slate-500 shadow-xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </div>
 
                 {/* Expiry Hours */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">
+                  <label className="block text-sm font-bold text-slate-900">
                     Auto-Expiry Duration
                   </label>
                   <select
                     value={expiresInHours}
                     onChange={(e) => setExpiresInHours(e.target.value)}
-                    className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="mt-2 rounded-lg border-2 border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
                   >
                     <option value="6">6 Hours</option>
                     <option value="12">12 Hours</option>
@@ -591,34 +610,34 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     type="button"
                     onClick={handlePreview}
                     disabled={loading}
-                    className="w-full rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+                    className="w-full rounded-lg bg-blue-600 py-3.5 text-base font-extrabold text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {loading ? 'Analyzing Target Geography...' : 'Preview Recipients & Channels →'}
                   </button>
                 </div>
               </div>
 
-              {/* Verified Ground Evidence Panel (Step 9) */}
-              <div className="space-y-4 rounded-lg border bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between border-b pb-2">
-                  <h3 className="text-base font-bold text-slate-900">Verified Evidence</h3>
-                  <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+              {/* Verified Ground Evidence Panel (Step 9 & Requirement 4) */}
+              <div className="space-y-4 rounded-lg border-2 border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h3 className="text-base font-extrabold text-slate-900">Verified Evidence</h3>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-900 border border-emerald-300">
                     UC2 Feed
                   </span>
                 </div>
 
-                <div className="rounded bg-slate-50 p-2.5 text-xs text-slate-600">
-                  <p className="font-semibold text-slate-800">Operational Guideline</p>
-                  <p className="mt-0.5">
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
+                  <p className="font-bold text-slate-900">Operational Guideline</p>
+                  <p className="mt-1 leading-relaxed">
                     Verified ground reports provide corroborating evidence. Official warnings must be
                     explicitly issued by DMC Officials and are <strong>never auto-issued</strong>.
                   </p>
                 </div>
 
                 {loadingEvidence ? (
-                  <div className="py-8 text-center text-xs text-slate-500">Loading ground evidence...</div>
+                  <div className="py-8 text-center text-xs font-medium text-slate-600">Loading ground evidence...</div>
                 ) : evidenceList.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-500">
+                  <div className="py-8 text-center text-xs font-medium text-slate-600">
                     No verified ground reports available for current scope.
                   </div>
                 ) : (
@@ -626,29 +645,29 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     {evidenceList.map((ev) => (
                       <div
                         key={ev.reportId}
-                        className="rounded-lg border border-slate-200 p-3 text-xs space-y-1.5"
+                        className="rounded-lg border-2 border-slate-200 bg-slate-50/70 p-3.5 text-xs space-y-1.5 shadow-xs"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900">{ev.hazardType}</span>
+                          <span className="font-extrabold text-slate-950 text-sm">{ev.hazardType}</span>
                           <span
-                            className={`rounded px-1.5 py-0.5 font-bold ${
+                            className={`rounded px-2 py-0.5 font-extrabold ${
                               ev.severityIndication === 'HIGH'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-amber-100 text-amber-800'
+                                ? 'bg-red-100 text-red-950 border border-red-300'
+                                : 'bg-amber-100 text-amber-950 border border-amber-300'
                             }`}
                           >
                             {ev.severityIndication ?? 'VERIFIED'}
                           </span>
                         </div>
-                        <p className="text-slate-600">
-                          District ID: <span className="font-mono text-slate-900">{ev.districtId}</span>
+                        <p className="text-slate-800">
+                          District: <span className="font-bold text-slate-950">{getDistrictName(ev.districtId)}</span>
                         </p>
-                        <p className="text-slate-600">
+                        <p className="text-slate-700 font-mono">
                           Coordinates: {ev.lat.toFixed(4)}, {ev.lng.toFixed(4)}
                         </p>
-                        <div className="flex items-center justify-between pt-1 text-slate-500">
-                          <span>Corroboration: {ev.corroborationCount} reports</span>
-                          <span>Confidence: {ev.confidence}</span>
+                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 text-slate-700 font-medium">
+                          <span>Corroboration: <strong>{ev.corroborationCount}</strong> reports</span>
+                          <span>Confidence: <strong>{ev.confidence}</strong></span>
                         </div>
                       </div>
                     ))}
@@ -660,83 +679,85 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
 
           {/* STEP 2: PREVIEW */}
           {step === 2 && previewData && (
-            <div className="space-y-6 rounded-lg border bg-white p-6 shadow-sm">
-              <div className="border-b pb-4">
-                <h2 className="text-xl font-bold text-slate-900">2. Review Estimated Recipients</h2>
-                <p className="text-sm text-slate-600">
+            <div className="space-y-6 rounded-lg border-2 border-slate-200 bg-white p-6 shadow-sm">
+              <div className="border-b border-slate-200 pb-4">
+                <h2 className="text-xl font-extrabold text-slate-900">2. Review Estimated Recipients</h2>
+                <p className="text-sm font-medium text-slate-700">
                   Pre-dispatch analysis confirming distinct population reach across SMS and Push gateways.
                 </p>
               </div>
 
               {/* Warning Summary Banner */}
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+              <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-4 text-sm text-blue-950">
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <div>
-                    <span className="text-xs uppercase text-blue-700 font-semibold">Hazard</span>
-                    <p className="font-bold">{hazardType}</p>
+                    <span className="text-xs uppercase text-blue-900 font-bold">Hazard</span>
+                    <p className="font-extrabold text-base">{hazardType}</p>
                   </div>
                   <div>
-                    <span className="text-xs uppercase text-blue-700 font-semibold">Severity</span>
-                    <p className="font-bold">{severity}</p>
+                    <span className="text-xs uppercase text-blue-900 font-bold">Severity</span>
+                    <p className="font-extrabold text-base">{severity}</p>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-xs uppercase text-blue-700 font-semibold">Target Districts</span>
-                    <p className="font-bold">{previewData.targetDistrictIds.join(', ')}</p>
+                    <span className="text-xs uppercase text-blue-900 font-bold">Target Districts</span>
+                    <p className="font-extrabold text-base">
+                      {previewData.targetDistrictIds.map(getDistrictName).join(', ')}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-3 border-t border-blue-200 pt-2">
-                  <span className="text-xs uppercase text-blue-700 font-semibold">Message Preview</span>
-                  <p className="italic mt-1">&ldquo;{message}&rdquo;</p>
+                  <span className="text-xs uppercase text-blue-900 font-bold">Message Preview</span>
+                  <p className="italic mt-1 font-medium">&ldquo;{message}&rdquo;</p>
                 </div>
               </div>
 
               {/* Key Estimates Grid */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center">
-                  <span className="text-xs font-semibold uppercase text-slate-600">
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-4 text-center">
+                  <span className="text-xs font-bold uppercase text-slate-700">
                     Estimated Recipients
                   </span>
-                  <p className="mt-1 text-3xl font-extrabold text-blue-700">
+                  <p className="mt-1 text-3xl font-black text-blue-700">
                     {previewData.estimatedRecipients}
                   </p>
-                  <span className="text-xs text-slate-500">Unique registered citizens</span>
+                  <span className="text-xs font-semibold text-slate-600">Unique registered citizens</span>
                 </div>
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center">
-                  <span className="text-xs font-semibold uppercase text-slate-600">
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-4 text-center">
+                  <span className="text-xs font-bold uppercase text-slate-700">
                     SMS Gateway Potential
                   </span>
-                  <p className="mt-1 text-3xl font-extrabold text-slate-800">
+                  <p className="mt-1 text-3xl font-black text-slate-900">
                     {previewData.byChannel.sms}
                   </p>
-                  <span className="text-xs text-slate-500">Citizens with registered phone</span>
+                  <span className="text-xs font-semibold text-slate-600">Citizens with registered phone</span>
                 </div>
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center">
-                  <span className="text-xs font-semibold uppercase text-slate-600">
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-4 text-center">
+                  <span className="text-xs font-bold uppercase text-slate-700">
                     Mobile Push Potential
                   </span>
-                  <p className="mt-1 text-3xl font-extrabold text-slate-800">
+                  <p className="mt-1 text-3xl font-black text-slate-900">
                     {previewData.byChannel.push}
                   </p>
-                  <span className="text-xs text-slate-500">Citizens with active app tokens</span>
+                  <span className="text-xs font-semibold text-slate-600">Citizens with active app tokens</span>
                 </div>
               </div>
 
               {/* Zero Recipients Exception Warning (W06) */}
               {previewData.estimatedRecipients === 0 && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                  <p className="font-bold">Zero Recipients Warning</p>
-                  <p className="mt-1">
+                <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-4 text-sm text-amber-950">
+                  <p className="font-extrabold text-base">Zero Recipients Warning</p>
+                  <p className="mt-1 font-medium">
                     No citizens were found residing in the selected target area. To dispatch this warning
                     anyway, explicit confirmation is required.
                   </p>
-                  <label className="mt-3 flex items-center gap-2 font-semibold">
+                  <label className="mt-3 flex items-center gap-2 font-bold cursor-pointer">
                     <input
                       type="checkbox"
                       checked={confirmZero}
                       onChange={(e) => setConfirmZero(e.target.checked)}
-                      className="rounded text-amber-600"
+                      className="h-4 w-4 rounded text-amber-600"
                     />
                     <span>Confirm issuing warning with zero registered citizens</span>
                   </label>
@@ -744,11 +765,11 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
               )}
 
               {/* Actions */}
-              <div className="flex items-center justify-between pt-4 border-t">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-lg border-2 border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-800 hover:bg-slate-100 hover:border-slate-400 transition"
                 >
                   ← Back to Edit
                 </button>
@@ -757,7 +778,14 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                   type="button"
                   onClick={handleIssue}
                   disabled={loading || (previewData.estimatedRecipients === 0 && !confirmZero)}
-                  className="rounded-lg bg-red-600 px-6 py-2.5 text-sm font-bold text-white shadow transition hover:bg-red-700 disabled:opacity-50"
+                  title={
+                    loading
+                      ? 'Dispatching warning to gateways...'
+                      : previewData.estimatedRecipients === 0 && !confirmZero
+                      ? 'Cannot issue: zero recipients detected. Confirm checkbox above to proceed.'
+                      : 'Issue and dispatch hazard warning alert'
+                  }
+                  className="rounded-lg bg-red-600 px-7 py-3 text-base font-black text-white shadow-md transition hover:bg-red-700 focus:ring-4 focus:ring-red-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {loading ? 'Dispatching Warning...' : 'CONFIRM & ISSUE HAZARD ALERT 🚨'}
                 </button>
@@ -767,53 +795,53 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
 
           {/* STEP 3: RESULT */}
           {step === 3 && dispatchResult && (
-            <div className="space-y-6 rounded-lg border bg-white p-6 shadow-sm">
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-                <h2 className="text-xl font-bold">Alert Dispatched Successfully</h2>
-                <p className="mt-1 text-sm">
+            <div className="space-y-6 rounded-lg border-2 border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 p-4 text-emerald-950">
+                <h2 className="text-xl font-extrabold">Alert Dispatched Successfully</h2>
+                <p className="mt-1 text-sm font-medium">
                   Active alert registered (ID:{' '}
-                  <span className="font-mono font-semibold">{dispatchResult.alert.id}</span>).
+                  <span className="font-mono font-bold">{dispatchResult.alert.id}</span>).
                   Saved to database first before dispatch.
                 </p>
               </div>
 
               {/* Outcomes Breakdown */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-lg border bg-slate-50 p-4 text-center">
-                  <span className="text-xs font-semibold uppercase text-slate-600">
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-4 text-center">
+                  <span className="text-xs font-bold uppercase text-slate-700">
                     Distinct Citizens Reached
                   </span>
-                  <p className="mt-1 text-3xl font-extrabold text-emerald-600">
+                  <p className="mt-1 text-3xl font-black text-emerald-700">
                     {dispatchResult.distinctCitizensReached}
                   </p>
-                  <span className="text-xs text-slate-500">Confirmed delivered to ≥1 channel</span>
+                  <span className="text-xs font-semibold text-slate-600">Confirmed delivered to ≥1 channel</span>
                 </div>
 
-                <div className="rounded-lg border bg-slate-50 p-4 text-center">
-                  <span className="text-xs font-semibold uppercase text-slate-600">
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-4 text-center">
+                  <span className="text-xs font-bold uppercase text-slate-700">
                     SMS Deliveries
                   </span>
-                  <p className="mt-1 text-2xl font-bold text-slate-800">
+                  <p className="mt-1 text-2xl font-black text-slate-900">
                     {dispatchResult.channelSummary.sms.delivered} /{' '}
                     {dispatchResult.channelSummary.sms.sent}
                   </p>
                   {dispatchResult.channelSummary.sms.failed > 0 && (
-                    <span className="text-xs font-semibold text-red-600">
+                    <span className="text-xs font-bold text-red-700">
                       {dispatchResult.channelSummary.sms.failed} failed
                     </span>
                   )}
                 </div>
 
-                <div className="rounded-lg border bg-slate-50 p-4 text-center">
-                  <span className="text-xs font-semibold uppercase text-slate-600">
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-4 text-center">
+                  <span className="text-xs font-bold uppercase text-slate-700">
                     Push Deliveries
                   </span>
-                  <p className="mt-1 text-2xl font-bold text-slate-800">
+                  <p className="mt-1 text-2xl font-black text-slate-900">
                     {dispatchResult.channelSummary.push.delivered} /{' '}
                     {dispatchResult.channelSummary.push.sent}
                   </p>
                   {dispatchResult.channelSummary.push.failed > 0 && (
-                    <span className="text-xs font-semibold text-red-600">
+                    <span className="text-xs font-bold text-red-700">
                       {dispatchResult.channelSummary.push.failed} failed
                     </span>
                   )}
@@ -824,37 +852,39 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
               {dispatchResult.attempts && dispatchResult.attempts.length > 0 && (
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 mb-2">Notification Attempts Log</h3>
-                  <div className="overflow-x-auto rounded border">
+                  <div className="overflow-x-auto rounded-lg border-2 border-slate-200">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-100 text-slate-700">
+                      <thead className="bg-slate-200 text-slate-900 font-extrabold">
                         <tr>
-                          <th className="p-2">Citizen ID</th>
-                          <th className="p-2">Channel</th>
-                          <th className="p-2">Kind</th>
-                          <th className="p-2">Status</th>
-                          <th className="p-2">Note / Failure</th>
+                          <th className="p-2.5">Citizen ID</th>
+                          <th className="p-2.5">District</th>
+                          <th className="p-2.5">Channel</th>
+                          <th className="p-2.5">Kind</th>
+                          <th className="p-2.5">Status</th>
+                          <th className="p-2.5">Note / Failure</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
+                      <tbody className="divide-y divide-slate-200">
                         {dispatchResult.attempts.map((att) => (
-                          <tr key={att.id} className="hover:bg-slate-50">
-                            <td className="p-2 font-mono">{att.citizenId}</td>
-                            <td className="p-2">{att.channel}</td>
-                            <td className="p-2">{att.kind}</td>
-                            <td className="p-2">
+                          <tr key={att.id} className="hover:bg-slate-100 font-medium">
+                            <td className="p-2.5 font-mono text-slate-900">{att.citizenId}</td>
+                            <td className="p-2.5 font-semibold text-slate-900">{getDistrictName(att.districtId)}</td>
+                            <td className="p-2.5 font-bold text-slate-900">{att.channel}</td>
+                            <td className="p-2.5 text-slate-800">{att.kind}</td>
+                            <td className="p-2.5">
                               <span
-                                className={`rounded px-1.5 py-0.5 font-bold ${
+                                className={`rounded px-2 py-0.5 font-bold ${
                                   att.status === 'DELIVERED'
-                                    ? 'bg-emerald-100 text-emerald-800'
+                                    ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
                                     : att.status === 'FAILED'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-slate-100 text-slate-800'
+                                    ? 'bg-red-100 text-red-950 border border-red-300'
+                                    : 'bg-slate-200 text-slate-900'
                                 }`}
                               >
                                 {att.status}
                               </span>
                             </td>
-                            <td className="p-2 text-slate-500">{att.failureReason ?? '–'}</td>
+                            <td className="p-2.5 text-slate-700">{att.failureReason ?? '–'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -864,22 +894,22 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
               )}
 
               {/* Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t">
-                <div className="flex gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
+                <div className="flex gap-2.5">
                   {(dispatchResult.channelSummary.sms.failed > 0 ||
                     dispatchResult.channelSummary.push.failed > 0) && (
                     <button
                       type="button"
                       onClick={() => handleRetry(dispatchResult.alert.id)}
                       disabled={loading}
-                      className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                      className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-50"
                     >
                       {loading ? 'Retrying...' : 'Retry Failed Attempts'}
                     </button>
                   )}
                   <Link
                     href={`/alerts/${dispatchResult.alert.id}`}
-                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    className="rounded-lg border-2 border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-100"
                   >
                     View Citizen Receipt (Mobile View) →
                   </Link>
@@ -894,7 +924,7 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     setMessage('');
                     setActiveTab('active');
                   }}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 shadow-sm"
                 >
                   View in Active Alerts List
                 </button>
@@ -906,25 +936,25 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
 
       {/* ACTIVE ALERTS LIST */}
       {activeTab === 'active' && (
-        <div className="space-y-4 rounded-lg border bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b pb-4">
+        <div className="space-y-4 rounded-lg border-2 border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Current Hazard Alerts</h2>
-              <p className="text-sm text-slate-600">
+              <h2 className="text-xl font-extrabold text-slate-900">Current Hazard Alerts</h2>
+              <p className="text-sm font-medium text-slate-700">
                 Active early warnings with escalation history and cancellation records.
               </p>
             </div>
             <button
               onClick={fetchAlerts}
               disabled={loadingAlerts}
-              className="text-xs font-semibold text-blue-600 hover:underline"
+              className="text-xs font-bold text-blue-700 hover:underline"
             >
               {loadingAlerts ? 'Refreshing...' : '↻ Refresh List'}
             </button>
           </div>
 
           {alertsList.length === 0 ? (
-            <div className="py-12 text-center text-sm text-slate-500">
+            <div className="py-12 text-center text-sm font-semibold text-slate-600">
               No hazard alerts currently issued.
             </div>
           ) : (
@@ -936,50 +966,50 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                 return (
                   <div
                     key={alert.id}
-                    className="rounded-lg border border-slate-200 p-4 transition hover:border-slate-300 space-y-3"
+                    className="rounded-lg border-2 border-slate-200 p-4 transition hover:border-slate-300 space-y-3 bg-white"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{alert.hazardType}</span>
+                        <span className="font-extrabold text-slate-950 text-base">{alert.hazardType}</span>
                         <span
-                          className={`rounded px-2 py-0.5 text-xs font-bold ${
+                          className={`rounded px-2.5 py-0.5 text-xs font-extrabold ${
                             alert.severity === 'EMERGENCY'
-                              ? 'bg-purple-100 text-purple-900'
+                              ? 'bg-purple-100 text-purple-950 border border-purple-300'
                               : alert.severity === 'WARNING'
-                              ? 'bg-red-100 text-red-800'
+                              ? 'bg-red-100 text-red-950 border border-red-300'
                               : alert.severity === 'WATCH'
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-yellow-100 text-yellow-800'
+                              ? 'bg-orange-100 text-orange-950 border border-orange-300'
+                              : 'bg-yellow-100 text-yellow-950 border border-yellow-300'
                           }`}
                         >
                           {alert.severity}
                         </span>
                         <span
-                          className={`rounded px-2 py-0.5 text-xs font-semibold ${
+                          className={`rounded px-2.5 py-0.5 text-xs font-extrabold ${
                             alert.status === 'ACTIVE'
-                              ? 'bg-emerald-100 text-emerald-800'
+                              ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
                               : alert.status === 'ESCALATED'
-                              ? 'bg-blue-100 text-blue-800'
+                              ? 'bg-blue-100 text-blue-950 border border-blue-300'
                               : alert.status === 'CANCELLED'
-                              ? 'bg-slate-200 text-slate-700'
-                              : 'bg-zinc-200 text-zinc-600'
+                              ? 'bg-slate-200 text-slate-900 border border-slate-300'
+                              : 'bg-zinc-200 text-zinc-900 border border-zinc-300'
                           }`}
                         >
                           {alert.status}
                         </span>
                       </div>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs font-semibold text-slate-600">
                         Occurred: {new Date(alert.occurredAt).toLocaleString()}
                       </span>
                     </div>
 
-                    <p className="text-sm text-slate-800 font-medium">{alert.message}</p>
+                    <p className="text-sm font-semibold text-slate-900 leading-relaxed">{alert.message}</p>
 
-                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 border-t pt-2">
+                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-700 border-t border-slate-200 pt-2 font-medium">
                       <div>
                         Target Area:{' '}
-                        <span className="font-semibold text-slate-700">
-                          {alert.target.districtIds?.join(', ') || alert.target.basinId || 'Sri Lanka'}
+                        <span className="font-bold text-slate-950">
+                          {getTargetDisplayName(alert.target)}
                         </span>
                       </div>
                       {alert.expiresAt && (
@@ -990,17 +1020,17 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     </div>
 
                     {alert.cancellationReason && (
-                      <div className="rounded bg-slate-100 p-2 text-xs text-slate-700">
-                        <span className="font-semibold">Cancelled Reason:</span> {alert.cancellationReason}
+                      <div className="rounded-md border border-slate-200 bg-slate-100 p-2.5 text-xs text-slate-800">
+                        <span className="font-bold text-slate-950">Cancelled Reason:</span> {alert.cancellationReason}
                       </div>
                     )}
 
                     {alert.escalations && alert.escalations.length > 0 && (
-                      <div className="rounded bg-blue-50 p-2 text-xs text-blue-900 space-y-1">
-                        <span className="font-bold">Escalation History:</span>
+                      <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-950 space-y-1.5">
+                        <span className="font-extrabold text-blue-950">Escalation History:</span>
                         {alert.escalations.map((esc) => (
-                          <div key={esc.id} className="pl-2 border-l border-blue-300">
-                            {esc.fromSeverity} → {esc.toSeverity} (
+                          <div key={esc.id} className="pl-2 border-l-2 border-blue-400 font-medium">
+                            <strong>{esc.fromSeverity} → {esc.toSeverity}</strong> (
                             {new Date(esc.occurredAt).toLocaleTimeString()})
                             {esc.reason ? ` – ${esc.reason}` : ''}
                           </div>
@@ -1009,10 +1039,10 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     )}
 
                     {/* Operational Action Buttons (DMC Official) */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
                       <Link
                         href={`/alerts/${alert.id}`}
-                        className="text-xs font-semibold text-blue-600 hover:underline"
+                        className="text-xs font-bold text-blue-700 hover:underline"
                       >
                         Citizen Alert Receipt View →
                       </Link>
@@ -1035,12 +1065,11 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                               setActionType('ESCALATE');
                               setActionReason('');
                               setActionError(null);
-                              // set default next severity
                               if (alert.severity === 'ADVISORY') setNewSeverity('WATCH');
                               else if (alert.severity === 'WATCH') setNewSeverity('WARNING');
                               else setNewSeverity('EMERGENCY');
                             }}
-                            className="rounded border border-purple-300 bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-800 transition hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="rounded-md border-2 border-purple-400 bg-purple-50 px-3 py-1.5 text-xs font-extrabold text-purple-950 transition hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                           >
                             Escalate Severity
                           </button>
@@ -1056,7 +1085,7 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                               setActionReason('');
                               setActionError(null);
                             }}
-                            className="rounded border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="rounded-md border-2 border-red-400 bg-red-50 px-3 py-1.5 text-xs font-extrabold text-red-950 transition hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                           >
                             Cancel Alert
                           </button>
@@ -1073,30 +1102,32 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
 
       {/* ACTION MODAL (Escalate or Cancel) */}
       {selectedAlertForAction && actionType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl space-y-4 border-2 border-slate-300">
+            <h3 className="text-lg font-extrabold text-slate-900">
               {actionType === 'ESCALATE' ? 'Escalate Alert Severity' : 'Cancel Hazard Alert'}
             </h3>
-            <p className="text-xs text-slate-600">
-              Alert: <span className="font-semibold">{selectedAlertForAction.hazardType}</span> (Current:{' '}
-              <span className="font-bold">{selectedAlertForAction.severity}</span>)
+            <p className="text-xs font-medium text-slate-700">
+              Alert: <span className="font-bold text-slate-900">{selectedAlertForAction.hazardType}</span> (Current:{' '}
+              <span className="font-extrabold text-slate-900">{selectedAlertForAction.severity}</span>)
             </p>
 
             {actionError && (
-              <div className="rounded bg-red-50 p-2 text-xs text-red-800">{actionError}</div>
+              <div className="rounded-md border border-red-300 bg-red-50 p-2.5 text-xs font-bold text-red-900">
+                {actionError}
+              </div>
             )}
 
             {actionType === 'ESCALATE' && (
               <div className="space-y-3 text-sm">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">
+                  <label className="block text-xs font-bold text-slate-900">
                     Target Severity Level
                   </label>
                   <select
                     value={newSeverity}
                     onChange={(e) => setNewSeverity(e.target.value as Severity)}
-                    className="mt-1 w-full rounded border p-2 text-sm"
+                    className="mt-1 w-full rounded-md border-2 border-slate-300 bg-white p-2 text-sm font-semibold text-slate-900"
                   >
                     {SEVERITIES.map((s) => (
                       <option key={s} value={s}>
@@ -1107,7 +1138,7 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">
+                  <label className="block text-xs font-bold text-slate-900">
                     Escalation Reason
                   </label>
                   <input
@@ -1115,17 +1146,17 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     value={actionReason}
                     onChange={(e) => setActionReason(e.target.value)}
                     placeholder="e.g. River level reached critical threshold"
-                    className="mt-1 w-full rounded border p-2 text-sm"
+                    className="mt-1 w-full rounded-md border-2 border-slate-300 bg-white p-2 text-sm font-medium text-slate-900 placeholder-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">
+                  <label className="block text-xs font-bold text-slate-900">
                     Widen Target Districts (Optional)
                   </label>
-                  <div className="mt-1 grid grid-cols-2 gap-1 text-xs">
+                  <div className="mt-1 grid grid-cols-2 gap-1.5 text-xs">
                     {DISTRICTS.map((d) => (
-                      <label key={d.id} className="flex items-center gap-1">
+                      <label key={d.id} className="flex items-center gap-1.5 font-medium text-slate-800">
                         <input
                           type="checkbox"
                           checked={expandDistricts.includes(d.id)}
@@ -1136,6 +1167,7 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                               setExpandDistricts([...expandDistricts, d.id]);
                             }
                           }}
+                          className="rounded text-blue-600"
                         />
                         <span>{d.name}</span>
                       </label>
@@ -1148,7 +1180,7 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
             {actionType === 'CANCEL' && (
               <div className="space-y-3 text-sm">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">
+                  <label className="block text-xs font-bold text-slate-900">
                     Cancellation Reason (Required)
                   </label>
                   <textarea
@@ -1156,20 +1188,20 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     value={actionReason}
                     onChange={(e) => setActionReason(e.target.value)}
                     placeholder="e.g. Danger has passed, flood levels receded safely"
-                    className="mt-1 w-full rounded border p-2 text-sm"
+                    className="mt-1 w-full rounded-md border-2 border-slate-300 bg-white p-2 text-sm font-medium text-slate-900 placeholder-slate-500"
                   />
                 </div>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedAlertForAction(null);
                   setActionType(null);
                 }}
-                className="rounded border px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-md border-2 border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-100"
               >
                 Cancel
               </button>
@@ -1177,7 +1209,7 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                 type="button"
                 onClick={executeAlertAction}
                 disabled={loading}
-                className={`rounded px-4 py-1.5 text-xs font-bold text-white ${
+                className={`rounded-md px-4 py-1.5 text-xs font-extrabold text-white shadow-sm ${
                   actionType === 'ESCALATE' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-red-600 hover:bg-red-700'
                 } disabled:opacity-50`}
               >

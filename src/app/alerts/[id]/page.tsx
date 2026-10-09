@@ -62,7 +62,7 @@ export default function AlertDetailPage({ params }: AlertPageProps) {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-md py-12 text-center text-sm text-slate-500 animate-pulse">
+        <div className="mx-auto max-w-md py-12 text-center text-sm font-medium text-slate-700 animate-pulse">
           Loading Citizen Alert Bulletin...
         </div>
       }

@@ -11,7 +11,7 @@ export function RoleSwitcher({ current }: { current: Role }) {
   const [pending, start] = useTransition();
 
   return (
-    <label className="flex items-center gap-2 text-sm">
+    <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
       <span>Role:</span>
       <select
         value={current}
@@ -22,10 +22,10 @@ export function RoleSwitcher({ current }: { current: Role }) {
             router.refresh();
           })
         }
-        className="rounded border px-2 py-1"
+        className="rounded-md border-2 border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer disabled:opacity-60"
       >
         {ROLES.map((r) => (
-          <option key={r} value={r}>
+          <option key={r} value={r} className="bg-white text-slate-900">
             {ROLE_LABELS[r]}
           </option>
         ))}
