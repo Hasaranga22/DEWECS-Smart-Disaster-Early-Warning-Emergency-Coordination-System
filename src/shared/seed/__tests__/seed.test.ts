@@ -4,9 +4,9 @@ import { CITIZENS, DISTRICTS, OFFICERS, RIVER_BASINS } from '../index';
 describe('shared seed integrity', () => {
   const districtIds = new Set(DISTRICTS.map((d) => d.id));
 
-  it('has 6 districts and 30 citizens', () => {
-    expect(DISTRICTS).toHaveLength(6);
-    expect(CITIZENS).toHaveLength(30);
+  it('has 25 districts and 49 citizens', () => {
+    expect(DISTRICTS).toHaveLength(25);
+    expect(CITIZENS).toHaveLength(49);
   });
 
   it('every citizen belongs to a real district', () => {

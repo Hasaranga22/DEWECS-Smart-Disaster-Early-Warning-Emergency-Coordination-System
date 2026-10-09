@@ -46,6 +46,7 @@ export interface DispatchResult {
 }
 
 export interface IssueWarningParams {
+  title?: string;
   hazardType: HazardType;
   severity: Severity;
   message: string;
@@ -127,6 +128,7 @@ export class WarningService {
 
     const alert = new HazardAlert({
       id: alertId,
+      title: params.title,
       hazardType: params.hazardType,
       severity: params.severity,
       status: 'ACTIVE',

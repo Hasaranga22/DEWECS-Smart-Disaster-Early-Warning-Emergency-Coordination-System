@@ -28,6 +28,7 @@ export class PrismaAlertRepository implements AlertRepository {
       await this.prisma.hazardAlert.create({
         data: {
           id: alert.id,
+          title: alert.title ?? null,
           hazardType: alert.hazardType as unknown as HazardType,
           severity: alert.severity as unknown as AlertSeverity,
           status: alert.status as unknown as AlertStatus,
@@ -56,6 +57,7 @@ export class PrismaAlertRepository implements AlertRepository {
       await this.prisma.hazardAlert.update({
         where: { id: alert.id },
         data: {
+          title: alert.title ?? null,
           severity: alert.severity as unknown as AlertSeverity,
           status: alert.status as unknown as AlertStatus,
           cancelledAt: alert.cancelledAt,

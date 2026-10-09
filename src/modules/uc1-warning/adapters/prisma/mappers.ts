@@ -12,6 +12,7 @@ import {
 
 export type PrismaHazardAlertWithRelations = {
   id: string;
+  title?: string | null;
   hazardType: string;
   severity: string;
   status: string;
@@ -66,6 +67,7 @@ export function toDomainAlert(raw: PrismaHazardAlertWithRelations): HazardAlert 
 
   return new HazardAlert({
     id: raw.id,
+    title: raw.title ?? undefined,
     hazardType: raw.hazardType as SharedHazardType,
     severity: raw.severity as Severity,
     status: raw.status as AlertStatus,

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { HazardType, Role } from '@/shared/domain';
-import { DISTRICTS, KELANI_BASIN_ID, RIVER_BASINS } from '@/shared/seed';
+import { DISTRICTS, RIVER_BASINS } from '@/shared/seed';
 
 const DISTRICT_NAME_BY_ID = new Map(DISTRICTS.map((d) => [d.id, d.name]));
 function getDistrictName(districtId: string): string {
@@ -65,6 +65,7 @@ interface AttemptItem {
 interface DispatchResultData {
   alert: {
     id: string;
+    title?: string | null;
     hazardType: string;
     severity: string;
     status: string;
@@ -83,6 +84,7 @@ interface DispatchResultData {
 
 interface AlertItem {
   id: string;
+  title?: string | null;
   hazardType: string;
   severity: string;
   status: string;
@@ -119,11 +121,13 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form inputs
+  const [customTitle, setCustomTitle] = useState('');
   const [hazardType, setHazardType] = useState<HazardType>('FLOOD');
   const [severity, setSeverity] = useState<Severity>('WARNING');
   const [message, setMessage] = useState('');
   const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
-  const [useKelaniBasin, setUseKelaniBasin] = useState(false);
+  const [selectedBasinIds, setSelectedBasinIds] = useState<string[]>([]);
+  const [districtSearch, setDistrictSearch] = useState('');
   const [expiresInHours, setExpiresInHours] = useState('24');
   const [confirmZero, setConfirmZero] = useState(false);
 
@@ -194,21 +198,64 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
     }
   }
 
-  function handleKelaniToggle() {
-    const nextVal = !useKelaniBasin;
-    setUseKelaniBasin(nextVal);
-    if (nextVal) {
-      const kelani = RIVER_BASINS.find((b) => b.id === KELANI_BASIN_ID);
-      if (kelani) {
-        const combined = Array.from(new Set([...selectedDistricts, ...kelani.districtIds]));
-        setSelectedDistricts(combined);
+  function toggleBasin(basinId: string) {
+    const isSelected = selectedBasinIds.includes(basinId);
+    const basin = RIVER_BASINS.find((b) => b.id === basinId);
+    if (!basin) return;
+
+    if (!isSelected) {
+      const nextBasins = [...selectedBasinIds, basinId];
+      setSelectedBasinIds(nextBasins);
+      const nextDistricts = Array.from(new Set([...selectedDistricts, ...basin.districtIds]));
+      setSelectedDistricts(nextDistricts);
+    } else {
+      const nextBasins = selectedBasinIds.filter((id) => id !== basinId);
+      setSelectedBasinIds(nextBasins);
+      const remainingBasinsDistricts = new Set(
+        RIVER_BASINS.filter((b) => nextBasins.includes(b.id)).flatMap((b) => b.districtIds),
+      );
+      const nextDistricts = selectedDistricts.filter((dId) => {
+        if (basin.districtIds.includes(dId) && !remainingBasinsDistricts.has(dId)) {
+          return false;
+        }
+        return true;
+      });
+      setSelectedDistricts(nextDistricts);
+    }
+  }
+
+  function handleRemoveDistrict(districtId: string) {
+    setSelectedDistricts(selectedDistricts.filter((d) => d !== districtId));
+  }
+
+  function handleClearAllDistricts() {
+    setSelectedDistricts([]);
+    setSelectedBasinIds([]);
+  }
+
+  function getEffectiveTarget(): { districtIds?: string[]; basinId?: string } {
+    if (selectedBasinIds.length === 1) {
+      const singleBasin = RIVER_BASINS.find((b) => b.id === selectedBasinIds[0]);
+      if (singleBasin) {
+        const basinDistrictsSorted = [...singleBasin.districtIds].sort();
+        const selectedDistrictsSorted = [...selectedDistricts].sort();
+        const isExactMatch =
+          basinDistrictsSorted.length === selectedDistrictsSorted.length &&
+          basinDistrictsSorted.every((dId, idx) => dId === selectedDistrictsSorted[idx]);
+        if (isExactMatch) {
+          return { basinId: singleBasin.id };
+        }
       }
     }
+    return {
+      districtIds: selectedDistricts.length > 0 ? selectedDistricts : undefined,
+    };
   }
 
   async function handlePreview() {
     setErrorMsg(null);
-    if (selectedDistricts.length === 0 && !useKelaniBasin) {
+    const targetPayload = getEffectiveTarget();
+    if (!targetPayload.basinId && (!targetPayload.districtIds || targetPayload.districtIds.length === 0)) {
       setErrorMsg('Please select at least one target district or River Basin.');
       return;
     }
@@ -219,11 +266,6 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
 
     setLoading(true);
     try {
-      const targetPayload = {
-        districtIds: selectedDistricts.length > 0 ? selectedDistricts : undefined,
-        basinId: useKelaniBasin ? KELANI_BASIN_ID : undefined,
-      };
-
       const res = await fetch('/api/warnings/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,14 +298,13 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
           ? new Date(now.getTime() + parseInt(expiresInHours, 10) * 3600000).toISOString()
           : null;
 
+      const targetPayload = getEffectiveTarget();
       const payload = {
+        title: customTitle.trim() ? customTitle.trim() : undefined,
         hazardType,
         severity,
         message,
-        target: {
-          districtIds: selectedDistricts.length > 0 ? selectedDistricts : undefined,
-          basinId: useKelaniBasin ? KELANI_BASIN_ID : undefined,
-        },
+        target: targetPayload,
         confirmZeroRecipients: confirmZero,
         expiresAt,
       };
@@ -515,6 +556,27 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
               <div className="space-y-6 rounded-xl border-2 border-slate-200 bg-white p-6 shadow-sm lg:col-span-8">
                 <h2 className="text-xl font-extrabold text-slate-900">1. Draft Hazard Warning</h2>
 
+                {/* Custom Title (Optional, max 80 chars) */}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="custom-title-input" className="block text-sm font-bold text-slate-900">
+                      Custom Alert Title <span className="text-xs font-normal text-slate-600">(Optional)</span>
+                    </label>
+                    <span className="text-xs font-mono font-semibold text-slate-500">
+                      {customTitle.length}/80
+                    </span>
+                  </div>
+                  <input
+                    id="custom-title-input"
+                    type="text"
+                    maxLength={80}
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    placeholder="e.g. Kelani Ganga Basin Flood Warning & Evacuation Order"
+                    className="mt-1.5 w-full rounded-lg border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 placeholder-slate-400 shadow-xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
                 {/* Hazard Type & Severity side by side in 2 columns */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Hazard Type */}
@@ -569,46 +631,156 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                   </div>
                 </div>
 
-                {/* Target Geography: 3 to 4 column checkbox grid */}
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-bold text-slate-900">
-                      Target Area (Districts or River Basin)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleKelaniToggle}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-md border-2 transition shadow-xs cursor-pointer ${
-                        useKelaniBasin
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      {useKelaniBasin ? '✓ Kelani Basin Selected' : '+ Select Kelani Basin (Col, Gam, Keg)'}
-                    </button>
+                {/* Target Geography: River Basins multi-select, selected chips, search filter, and district checkboxes */}
+                <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-900">
+                        Target Geography (River Basins &amp; Districts)
+                      </label>
+                      <p className="text-xs text-slate-600 font-medium">
+                        Select one or more river basins to automatically check their covered districts, or pick individual districts.
+                      </p>
+                    </div>
+                    {selectedBasinIds.length > 0 && (
+                      <span className="rounded-full bg-blue-100 border border-blue-300 px-2.5 py-0.5 text-xs font-bold text-blue-900">
+                        {selectedBasinIds.length} Basin{selectedBasinIds.length > 1 ? 's' : ''} Active
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
-                    {DISTRICTS.map((d) => {
-                      const checked = selectedDistricts.includes(d.id);
-                      return (
-                        <label
-                          key={d.id}
-                          className={`flex items-center gap-2.5 rounded-lg border-2 p-2.5 text-sm transition cursor-pointer font-semibold ${
-                            checked
-                              ? 'border-blue-600 bg-blue-100 text-blue-950 shadow-xs'
-                              : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400'
-                          }`}
+
+                  {/* River Basins multi-select row */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      River Basins ({RIVER_BASINS.length} Total)
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {RIVER_BASINS.map((b) => {
+                        const isSelected = selectedBasinIds.includes(b.id);
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => toggleBasin(b.id)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer border-2 ${
+                              isSelected
+                                ? 'border-blue-600 bg-blue-600 text-white ring-2 ring-blue-300'
+                                : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:border-slate-400'
+                            }`}
+                          >
+                            {isSelected ? '✓ ' : '+ '}
+                            {b.name}
+                            <span className={`ml-1 text-[10px] ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                              ({b.districtIds.length})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Selected districts chips with Clear all button */}
+                  {selectedDistricts.length > 0 && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">
+                          Selected Districts ({selectedDistricts.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleClearAllDistricts}
+                          className="text-xs font-bold text-red-600 hover:text-red-800 hover:underline cursor-pointer"
                         >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => handleDistrictToggle(d.id)}
-                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                          <span>{d.name}</span>
-                        </label>
-                      );
-                    })}
+                          Clear all
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                        {selectedDistricts.map((dId) => (
+                          <span
+                            key={dId}
+                            className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-bold text-blue-950"
+                          >
+                            <span>{getDistrictName(dId)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDistrict(dId)}
+                              className="text-blue-600 hover:text-red-700 font-black ml-1 cursor-pointer"
+                              title={`Remove ${getDistrictName(dId)}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Search box above district checkboxes */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="district-search-input" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Filter Districts ({DISTRICTS.length} Total)
+                      </label>
+                      {districtSearch && (
+                        <span className="text-xs text-slate-500 font-medium">
+                          Found {DISTRICTS.filter((d) => d.name.toLowerCase().includes(districtSearch.trim().toLowerCase())).length} matches
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        id="district-search-input"
+                        type="text"
+                        value={districtSearch}
+                        onChange={(e) => setDistrictSearch(e.target.value)}
+                        placeholder="Search district by name (e.g., Colombo, Galle, Kandy)..."
+                        className="w-full rounded-lg border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 placeholder-slate-400 shadow-xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                      {districtSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setDistrictSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Districts Checkboxes */}
+                    {DISTRICTS.filter((d) =>
+                      d.name.toLowerCase().includes(districtSearch.trim().toLowerCase()),
+                    ).length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-300 bg-white py-6 text-center text-xs font-medium text-slate-600">
+                        No districts match &ldquo;{districtSearch}&rdquo;.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-1">
+                        {DISTRICTS.filter((d) =>
+                          d.name.toLowerCase().includes(districtSearch.trim().toLowerCase()),
+                        ).map((d) => {
+                          const checked = selectedDistricts.includes(d.id);
+                          return (
+                            <label
+                              key={d.id}
+                              className={`flex items-center gap-2 rounded-lg border-2 p-2 text-xs transition cursor-pointer font-semibold ${
+                                checked
+                                  ? 'border-blue-600 bg-blue-100 text-blue-950 shadow-xs'
+                                  : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => handleDistrictToggle(d.id)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{d.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -857,6 +1029,11 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                   <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
                     Dispatch Summary
                   </span>
+                  {customTitle && (
+                    <h4 className="mt-1 text-sm font-black text-blue-950">
+                      {customTitle}
+                    </h4>
+                  )}
                   <h3 className="mt-1 text-xl font-black text-slate-900">
                     {hazardType} {severity}
                   </h3>
@@ -921,6 +1098,11 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
                     <h2 className="text-xl font-black">Alert Dispatched Successfully</h2>
+                    {dispatchResult.alert.title && (
+                      <p className="mt-1 text-sm font-extrabold text-emerald-950">
+                        {dispatchResult.alert.title}
+                      </p>
+                    )}
                     <p className="mt-1 text-sm font-medium">
                       Active alert registered (ID:{' '}
                       <span className="font-mono font-bold">{dispatchResult.alert.id}</span>).
@@ -1057,6 +1239,10 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                     setDispatchResult(null);
                     setPreviewData(null);
                     setMessage('');
+                    setCustomTitle('');
+                    setSelectedBasinIds([]);
+                    setSelectedDistricts([]);
+                    setDistrictSearch('');
                     setActiveTab('active');
                   }}
                   className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 shadow-sm cursor-pointer"
@@ -1135,6 +1321,12 @@ export function WarningsClient({ actorRole }: WarningsClientProps) {
                           </span>
                         </div>
                       </div>
+
+                      {alert.title && (
+                        <h3 className="text-base font-extrabold text-slate-950 -mt-1">
+                          {alert.title}
+                        </h3>
+                      )}
 
                       <p className="text-sm font-medium text-slate-900 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
                         {alert.message}

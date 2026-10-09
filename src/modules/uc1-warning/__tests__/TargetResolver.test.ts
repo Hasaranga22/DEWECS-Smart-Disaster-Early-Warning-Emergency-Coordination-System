@@ -106,4 +106,17 @@ describe('TargetResolver service', () => {
     const unknownBasinRecipients = await resolver.resolve({ basinId: 'unknown-basin' });
     expect(unknownBasinRecipients).toEqual([]);
   });
+
+  it('resolves multi-basin district union with no duplicate citizens', async () => {
+    // Multi-basin union: e.g. Kelani (colombo, gampaha, kegalle) + Attanagalu Oya (gampaha) + Kandy
+    // Notice gampaha is in both basins; districtIds contains gampaha twice
+    const multiBasinDistricts = ['dist-colombo', 'dist-gampaha', 'dist-kegalle', 'dist-gampaha', 'dist-kandy'];
+    const recipients = await resolver.resolve({
+      districtIds: multiBasinDistricts,
+    });
+    // Total citizens in mockCitizens across colombo (2), gampaha (1), kegalle (1), kandy (1) is 5
+    expect(recipients).toHaveLength(5);
+    const uniqueCitizenIds = new Set(recipients.map((r) => r.citizen.id));
+    expect(uniqueCitizenIds.size).toBe(5);
+  });
 });

@@ -16,6 +16,7 @@ export interface AlertTarget {
 
 export interface HazardAlertProps {
   id: string;
+  title?: string;
   hazardType: HazardType;
   severity: Severity;
   status?: AlertStatus;
@@ -32,6 +33,7 @@ export interface HazardAlertProps {
 
 export class HazardAlert {
   public readonly id: string;
+  public readonly title?: string;
   public readonly hazardType: HazardType;
   public readonly issuedBy: string;
   public readonly occurredAt: Date;
@@ -62,7 +64,12 @@ export class HazardAlert {
       throw new ValidationError('Alert must target at least one district or a river basin.');
     }
 
+    if (props.title && props.title.trim().length > 80) {
+      throw new ValidationError('Alert title cannot exceed 80 characters.');
+    }
+
     this.id = props.id;
+    this.title = props.title?.trim() ? props.title.trim() : undefined;
     this.hazardType = props.hazardType;
     this._severity = props.severity;
     this._status = props.status ?? 'ACTIVE';

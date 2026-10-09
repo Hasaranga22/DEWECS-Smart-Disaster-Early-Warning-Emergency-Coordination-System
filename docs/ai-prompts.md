@@ -79,6 +79,20 @@
   7. Active warnings tab: responsive 3-column card grid (`grid-cols-1 md:grid-cols-2 xl:grid-cols-3`).
   8. Responsive: stack to single column below `lg`.
   9. `/alerts/[id]` stays phone-width centered receipt (`max-w-md mx-auto`) on light neutral background with subtle phone-like card.
-- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (62/62 tests passing).
 - Committed as `uc1: dashboard layout`.
+
+## Prompt 7: UC1 + Shared Seed Enhancement (Districts, Basins, Search, Custom Title)
+- **Prompt:**
+  1. Add remaining Sri Lankan districts (25 total) via `seedId(1, 7..25)` without modifying existing 6 records.
+  2. Add river basins after Kelani: Kalu Ganga, Gin Ganga, Nilwala, Mahaweli, Walawe, Attanagalu Oya.
+  3. Keep first 30 citizens assigned strictly to original 6 districts; append 19 new citizens (49 total).
+  4. Update `seed.test.ts` to expect 25 districts and 49 citizens.
+  5. Add search box filtering districts by name as typed.
+  6. Add River basins multi-select row; selecting a basin checks its districts; unselecting removes only districts not covered by another selected basin; show selected districts as removable chips with "Clear all".
+  7. Send `basinId` only when 1 basin selected and districts set matches; otherwise send `districtIds`.
+  8. Add optional "Custom title" (max 80 chars) to entity, Prisma schema, mapper, API routes, composer, active list, and detail receipt.
+  9. Add tests for title and multi-basin district union with no duplicate citizens.
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (67/67 tests passing), `npx prisma validate` (valid schema).
+- Committed as `uc1: more districts, basins, search and custom title`.
+
 

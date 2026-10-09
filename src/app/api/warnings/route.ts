@@ -6,6 +6,7 @@ import { handleApiError } from './errorHandler';
 
 const issueSchema = z
   .object({
+    title: z.string().trim().max(80, 'Custom title cannot exceed 80 characters').optional().nullable(),
     hazardType: z.enum(['FLOOD', 'LANDSLIDE', 'CYCLONE', 'DROUGHT']),
     severity: z.enum(['ADVISORY', 'WATCH', 'WARNING', 'EMERGENCY']),
     message: z.string().trim().min(1, 'Message is required'),
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
 
     const uc1 = getUc1Module();
     const result = await uc1.warningService.issue({
+      title: validated.title ? validated.title : undefined,
       hazardType: validated.hazardType,
       severity: validated.severity,
       message: validated.message,
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
       {
         alert: {
           id: result.alert.id,
+          title: result.alert.title ?? null,
           hazardType: result.alert.hazardType,
           severity: result.alert.severity,
           status: result.alert.status,
@@ -104,6 +107,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       alerts.map((a) => ({
         id: a.id,
+        title: a.title ?? null,
         hazardType: a.hazardType,
         severity: a.severity,
         status: a.status,

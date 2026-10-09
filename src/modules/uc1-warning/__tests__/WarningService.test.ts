@@ -349,4 +349,19 @@ describe('WarningService', () => {
     const updatedAlert = await alertRepo.findById(issueResult.alert.id);
     expect(updatedAlert?.status).toBe('EXPIRED');
   });
+
+  it('stores and returns custom title when issued via WarningService', async () => {
+    const result = await warningService.issue({
+      title: 'Monsoon Flood Advisory',
+      hazardType: 'FLOOD',
+      severity: 'ADVISORY',
+      message: 'Rising water levels in urban canal network',
+      target: { districtIds: ['dist-colombo'] },
+      issuedBy: 'officer-dmc-1',
+    });
+
+    expect(result.alert.title).toBe('Monsoon Flood Advisory');
+    const persisted = await alertRepo.findById(result.alert.id);
+    expect(persisted?.title).toBe('Monsoon Flood Advisory');
+  });
 });

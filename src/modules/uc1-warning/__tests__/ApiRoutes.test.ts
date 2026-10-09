@@ -267,4 +267,45 @@ describe('UC1 API Routes', () => {
     });
     expect(retryRes.status).toBe(200);
   });
+
+  it('stores custom title on issue and returns it in detail and list endpoints', async () => {
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        title: 'Kelani Ganga Basin Flash Flood Alert',
+        hazardType: 'FLOOD',
+        severity: 'WARNING',
+        message: 'Severe flood in Kelani basin',
+        target: { districtIds: [D.COLOMBO] },
+      }),
+    });
+
+    const issueRes = await issueRoute(issueReq);
+    expect(issueRes.status).toBe(201);
+    const created = await issueRes.json();
+    expect(created.alert.title).toBe('Kelani Ganga Basin Flash Flood Alert');
+
+    // Check GET by ID
+    const getReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}`, {
+      headers: { cookie: dmcCookie },
+    });
+    const getRes = await getAlertRoute(getReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(getRes.status).toBe(200);
+    const detailData = await getRes.json();
+    expect(detailData.alert.title).toBe('Kelani Ganga Basin Flash Flood Alert');
+
+    // Check GET list
+    const listReq = new Request('http://localhost:3000/api/warnings', {
+      headers: { cookie: dmcCookie },
+    });
+    const listRes = await getWarningsRoute(listReq);
+    expect(listRes.status).toBe(200);
+    const listData = await listRes.json();
+    const found = listData.find((a: { id: string }) => a.id === created.alert.id);
+    expect(found).toBeDefined();
+    expect(found.title).toBe('Kelani Ganga Basin Flash Flood Alert');
+  });
 });

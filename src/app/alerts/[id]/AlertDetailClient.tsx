@@ -23,6 +23,7 @@ function getTargetDisplayName(target: { districtIds?: string[]; basinId?: string
 interface AlertDetailClientProps {
   alert: {
     id: string;
+    title?: string | null;
     hazardType: string;
     severity: string;
     status: string;
@@ -160,6 +161,11 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
           <h1 className="mt-1 text-2xl font-black uppercase tracking-tight">
             {alert.hazardType} {alert.severity}
           </h1>
+          {alert.title && (
+            <p className="mt-1.5 text-base font-extrabold tracking-wide text-white">
+              {alert.title}
+            </p>
+          )}
           <p className="mt-1 text-xs opacity-90">
             Issued: {new Date(alert.occurredAt).toLocaleString()}
           </p>

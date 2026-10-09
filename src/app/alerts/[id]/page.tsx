@@ -23,6 +23,7 @@ async function AlertLoader({ params }: AlertPageProps) {
 
   const alertData = {
     id: alert.id,
+    title: alert.title ?? null,
     hazardType: alert.hazardType,
     severity: alert.severity,
     status: alert.status,

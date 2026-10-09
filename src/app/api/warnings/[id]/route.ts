@@ -30,6 +30,7 @@ export async function GET(
     return NextResponse.json({
       alert: {
         id: alert.id,
+        title: alert.title ?? null,
         hazardType: alert.hazardType,
         severity: alert.severity,
         status: alert.status,

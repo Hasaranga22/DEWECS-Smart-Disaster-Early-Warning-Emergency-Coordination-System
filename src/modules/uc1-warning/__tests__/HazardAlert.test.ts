@@ -278,4 +278,36 @@ describe('HazardAlert domain entity and state machine', () => {
 
     expect(alert.target.districtIds).toEqual(['dist-colombo', 'dist-gampaha']);
   });
+
+  it('stores and returns custom title when provided', () => {
+    const alert = new HazardAlert({
+      id: 'alert-title-1',
+      title: 'Kelani Ganga Flash Flood Alert',
+      hazardType: 'FLOOD',
+      severity: 'WARNING',
+      message: 'Evacuate river bank.',
+      target: { districtIds: ['dist-colombo'] },
+      issuedBy: 'officer-1',
+      occurredAt: baseDate,
+    });
+
+    expect(alert.title).toBe('Kelani Ganga Flash Flood Alert');
+  });
+
+  it('rejects custom title exceeding 80 characters', () => {
+    const longTitle = 'A'.repeat(81);
+    expect(
+      () =>
+        new HazardAlert({
+          id: 'alert-title-2',
+          title: longTitle,
+          hazardType: 'FLOOD',
+          severity: 'WARNING',
+          message: 'Evacuate river bank.',
+          target: { districtIds: ['dist-colombo'] },
+          issuedBy: 'officer-1',
+          occurredAt: baseDate,
+        }),
+    ).toThrow(ValidationError);
+  });
 });
