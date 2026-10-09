@@ -160,7 +160,9 @@ export function WarningsClient({ actorRole, actorDistrictId }: WarningsClientPro
 
   const activeCount = alertsList.filter((a) => a.status === 'ACTIVE').length;
   const escalatedCount = alertsList.filter((a) => a.status === 'ESCALATED').length;
-  const closedCount = alertsList.filter((a) => a.status === 'CANCELLED' || a.status === 'EXPIRED').length;
+  const cancelledCount = alertsList.filter((a) => a.status === 'CANCELLED').length;
+  const expiredCount = alertsList.filter((a) => a.status === 'EXPIRED').length;
+  const closedCount = cancelledCount + expiredCount;
 
   return (
     <div className="w-full space-y-6">
@@ -175,6 +177,8 @@ export function WarningsClient({ actorRole, actorDistrictId }: WarningsClientPro
         activeCount={activeCount}
         escalatedCount={escalatedCount}
         closedCount={closedCount}
+        cancelledCount={cancelledCount}
+        expiredCount={expiredCount}
         citizensReachedInLast={dispatchResult ? dispatchResult.distinctCitizensReached : 0}
         dispatchResult={dispatchResult}
         hasAlerts={alertsList.length > 0}

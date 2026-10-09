@@ -114,21 +114,21 @@ export function AlertDetailClient({ alert }: AlertDetailClientProps) {
   const isCancelled = alert.status === 'CANCELLED';
 
   return (
-    <div className="flex flex-col items-center justify-center py-6 w-full">
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center py-6 px-4 w-full">
       <div className="w-full max-w-md mx-auto pb-12">
-        {/* Back button */}
-        <div className="mb-3 flex items-center justify-between">
+        {/* Navigation & Simulation Controls */}
+        <div className="mb-3 flex items-center justify-between gap-2">
           <Link
             href="/warnings"
-            className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-blue-700 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-xs hover:border-slate-400 transition"
           >
             ← Back to Warnings Dashboard
           </Link>
           <button
             onClick={() => setIsOfflineSimulated(!isOfflineSimulated)}
-            className={`text-xs px-2.5 py-1 rounded border transition font-semibold cursor-pointer ${
+            className={`text-xs px-3 py-1.5 rounded-lg border transition font-bold shadow-xs cursor-pointer ${
               isOfflineSimulated
-                ? 'bg-amber-100 text-amber-950 border-amber-300 font-bold'
+                ? 'bg-amber-100 text-amber-950 border-amber-300'
                 : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
             }`}
           >

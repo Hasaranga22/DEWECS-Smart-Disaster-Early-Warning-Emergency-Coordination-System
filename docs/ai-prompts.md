@@ -155,6 +155,23 @@
 - **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (70/70 tests passing).
 - Committed as `uc1: clarify preview reach wording`.
 
+## Prompt 12: Show Invalid-Action Reasons, Full Expiry Dates, and Light Receipt Background
+- **Prompt:**
+  1. In `AlertCard.tsx`, added visible inline disabled reason text under action buttons with an info icon (for EMERGENCY: "Already at maximum severity (Emergency). It cannot be escalated."; for CANCELLED or EXPIRED: "Alert is closed. Escalate and cancel are unavailable.").
+  2. In `AlertCard.tsx`, updated Expires display to show full date and time (`toLocaleString()`) matching Occurred.
+  3. Ensured CANCELLED and EXPIRED alerts display status badges, and cancelled alerts display "Cancelled <date time>: <reason>". Added separate Cancelled and Expired counts to the KPI card in `KpiStrip.tsx` and `WarningsClient.tsx`.
+  4. On `/alerts/[id]`, replaced dark background with light `bg-slate-100` page background and high-contrast, clearly readable "Back to Warnings Dashboard" button and "Simulate Offline" toggle button.
+- **Files Changed:**
+  - `src/app/warnings/components/AlertCard.tsx`
+  - `src/app/warnings/components/KpiStrip.tsx`
+  - `src/app/warnings/WarningsClient.tsx`
+  - `src/app/alerts/[id]/AlertDetailClient.tsx`
+  - `src/app/alerts/[id]/page.tsx`
+  - `docs/ai-prompts.md`
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (70/70 tests passing).
+- Committed as `uc1: show invalid-action reasons, full expiry dates, light receipt background`.
+
+
 
 
 

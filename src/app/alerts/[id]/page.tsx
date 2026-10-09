@@ -61,14 +61,16 @@ async function AlertLoader({ params }: AlertPageProps) {
 
 export default function AlertDetailPage({ params }: AlertPageProps) {
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-md py-12 text-center text-sm font-medium text-slate-700 animate-pulse">
-          Loading Citizen Alert Bulletin...
-        </div>
-      }
-    >
-      <AlertLoader params={params} />
-    </Suspense>
+    <div className="min-h-screen bg-slate-100 w-full">
+      <Suspense
+        fallback={
+          <div className="mx-auto max-w-md py-12 text-center text-sm font-medium text-slate-700 animate-pulse">
+            Loading Citizen Alert Bulletin...
+          </div>
+        }
+      >
+        <AlertLoader params={params} />
+      </Suspense>
+    </div>
   );
 }

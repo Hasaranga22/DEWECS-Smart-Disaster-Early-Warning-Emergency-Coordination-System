@@ -51,14 +51,17 @@ export function AlertCard({
           <div className="flex items-center justify-between text-slate-600 font-medium pt-1 border-t border-slate-100">
             <span>Occurred: {new Date(alert.occurredAt).toLocaleString()}</span>
             {alert.expiresAt && (
-              <span>Expires: {new Date(alert.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>Expires: {new Date(alert.expiresAt).toLocaleString()}</span>
             )}
           </div>
         </div>
 
-        {alert.cancellationReason && (
+        {(alert.status === 'CANCELLED' || alert.cancellationReason) && (
           <div className="rounded-md border border-slate-200 bg-slate-100 p-2.5 text-xs text-slate-800">
-            <span className="font-bold text-slate-950">Cancelled:</span> {alert.cancellationReason}
+            <span className="font-bold text-slate-950">
+              Cancelled {alert.cancelledAt ? new Date(alert.cancelledAt).toLocaleString() : ''}:
+            </span>{' '}
+            {alert.cancellationReason || 'No reason specified'}
           </div>
         )}
 
@@ -76,41 +79,54 @@ export function AlertCard({
       </div>
 
       {/* Operational Action Buttons (DMC Official) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200">
-        <Link
-          href={`/alerts/${alert.id}`}
-          className="text-xs font-bold text-blue-700 hover:underline"
-        >
-          Citizen Receipt View →
-        </Link>
+      <div className="pt-3 border-t border-slate-200 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link
+            href={`/alerts/${alert.id}`}
+            className="text-xs font-bold text-blue-700 hover:underline"
+          >
+            Citizen Receipt View →
+          </Link>
 
-        {isDmcOfficial && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={isEmergency || isClosed}
-              title={
-                isClosed
-                  ? 'Alert is closed and cannot be escalated'
-                  : isEmergency
-                  ? 'Alert is already at maximum severity (EMERGENCY)'
-                  : 'Escalate severity'
-              }
-              onClick={() => onEscalate(alert)}
-              className="rounded-md border-2 border-purple-400 bg-purple-50 px-2.5 py-1 text-xs font-extrabold text-purple-950 transition hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              Escalate
-            </button>
+          {isDmcOfficial && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isEmergency || isClosed}
+                title={
+                  isClosed
+                    ? 'Alert is closed and cannot be escalated'
+                    : isEmergency
+                    ? 'Alert is already at maximum severity (EMERGENCY)'
+                    : 'Escalate severity'
+                }
+                onClick={() => onEscalate(alert)}
+                className="rounded-md border-2 border-purple-400 bg-purple-50 px-2.5 py-1 text-xs font-extrabold text-purple-950 transition hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Escalate
+              </button>
 
-            <button
-              type="button"
-              disabled={isClosed}
-              title={isClosed ? 'Alert is already closed' : 'Cancel alert'}
-              onClick={() => onCancel(alert)}
-              className="rounded-md border-2 border-red-400 bg-red-50 px-2.5 py-1 text-xs font-extrabold text-red-950 transition hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              Cancel
-            </button>
+              <button
+                type="button"
+                disabled={isClosed}
+                title={isClosed ? 'Alert is already closed' : 'Cancel alert'}
+                onClick={() => onCancel(alert)}
+                className="rounded-md border-2 border-red-400 bg-red-50 px-2.5 py-1 text-xs font-extrabold text-red-950 transition hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isDmcOfficial && (isClosed || isEmergency) && (
+          <div className="flex items-start gap-1.5 text-[11px] text-slate-700 font-medium">
+            <span className="shrink-0 text-slate-500 font-bold">ℹ️</span>
+            <span>
+              {isClosed
+                ? 'Alert is closed. Escalate and cancel are unavailable.'
+                : 'Already at maximum severity (Emergency). It cannot be escalated.'}
+            </span>
           </div>
         )}
       </div>

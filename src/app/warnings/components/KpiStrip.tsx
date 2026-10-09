@@ -5,6 +5,8 @@ interface KpiStripProps {
   activeCount: number;
   escalatedCount: number;
   closedCount: number;
+  cancelledCount?: number;
+  expiredCount?: number;
   citizensReachedInLast: number;
   dispatchResult: DispatchResultData | null;
   hasAlerts: boolean;
@@ -14,6 +16,8 @@ export function KpiStrip({
   activeCount,
   escalatedCount,
   closedCount,
+  cancelledCount,
+  expiredCount,
   citizensReachedInLast,
   dispatchResult,
   hasAlerts,
@@ -44,7 +48,11 @@ export function KpiStrip({
           <span className="h-2.5 w-2.5 rounded-full bg-slate-400 ring-2 ring-slate-200" />
         </div>
         <p className="mt-2 text-3xl font-black text-slate-700">{closedCount}</p>
-        <span className="text-xs text-slate-600 font-medium">Resolved warning events</span>
+        <span className="text-xs text-slate-600 font-medium">
+          {cancelledCount !== undefined && expiredCount !== undefined
+            ? `${cancelledCount} Cancelled • ${expiredCount} Expired`
+            : 'Resolved warning events'}
+        </span>
       </div>
 
       <div className="rounded-xl border-2 border-slate-200 bg-white p-4 shadow-sm">
