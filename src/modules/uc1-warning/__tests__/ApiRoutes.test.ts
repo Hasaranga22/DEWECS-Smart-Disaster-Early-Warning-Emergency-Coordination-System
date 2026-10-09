@@ -353,5 +353,89 @@ describe('UC1 API Routes', () => {
     expect(citizenData.totalAttempts).toBeUndefined();
     expect(citizenData.channelSummary).toBeUndefined();
   });
+
+  it('GET /api/warnings/[id]: DISTRICT_OFFICER receives only attempts, counts and channel summaries for their district', async () => {
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'WARNING',
+        message: 'Flooding in Western Province',
+        target: { districtIds: [D.COLOMBO, D.GAMPAHA] },
+      }),
+    });
+    const issueRes = await issueRoute(issueReq);
+    expect(issueRes.status).toBe(201);
+    const created = await issueRes.json();
+
+    // DMC Official gets attempts across both Colombo and Gampaha
+    const dmcGetReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}`, {
+      headers: { cookie: dmcCookie },
+    });
+    const dmcRes = await getAlertRoute(dmcGetReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    const dmcData = await dmcRes.json();
+    const dmcDistricts = new Set(dmcData.attempts.map((a: { districtId: string }) => a.districtId));
+    expect(dmcDistricts.has(D.COLOMBO)).toBe(true);
+    expect(dmcDistricts.has(D.GAMPAHA)).toBe(true);
+
+    // District Officer (Colombo) only gets attempts for Colombo
+    const districtOfficerReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}`, {
+      headers: { cookie: 'dewecs_role=DISTRICT_OFFICER' },
+    });
+    const officerRes = await getAlertRoute(districtOfficerReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(officerRes.status).toBe(200);
+    const officerData = await officerRes.json();
+    expect(officerData.attempts.length).toBeGreaterThan(0);
+    expect(officerData.attempts.length).toBeLessThan(dmcData.attempts.length);
+    for (const attempt of officerData.attempts) {
+      expect(attempt.districtId).toBe(D.COLOMBO);
+    }
+    expect(officerData.totalAttempts).toBe(officerData.attempts.length);
+
+    const deliveredInColombo = new Set(
+      officerData.attempts.filter((a: { status: string; citizenId: string }) => a.status === 'DELIVERED').map((a: { citizenId: string }) => a.citizenId),
+    );
+    expect(officerData.distinctCitizensReached).toBe(deliveredInColombo.size);
+    expect(officerData.channelSummary.sms.sent).toBe(
+      officerData.attempts.filter((a: { channel: string }) => a.channel === 'SMS').length,
+    );
+    expect(officerData.channelSummary.push.sent).toBe(
+      officerData.attempts.filter((a: { channel: string }) => a.channel === 'PUSH').length,
+    );
+  });
+
+  it('GET /api/warnings/[id]: DISTRICT_OFFICER receives 403 when alert does not target their district', async () => {
+    // Alert targeting only Gampaha
+    const issueReq = new Request('http://localhost:3000/api/warnings', {
+      method: 'POST',
+      headers: { cookie: dmcCookie },
+      body: JSON.stringify({
+        hazardType: 'FLOOD',
+        severity: 'WARNING',
+        message: 'Flooding in Gampaha only',
+        target: { districtIds: [D.GAMPAHA] },
+      }),
+    });
+    const issueRes = await issueRoute(issueReq);
+    expect(issueRes.status).toBe(201);
+    const created = await issueRes.json();
+
+    // District Officer (seeded for D.COLOMBO) requests Gampaha alert
+    const districtOfficerReq = new Request(`http://localhost:3000/api/warnings/${created.alert.id}`, {
+      headers: { cookie: 'dewecs_role=DISTRICT_OFFICER' },
+    });
+    const officerRes = await getAlertRoute(districtOfficerReq, {
+      params: Promise.resolve({ id: created.alert.id }),
+    });
+    expect(officerRes.status).toBe(403);
+    const errData = await officerRes.json();
+    expect(errData.error).toContain('Access denied');
+  });
 });
+
 

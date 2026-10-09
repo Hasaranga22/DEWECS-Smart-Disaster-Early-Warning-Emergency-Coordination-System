@@ -132,5 +132,18 @@
 - **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (68/68 tests passing).
 - Committed as `uc1: group delivery results by district, collapse attempt log`.
 
+## Prompt 10: Scope District Officer Data Server-Side in GET /api/warnings/[id]
+- **Prompt:**
+  1. In `GET /api/warnings/[id]`, when actor is `DISTRICT_OFFICER`, filter attempts, counts (`totalAttempts`, `distinctCitizensReached`), and channel summaries (`channelSummary.sms`, `channelSummary.push`) server-side strictly to that officer's own district.
+  2. If an alert does not target the officer's district, return HTTP 403 (Access denied).
+  3. Added unit tests in `ApiRoutes.test.ts` for district scoping and unauthorized alert rejection.
+- **Files Changed:**
+  - `src/app/api/warnings/[id]/route.ts`
+  - `src/modules/uc1-warning/__tests__/ApiRoutes.test.ts`
+  - `docs/ai-prompts.md`
+- **Verification:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx vitest run` (70/70 tests passing).
+- Committed as `uc1: scope district officer data server-side`.
+
+
 
 
