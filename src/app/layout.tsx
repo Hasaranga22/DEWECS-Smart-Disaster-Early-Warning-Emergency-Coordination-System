@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NetworkProvider } from "@/modules/uc2-report/client/network";
 import "./globals.css";
 import Link from 'next/link';
 import { Suspense } from 'react';
@@ -58,7 +59,11 @@ export default function RootLayout({
             <RoleSwitcherLoader />
           </Suspense>
         </header>
-        <main className="flex-1 w-full px-6 lg:px-8 py-6">{children}</main>
+        <main className="flex-1 w-full px-6 lg:px-8 py-6">
+          <NetworkProvider>
+            {children}
+          </NetworkProvider>
+        </main>
       </body>
     </html>
   );

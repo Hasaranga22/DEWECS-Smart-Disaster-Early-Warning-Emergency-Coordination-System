@@ -2,6 +2,7 @@ import type { Role } from '../domain';
 import { CITIZENS, D, DMC_OFFICIAL_ID, DUTY_OFFICER_ID, OFFICERS } from '../seed';
 
 export interface Actor {
+  id: string;
   role: Role;
   userId: string;
   name: string;
@@ -12,10 +13,11 @@ const districtOfficer = OFFICERS.find((o) => o.role === 'DISTRICT_OFFICER' && o.
 
 /** One seeded demo user per switcher role. */
 export const DEMO_ACTORS: Record<Role, Actor> = {
-  CITIZEN: { role: 'CITIZEN', userId: CITIZENS[0].id, name: CITIZENS[0].name, districtId: CITIZENS[0].districtId },
-  DUTY_OFFICER: { role: 'DUTY_OFFICER', userId: DUTY_OFFICER_ID, name: 'Duty Officer Silva' },
-  DMC_OFFICIAL: { role: 'DMC_OFFICIAL', userId: DMC_OFFICIAL_ID, name: 'DMC Official Perera' },
+  CITIZEN: { id: CITIZENS[0].id, role: 'CITIZEN', userId: CITIZENS[0].id, name: CITIZENS[0].name, districtId: CITIZENS[0].districtId },
+  DUTY_OFFICER: { id: DUTY_OFFICER_ID, role: 'DUTY_OFFICER', userId: DUTY_OFFICER_ID, name: 'Duty Officer Silva' },
+  DMC_OFFICIAL: { id: DMC_OFFICIAL_ID, role: 'DMC_OFFICIAL', userId: DMC_OFFICIAL_ID, name: 'DMC Official Perera' },
   DISTRICT_OFFICER: {
+    id: districtOfficer.id,
     role: 'DISTRICT_OFFICER',
     userId: districtOfficer.id,
     name: districtOfficer.name,
