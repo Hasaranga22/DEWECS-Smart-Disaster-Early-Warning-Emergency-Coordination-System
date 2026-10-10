@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       severity: validated.severity,
       message: validated.message,
       target: validated.target,
-      issuedBy: actor.userId,
+      issuedBy: actor.userId ?? actor.id,
       confirmZeroRecipients: validated.confirmZeroRecipients,
       expiresAt: validated.expiresAt ? new Date(validated.expiresAt) : null,
     });

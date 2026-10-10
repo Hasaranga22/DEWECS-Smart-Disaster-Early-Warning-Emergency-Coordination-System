@@ -34,7 +34,7 @@ async function WarningsLoader() {
     );
   }
 
-  return <WarningsClient actorRole={actor.role} actorUserId={actor.userId} actorDistrictId={actor.districtId} />;
+  return <WarningsClient actorRole={actor.role} actorUserId={actor.userId ?? actor.id} actorDistrictId={actor.districtId} />;
 }
 
 export default function WarningsPage() {

@@ -1,9 +1,10 @@
+
 import type { HazardType, Role } from '@/shared/domain';
 import type { Severity } from './constants';
 
 export interface WarningsClientProps {
   actorRole: Role;
-  actorUserId: string;
+  actorUserId?: string;
   actorDistrictId?: string;
 }
 
