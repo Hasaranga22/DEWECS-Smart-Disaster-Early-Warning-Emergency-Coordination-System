@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL']);
 
     const { id } = await params;

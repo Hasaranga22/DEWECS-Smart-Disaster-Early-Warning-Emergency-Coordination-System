@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL', 'DUTY_OFFICER', 'DISTRICT_OFFICER', 'CITIZEN']);
 
     const { id } = await params;

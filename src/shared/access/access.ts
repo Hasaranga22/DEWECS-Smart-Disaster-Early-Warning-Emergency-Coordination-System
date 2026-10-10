@@ -48,7 +48,7 @@ export function actorFromRoleValue(value: string | undefined | null): Actor {
  *
  * @throws ForbiddenError when cookie is missing or unrecognised
  */
-export function getActor(request: Request): Actor {
+export async function getActor(request: Request): Promise<Actor> {
   const cookieHeader = request.headers.get('cookie');
 
   // Check 'actor' cookie first (used by UC3/UC4)

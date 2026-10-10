@@ -28,7 +28,7 @@ const issueSchema = z
 
 export async function POST(request: Request) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL']);
 
     const body = await request.json();
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL', 'DUTY_OFFICER', 'DISTRICT_OFFICER']);
 
     const { searchParams } = new URL(request.url);

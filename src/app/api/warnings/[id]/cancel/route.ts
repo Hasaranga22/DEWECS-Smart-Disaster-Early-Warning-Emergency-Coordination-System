@@ -13,7 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL']);
 
     const { id } = await params;
@@ -21,7 +21,7 @@ export async function POST(
     const validated = cancelSchema.parse(body);
 
     const uc1 = getUc1Module();
-    const result = await uc1.warningService.cancel(id, actor.userId, validated.reason);
+    const result = await uc1.warningService.cancel(id, actor.userId ?? actor.id, validated.reason);
 
     return NextResponse.json({
       alert: {

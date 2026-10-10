@@ -4,8 +4,8 @@ import { CITIZENS, D, DMC_OFFICIAL_ID, DUTY_OFFICER_ID, OFFICERS } from '../seed
 export interface Actor {
   id: string;
   role: Role;
-  userId: string;
-  name: string;
+  userId?: string;
+  name?: string;
   districtId?: string;
 }
 

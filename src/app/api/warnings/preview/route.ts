@@ -19,7 +19,7 @@ const previewSchema = z
 
 export async function POST(request: Request) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL']);
 
     const body = await request.json();

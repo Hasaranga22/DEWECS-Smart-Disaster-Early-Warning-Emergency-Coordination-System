@@ -16,7 +16,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL']);
 
     const { id } = await params;
@@ -27,7 +27,7 @@ export async function POST(
     const result = await uc1.warningService.escalate({
       alertId: id,
       newSeverity: validated.newSeverity,
-      byOfficerId: actor.userId,
+      byOfficerId: actor.userId ?? actor.id,
       reason: validated.reason,
       expandDistrictIds: validated.expandDistrictIds,
       expandBasinId: validated.expandBasinId,

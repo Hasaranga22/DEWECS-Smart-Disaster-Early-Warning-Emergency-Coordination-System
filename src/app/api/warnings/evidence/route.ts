@@ -35,7 +35,7 @@ const SAMPLE_VERIFIED_EVIDENCE: VerifiedEvidence[] = [
 
 export async function GET(request: Request) {
   try {
-    const actor = getActor(request);
+    const actor = await getActor(request);
     requireRole(actor, ['DMC_OFFICIAL', 'DUTY_OFFICER']);
 
     const uc1 = getUc1Module();

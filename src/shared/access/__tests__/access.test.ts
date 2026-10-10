@@ -11,9 +11,9 @@ describe('access', () => {
     expect(actorFromRoleValue('HACKER').role).toBe('CITIZEN');
   });
 
-  it('reads the role from a Cookie header', () => {
+  it('reads the role from a Cookie header', async () => {
     const req = new Request('http://x', { headers: { cookie: `a=1; ${ROLE_COOKIE}=DUTY_OFFICER` } });
-    expect(getActor(req).role).toBe('DUTY_OFFICER');
+    expect((await getActor(req)).role).toBe('DUTY_OFFICER');
   });
 
   it('allows a permitted role', () => {
