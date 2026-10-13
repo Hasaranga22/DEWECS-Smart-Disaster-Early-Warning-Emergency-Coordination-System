@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useNetworkStatus } from "@/modules/uc2-report/client/network";
 import { getCurrentLocation } from "@/modules/uc2-report/client/geolocation";
 import { compressImage } from "@/modules/uc2-report/client/compressImage";
