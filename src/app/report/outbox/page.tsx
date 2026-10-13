@@ -6,6 +6,7 @@ import { LocalOutboxEntry } from "@/modules/uc2-report/domain/LocalOutboxEntry";
 import { useNetworkStatus } from "@/modules/uc2-report/client/network";
 import Link from "next/link";
 import { WifiOff, Wifi, RefreshCw, AlertCircle, Clock, CheckCircle2, Plus, ImageIcon, Inbox, ClipboardList } from "lucide-react";
+import { CreativeDewecsLogo } from "@/components/CreativeDewecsLogo";
 
 const HAZARD_META: Record<string, { icon: string; bg: string }> = {
   FLOOD: { icon: "🌊", bg: "bg-sky-50" },
@@ -106,20 +107,31 @@ export default function OutboxPage() {
   return (
     <div className="min-h-screen bg-slate-100 pb-32">
       {/* Hero header */}
-      <header className="bg-slate-950 text-white px-5 pt-5 pb-16 rounded-b-[2rem]">
-        <div className="flex items-center justify-between">
+      <header className="bg-slate-950 text-white px-5 pt-5 pb-16 rounded-b-[2.5rem] shadow-xl border-b border-white/5">
+        {/* Brand bar with live status */}
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <CreativeDewecsLogo variant="dark" size="sm" showTagline={true} />
+          <Link
+            href="/report/new"
+            className="flex items-center gap-1.5 text-xs font-bold bg-teal-500 text-slate-950 px-3 py-1.5 rounded-full hover:bg-teal-400 active:scale-95 transition-all shadow-md"
+          >
+            <Plus size={15} strokeWidth={3} /> New report
+          </Link>
+        </div>
+
+        <div className="flex items-center justify-between mt-4">
           <div>
-            <h1 className="text-2xl font-bold">Outbox</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              {entries.length === 0 ? "Nothing waiting to send" : `${entries.length} report${entries.length === 1 ? "" : "s"} waiting`}
+            <h1 className="text-2xl font-bold tracking-tight text-white">Outbox</h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {entries.length === 0 ? "All reports synced · None waiting" : `${entries.length} offline report${entries.length === 1 ? "" : "s"} waiting to sync`}
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Link href="/report/history" className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 px-3 py-2.5 rounded-xl active:bg-white/10"><ClipboardList size={16} /> Sent reports</Link>
-            <Link href="/report/new" className="flex items-center gap-1.5 text-sm font-semibold bg-teal-500 text-slate-950 pl-3 pr-4 py-2.5 rounded-full active:bg-teal-400 shadow-lg">
-              <Plus size={18} strokeWidth={3} /> New report
-            </Link>
-          </div>
+          <Link
+            href="/report/history"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 rounded-xl active:bg-white/15 transition-all"
+          >
+            <ClipboardList size={15} className="text-teal-400" /> Sent reports
+          </Link>
         </div>
       </header>
 
