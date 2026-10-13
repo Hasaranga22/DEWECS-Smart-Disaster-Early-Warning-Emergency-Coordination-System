@@ -13,6 +13,7 @@ import {
   ChevronLeft, WifiOff, LocateFixed, Inbox, Check, ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
+import { CreativeDewecsLogo } from "@/components/CreativeDewecsLogo";
 
 const MAX_PHOTOS = 3;
 const MIN_DESC = 10;
@@ -195,32 +196,45 @@ export default function NewReportPage() {
   return (
     <div className="min-h-screen bg-slate-100 pb-48">
       {/* Hero header with progress */}
-      <header className="bg-slate-950 text-white px-5 pt-4 pb-20 rounded-b-[2rem]">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <Link href="/report/outbox" className="flex items-center gap-1 text-xs font-semibold text-slate-200 px-2 py-2 rounded-xl active:bg-white/10">
-              <ChevronLeft size={18} /> Outbox
-            </Link>
-            <Link href="/report/history" className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 px-3 py-2 rounded-xl active:bg-white/10">
-              <ClipboardList size={16} /> Sent reports
-            </Link>
-          </div>
+      <header className="bg-slate-950 text-white px-5 pt-5 pb-20 rounded-b-[2.5rem] shadow-xl border-b border-white/5">
+        {/* Brand bar with live status */}
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <CreativeDewecsLogo variant="dark" size="sm" showTagline={true} />
           {!isOnline ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-400/15 px-3 py-1.5 rounded-full">
-              <WifiOff size={14} /> Offline
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-3 py-1.5 rounded-full shadow-sm">
+              <WifiOff size={13} /> Offline mode
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-400/15 px-3 py-1.5 rounded-full">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Online
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-400/15 border border-emerald-400/30 px-3 py-1.5 rounded-full shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Live network
             </span>
           )}
         </div>
-        <h1 className="text-2xl font-bold mt-3">Report a hazard</h1>
-        <p className="text-sm text-slate-400 mt-1">Takes about a minute. Your location is added for you.</p>
+
+        {/* Navigation pills */}
+        <div className="flex items-center gap-2 mt-4">
+          <Link
+            href="/report/outbox"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-full transition-all active:scale-95"
+          >
+            <Inbox size={14} className="text-teal-400" /> Outbox
+          </Link>
+          <Link
+            href="/report/history"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-full transition-all active:scale-95"
+          >
+            <ClipboardList size={14} className="text-teal-400" /> Sent reports
+          </Link>
+        </div>
+
+        <div className="mt-4">
+          <h1 className="text-2xl font-bold tracking-tight text-white">Report a hazard</h1>
+          <p className="text-xs text-slate-400 mt-1">Takes about a minute. Your GPS location is added automatically.</p>
+        </div>
 
         <div className="flex gap-1.5 mt-5" role="progressbar" aria-valuemin={0} aria-valuemax={4} aria-valuenow={completed}>
           {steps.map((ok, i) => (
-            <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${ok ? "bg-teal-400" : "bg-white/15"}`} />
+            <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${ok ? "bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]" : "bg-white/15"}`} />
           ))}
         </div>
       </header>

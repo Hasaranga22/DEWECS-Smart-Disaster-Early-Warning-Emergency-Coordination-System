@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, ChevronLeft, ClipboardList, Clock, MapPin, RefreshCw } from "lucide-react";
+import { CreativeDewecsLogo } from "@/components/CreativeDewecsLogo";
 import { DEMO_CITIZEN_ID } from "@/modules/uc2-report/client/citizen";
 import { hazardMeta, timeAgo } from "@/modules/uc2-report/client/reportUi";
 
@@ -50,17 +51,32 @@ export default function ReportHistoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-10">
-      <header className="bg-slate-950 text-white px-5 pt-5 pb-16 rounded-b-[2rem]">
-        <div className="flex items-center justify-between">
-          <Link href="/report/outbox" aria-label="Back to outbox" className="h-10 w-10 -ml-2 flex items-center justify-center rounded-full active:bg-white/10">
-            <ChevronLeft size={24} />
-          </Link>
-          <button onClick={() => void loadReports()} disabled={loading} className="flex items-center gap-1.5 text-sm font-semibold text-slate-200 px-3 py-2 rounded-xl active:bg-white/10 disabled:opacity-50">
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
+      <header className="bg-slate-950 text-white px-5 pt-5 pb-16 rounded-b-[2.5rem] shadow-xl border-b border-white/5">
+        {/* Brand bar with back button & refresh */}
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Link
+              href="/report/outbox"
+              aria-label="Back to outbox"
+              className="h-10 w-10 flex items-center justify-center rounded-2xl bg-white/5 hover:bg-white/10 text-white transition-colors active:scale-95"
+            >
+              <ChevronLeft size={22} />
+            </Link>
+            <CreativeDewecsLogo variant="dark" size="sm" showTagline={false} />
+          </div>
+          <button
+            onClick={() => void loadReports()}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 rounded-xl active:bg-white/15 disabled:opacity-50 transition-all"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
           </button>
         </div>
-        <h1 className="text-2xl font-bold mt-3">Sent reports</h1>
-        <p className="text-sm text-slate-400 mt-1">Track reports that have reached emergency coordinators.</p>
+
+        <div className="mt-4">
+          <h1 className="text-2xl font-bold tracking-tight text-white">Sent reports</h1>
+          <p className="text-xs text-slate-400 mt-1">Track reports that have reached emergency coordinators.</p>
+        </div>
       </header>
 
       <main className="px-4 -mt-9 max-w-md mx-auto">
