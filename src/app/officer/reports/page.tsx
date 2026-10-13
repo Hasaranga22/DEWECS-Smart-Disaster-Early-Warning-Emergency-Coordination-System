@@ -82,6 +82,9 @@ function ReportCard({ report, onVerify, onReject, onBroadcast, onFocus, onPhoto 
   const status = statusMeta(report.reviewStatus);
   const isHighVerified = report.reviewStatus === "VERIFIED" && report.severityIndication === "HIGH";
 
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLong = report.description.length > 120;
+
   return (
     <article className="bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden">
       <div className="p-5 flex-1">
@@ -98,7 +101,20 @@ function ReportCard({ report, onVerify, onReject, onBroadcast, onFocus, onPhoto 
           </div>
         </div>
 
-        <p className="text-sm text-slate-700 leading-relaxed mt-4 line-clamp-3">{report.description}</p>
+        <div className="mt-4">
+          <p className={`text-sm text-slate-700 leading-relaxed ${isExpanded ? "" : "line-clamp-3"}`}>
+            {report.description}
+          </p>
+          {isLong && (
+            <button 
+              type="button" 
+              onClick={() => setIsExpanded(!isExpanded)} 
+              className="text-teal-600 text-xs font-bold mt-1.5 active:text-teal-800 transition-colors"
+            >
+              {isExpanded ? "Show less" : "Read full description"}
+            </button>
+          )}
+        </div>
 
         {/* Photos */}
         <div className="grid grid-cols-3 gap-2 mt-4">
@@ -190,7 +206,7 @@ export default function OfficerDashboard() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [alertTarget, setAlertTarget] = useState<OfficerReport | null>(null);
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; report: OfficerReport } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   /* ---------- data ---------- */
@@ -520,7 +536,7 @@ export default function OfficerDashboard() {
                   onReject={() => openAction(r, "reject")}
                   onBroadcast={() => setAlertTarget(r)}
                   onFocus={() => focusOnMap(r.id)}
-                  onPhoto={setLightbox}
+                  onPhoto={(src) => setLightbox({ src, report: r })}
                 />
               ))}
             </div>
@@ -626,9 +642,26 @@ export default function OfficerDashboard() {
 
       {/* Photo lightbox */}
       {lightbox && (
-        <div className="fixed inset-0 z-[2100] bg-black/90 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <button aria-label="Close photo" className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/15 text-white flex items-center justify-center"><X size={20} /></button>
-          <img src={lightbox} alt="Evidence" className="max-h-full max-w-full rounded-2xl object-contain" />
+        <div className="fixed inset-0 z-[2100] bg-black/95 flex flex-col items-center justify-center" onClick={() => setLightbox(null)}>
+          <button aria-label="Close photo" className="absolute top-4 right-4 z-50 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-sm transition-colors">
+            <X size={24} />
+          </button>
+          
+          <div className="flex-1 w-full flex items-center justify-center p-4 min-h-0 relative">
+            <img src={lightbox.src} alt="Evidence" className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl" />
+          </div>
+
+          <div className="w-full max-w-4xl p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent backdrop-blur-md absolute bottom-0 left-1/2 -translate-x-1/2 rounded-t-3xl border-t border-white/10" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`text-xs font-bold px-2 py-1 rounded-md ${hazardMeta(lightbox.report.hazardType).tint}`}>
+                {hazardMeta(lightbox.report.hazardType).icon} {hazardMeta(lightbox.report.hazardType).label}
+              </span>
+              <span className="text-xs text-slate-300 flex items-center gap-1"><Clock size={12}/> {timeAgo(lightbox.report.captureTime)}</span>
+            </div>
+            <p className="text-sm sm:text-base text-slate-100 leading-relaxed font-medium">
+              {lightbox.report.description}
+            </p>
+          </div>
         </div>
       )}
 
