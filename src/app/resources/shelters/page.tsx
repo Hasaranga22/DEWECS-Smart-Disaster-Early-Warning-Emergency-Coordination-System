@@ -42,6 +42,12 @@ export default function SheltersPage() {
   useEffect(() => {
     loadData();
     setActionId(crypto.randomUUID());
+
+    const onRoleChanged = () => {
+      loadData();
+    };
+    window.addEventListener("dewecs-role-changed", onRoleChanged);
+    return () => window.removeEventListener("dewecs-role-changed", onRoleChanged);
   }, []);
 
   const openUpdateModal = (shelter: ShelterData) => {

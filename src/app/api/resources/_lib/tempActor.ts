@@ -12,11 +12,26 @@ export const DEFAULT_COLOMBO_DISTRICT_OFFICER_ID = "00000000-0000-4000-8000-0000
 export const DEFAULT_COLOMBO_DISTRICT_ID = "00000000-0000-4000-8000-000000000010";
 
 export async function getActor(request: NextRequest): Promise<Actor> {
-  const roleCookie = request.cookies.get("dewecs-role")?.value;
-  const roleHeader = request.headers.get("x-dewecs-role");
-  const districtHeader = request.headers.get("x-dewecs-district-id");
+  let role: Role = "DISTRICT_OFFICER";
+  const rawRole =
+    request.cookies.get("dewecs-role")?.value ||
+    request.cookies.get("actor")?.value ||
+    request.headers.get("x-dewecs-role");
 
-  const role: Role = (roleCookie || roleHeader || "DISTRICT_OFFICER") as Role;
+  if (rawRole) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(rawRole));
+      if (parsed && typeof parsed.role === "string") {
+        role = parsed.role as Role;
+      } else {
+        role = rawRole as Role;
+      }
+    } catch {
+      role = rawRole as Role;
+    }
+  }
+
+  const districtHeader = request.headers.get("x-dewecs-district-id");
   const districtId = districtHeader || DEFAULT_COLOMBO_DISTRICT_ID;
 
   return {

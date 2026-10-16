@@ -40,6 +40,12 @@ export default function DistributionPage() {
   useEffect(() => {
     loadData();
     setActionId(crypto.randomUUID());
+
+    const onRoleChanged = () => {
+      loadData();
+    };
+    window.addEventListener("dewecs-role-changed", onRoleChanged);
+    return () => window.removeEventListener("dewecs-role-changed", onRoleChanged);
   }, []);
 
   // Find selected stock item across groups

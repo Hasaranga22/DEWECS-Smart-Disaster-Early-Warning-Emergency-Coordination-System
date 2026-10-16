@@ -12,6 +12,7 @@ export default defineConfig({
       exclude: [
         '**/__tests__/**',
         '**/adapters/prisma/**',
+        '**/adapters/repositories/**',
         'src/generated/**',
         'src/app/**',
         'src/components/**',

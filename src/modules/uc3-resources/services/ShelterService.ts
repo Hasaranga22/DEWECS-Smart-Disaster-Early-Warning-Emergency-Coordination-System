@@ -1,3 +1,5 @@
+
+// UC3 - Resource Management-SOLID Principles-Single Responsibility (S)
 import { Actor } from "@/shared/contracts/types";
 import { Shelter } from "../domain/entities/Shelter";
 import { OccupancyEvent } from "../domain/entities/OccupancyEvent";
