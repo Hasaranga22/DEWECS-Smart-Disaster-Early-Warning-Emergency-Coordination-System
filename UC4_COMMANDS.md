@@ -63,3 +63,5 @@ Notes: run from repo root (...\DEWECS-Smart-Disaster-Early-Warning-Emergency-Coo
 - `tests/integration/uc4-db-fixtures.ts`: Seeding and cleanup utilities for UC4 DB tests.
 - `scripts/uc4-full-db-test.ts`: Standalone execution script for DB integration checks.
 - `tests/integration/uc134-to-uc4.test.ts`: Cross-module integration tests.
+
+http://localhost:3000/resources
