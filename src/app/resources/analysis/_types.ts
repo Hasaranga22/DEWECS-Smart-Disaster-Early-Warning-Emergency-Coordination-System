@@ -137,6 +137,9 @@ export const api = {
       body: JSON.stringify({ organizationIds }),
     });
   },
+  getShareHistory(id: string): Promise<{ outcomes: ShareOutcome[] }> {
+    return apiFetch(`/api/analysis/${id}/share`);
+  },
 };
 
 export function formatDate(iso: string): string {

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   FileText,
   Megaphone,
@@ -20,15 +21,19 @@ import {
   Check,
   Clock,
   XCircle,
+  Filter,
+  Loader2,
 } from "lucide-react";
 import {
   api,
   ApiError,
   AnalysisReport,
   DISTRICTS,
+  HAZARD_TYPES,
   formatDate,
   formatNumber,
 } from "../_types";
+import { buildScopedRegeneration } from "../_scope";
 import {
   Card,
   CardTitle,
@@ -46,10 +51,20 @@ export default function ReportSummaryPage({
 }) {
   const resolvedParams = use(params);
   const reportId = resolvedParams.id;
+  const router = useRouter();
 
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<{ status: number; message: string } | null>(null);
+
+  const [scopeDistrictIdRaw, setScopeDistrictIdRaw] = useState<string | null>(null);
+  const [scopeHazardTypeRaw, setScopeHazardTypeRaw] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<boolean>(false);
+  const [scopeError, setScopeError] = useState<string | null>(null);
+
+  // null = untouched by the user, so the select follows the loaded snapshot's filters
+  const scopeDistrictId = scopeDistrictIdRaw ?? report?.filters.districtId ?? "";
+  const scopeHazardType = scopeHazardTypeRaw ?? report?.filters.hazardType ?? "";
 
   const loadData = async () => {
     setLoading(true);
@@ -72,6 +87,28 @@ export default function ReportSummaryPage({
   useEffect(() => {
     loadData();
   }, [reportId]);
+
+  const handleRegenerate = async () => {
+    if (!report || regenerating) return;
+    setRegenerating(true);
+    setScopeError(null);
+    try {
+      const res = await api.generateReport(
+        buildScopedRegeneration(report.filters, {
+          districtId: scopeDistrictId,
+          hazardType: scopeHazardType,
+        }),
+      );
+      router.push(`/resources/analysis/${res.reportId}`);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : "Failed to generate scoped snapshot";
+      setScopeError(msg);
+      setRegenerating(false);
+    }
+  };
 
   if (loading) {
     return <Loading message="Loading report summary..." />;
@@ -132,6 +169,7 @@ export default function ReportSummaryPage({
   if (!report) return null;
 
   const { filters, metrics, warningFlag, generatedAt, sourceCutoff } = report;
+  const included = new Set<string>(filters.includedSections);
   const verifiedCount = metrics.reports.verified;
   const rejectedCount = metrics.reports.rejected;
   const pendingCount = metrics.reports.pending;
@@ -232,6 +270,75 @@ export default function ReportSummaryPage({
         </div>
       </Card>
 
+      {/* A1: Inline Filter & Regenerate Scope */}
+      <Card className="space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-200 pb-2">
+            <Filter className="w-4 h-4 text-blue-400" /> Filter &amp; Regenerate Scope (A1)
+          </span>
+          <div>
+            <label htmlFor="scope-district" className="block text-[10px] text-slate-400 mb-1 font-medium">
+              District
+            </label>
+            <select
+              id="scope-district"
+              value={scopeDistrictId}
+              onChange={(e) => setScopeDistrictIdRaw(e.target.value)}
+              disabled={regenerating}
+              className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
+            >
+              {DISTRICTS.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="scope-hazard" className="block text-[10px] text-slate-400 mb-1 font-medium">
+              Hazard Type
+            </label>
+            <select
+              id="scope-hazard"
+              value={scopeHazardType}
+              onChange={(e) => setScopeHazardTypeRaw(e.target.value)}
+              disabled={regenerating}
+              className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
+            >
+              <option value="">All hazard types</option>
+              {HAZARD_TYPES.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2"
+          >
+            {regenerating ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating Scoped Snapshot...
+              </>
+            ) : (
+              "Apply & Generate Scoped Snapshot"
+            )}
+          </button>
+        </div>
+        {scopeError && (
+          <p aria-live="polite" className="text-[11px] text-red-400 font-medium">
+            {scopeError}
+          </p>
+        )}
+        <p className="text-[10px] text-slate-500">
+          Creates a new snapshot with the same period, included sections and language. This
+          snapshot stays untouched in history.
+        </p>
+      </Card>
+
       {/* Warning Banner */}
       {warningFlag && (
         <Banner type="warn">
@@ -255,40 +362,49 @@ export default function ReportSummaryPage({
         />
       )}
 
-      {/* 4 KPI Tiles Grid */}
+      {/* KPI Tiles Grid (A5: only included sections) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiTile
-          label="Alerts Issued"
-          value={metrics.alerts.total}
-          subtext="Total emergency broadcasts"
-          icon={<Megaphone className="w-4 h-4 text-blue-400" />}
-        />
+        {included.has("ALERTS") && (
+          <KpiTile
+            label="Alerts Issued"
+            value={metrics.alerts.total}
+            subtext="Total emergency broadcasts"
+            icon={<Megaphone className="w-4 h-4 text-blue-400" />}
+          />
+        )}
 
-        <KpiTile
-          label="Distinct Citizens Reached"
-          value={formatNumber(metrics.reach.distinctCitizens)}
-          subtext="Unique citizens with confirmed alert delivery"
-          icon={<Users className="w-4 h-4 text-emerald-400" />}
-        />
+        {included.has("REACH") && (
+          <KpiTile
+            label="Distinct Citizens Reached"
+            value={formatNumber(metrics.reach.distinctCitizens)}
+            subtext="Unique citizens with confirmed alert delivery"
+            icon={<Users className="w-4 h-4 text-emerald-400" />}
+          />
+        )}
 
-        <KpiTile
-          label="Reports Verified"
-          value={`${verifiedCount}/${totalReportsCount}`}
-          subtext={`${verifiedCount} of ${totalReportsCount} verified (${verifiedPct}%)`}
-          icon={<CheckCircle2 className="w-4 h-4 text-blue-400" />}
-          progress={verifiedPct}
-          progressColor="bg-blue-500"
-        />
+        {included.has("REPORTS") && (
+          <KpiTile
+            label="Reports Verified"
+            value={`${verifiedCount}/${totalReportsCount}`}
+            subtext={`${verifiedCount} of ${totalReportsCount} verified (${verifiedPct}%)`}
+            icon={<CheckCircle2 className="w-4 h-4 text-blue-400" />}
+            progress={verifiedPct}
+            progressColor="bg-blue-500"
+          />
+        )}
 
-        <KpiTile
-          label="Shelters Activated"
-          value={metrics.shelters.activated}
-          subtext={`Peak occupancy: ${formatNumber(metrics.shelters.peakOccupancy)} citizens`}
-          icon={<Home className="w-4 h-4 text-amber-400" />}
-        />
+        {included.has("SHELTERS") && (
+          <KpiTile
+            label="Shelters Activated"
+            value={metrics.shelters.activated}
+            subtext={`Peak occupancy: ${formatNumber(metrics.shelters.peakOccupancy)} citizens`}
+            icon={<Home className="w-4 h-4 text-amber-400" />}
+          />
+        )}
       </div>
 
-      {/* Reach Breakdown Card */}
+      {/* Reach Breakdown Card (A5/BR12) */}
+      {included.has("REACH") && (
       <Card className="space-y-3">
         <CardTitle>
           <span className="flex items-center gap-2">
@@ -333,8 +449,10 @@ export default function ReportSummaryPage({
           </table>
         </div>
       </Card>
+      )}
 
-      {/* Reports Review Tally Card */}
+      {/* Reports Review Tally Card (A5/BR12) */}
+      {included.has("REPORTS") && (
       <Card className="space-y-4">
         <CardTitle>
           <span className="flex items-center gap-2">
@@ -379,8 +497,10 @@ export default function ReportSummaryPage({
           </div>
         </div>
       </Card>
+      )}
 
-      {/* Relief Supplies Distribution Card */}
+      {/* Relief Supplies Distribution Card (A5/BR12) */}
+      {included.has("SUPPLIES") && (
       <Card className="space-y-3">
         <CardTitle>
           <span className="flex items-center gap-2">
@@ -440,6 +560,7 @@ export default function ReportSummaryPage({
           </table>
         </div>
       </Card>
+      )}
     </div>
   );
 }

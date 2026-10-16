@@ -13,6 +13,13 @@ import type { ReportShare } from '../../domain/ReportShare'
  * on the way in. Domain reports are frozen (BR2) — Prisma rows are not.
  */
 
+/**
+ * Seeded "System Analysis Fallback Officer" (prisma/seed.ts) — referenced
+ * whenever the actor id cannot be used as the `generated_by` Officer FK
+ * (non-UUID ids, or demo ids that have no Officer row).
+ */
+export const FALLBACK_OFFICER_ID = '6b3f23e5-f18b-485f-8ba6-b3147f31fbfa'
+
 /** Row shape of `analysis_report` as consumed by the mapper. */
 export interface AnalysisReportRow {
   id: string
@@ -110,7 +117,7 @@ export function toPrismaReport(report: AnalysisReport) {
     sourceCutoff: report.sourceCutoff,
     generatedAt: report.generatedAt,
     warningFlag: report.warningFlag,
-    generatedBy: isValidUuid ? report.generatedBy : '6b3f23e5-f18b-485f-8ba6-b3147f31fbfa',
+    generatedBy: isValidUuid ? report.generatedBy : FALLBACK_OFFICER_ID,
   }
 }
 

@@ -23,6 +23,15 @@ import { InMemoryReportRepository } from "@/modules/uc2-report/adapters/InMemory
 import { InMemoryAuditRepository } from "@/modules/uc2-report/adapters/InMemoryAuditRepository";
 import { DecisionQueryService } from "@/modules/uc2-report/services/DecisionQueryService";
 import { createUc4Module } from "@/modules/uc4-analysis";
+import { getUc1Module } from "@/modules/uc1-warning/container";
+import type {
+  AlertReader,
+  AttemptReader,
+  Distribution,
+  DistributionReader,
+  OccupancyEventReader,
+  SupplyStockReader,
+} from "@/shared/contracts/types";
 import type { AuditLogger } from "@/modules/uc4-analysis/adapters/AuditLogger";
 import { MockPartnerChannel } from "@/modules/uc4-analysis/adapters/MockPartnerChannel";
 import { PrismaShareLogRepository } from "@/modules/uc4-analysis/adapters/prisma/PrismaShareLogRepository";
@@ -35,11 +44,6 @@ import { PrismaDistributionReader } from "@/modules/uc4-analysis/adapters/prisma
 import { PrismaOrganizationReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaOrganizationReader";
 import { InMemoryShareLogRepository } from "@/shared/infra/InMemoryShareLogRepository";
 import { InMemorySnapshotRepository } from "@/shared/infra/InMemorySnapshotRepository";
-import { InMemorySupplyStockReader } from "@/shared/infra/InMemorySupplyStockReader";
-import { InMemoryAlertReader } from "@/shared/infra/InMemoryAlertReader";
-import { InMemoryAttemptReader } from "@/shared/infra/InMemoryAttemptReader";
-import { InMemoryOccupancyEventReader } from "@/shared/infra/InMemoryOccupancyEventReader";
-import { InMemoryDistributionReader } from "@/shared/infra/InMemoryDistributionReader";
 import { InMemoryOrganizationReader } from "@/shared/infra/InMemoryOrganizationReader";
 import { PrismaReportRepository } from "@/modules/uc2-report/adapters/PrismaReportRepository";
 import { PrismaAuditRepository } from "@/modules/uc2-report/adapters/PrismaAuditRepository";
@@ -147,21 +151,84 @@ const uc4ShareLogRepository = isPrisma
   ? new PrismaShareLogRepository()
   : new InMemoryShareLogRepository();
 
-const alertReader = isPrisma
-  ? new PrismaAlertReader()
-  : new InMemoryAlertReader();
-const attemptReader = isPrisma
-  ? new PrismaAttemptReader()
-  : new InMemoryAttemptReader();
-const occupancyReader = isPrisma
-  ? new PrismaOccupancyEventReader()
-  : new InMemoryOccupancyEventReader();
-const distributionReader = isPrisma
-  ? new PrismaDistributionReader()
-  : new InMemoryDistributionReader();
-const supplyStockReader = isPrisma
-  ? new PrismaSupplyStockReader()
-  : new InMemorySupplyStockReader();
+// Memory mode: UC4's readers delegate LIVE to the UC1/UC2/UC3 in-memory
+// stores on every call, so a report reflects whatever the app has written —
+// no one-shot seed sync, no stale snapshot. (UC2 decisions already read live
+// `audits` through DecisionQueryService below.)
+const liveAlertReader: AlertReader = {
+  async listAlerts(f) {
+    const rows = await getUc1Module().queryService.listAlerts(f);
+    return rows.map((a) => ({
+      id: a.id,
+      hazardType: a.hazardType,
+      severity: a.severity,
+      occurredAt: a.occurredAt,
+    }));
+  },
+};
+const liveAttemptReader: AttemptReader = {
+  async listAttempts(f) {
+    const rows = await getUc1Module().queryService.listAttempts(f);
+    return rows.map((a) => ({
+      id: a.id,
+      alertId: a.alertId,
+      citizenId: a.citizenId,
+      districtId: a.districtId,
+      hazardType: a.hazardType,
+      channel: a.channel,
+      deliveryStatus: a.status,
+      occurredAt: a.occurredAt,
+      attemptAt: a.sentAt ?? a.deliveredAt ?? a.occurredAt,
+    }));
+  },
+};
+const liveOccupancyReader: OccupancyEventReader = {
+  listEvents: (f) => occupancyEventRepo.findByFilter(f),
+};
+const liveDistributionReader: DistributionReader = {
+  async listDistributions(f) {
+    const rows = await distributionRepo.findByFilter(f);
+    const mapped: Distribution[] = [];
+    for (const row of rows) {
+      const stock = await stockRepo.findById(row.stockId);
+      if (stock) {
+        // Same mapping as PrismaDistributionReader: supplyType/total come from the stock row.
+        mapped.push({
+          id: row.id,
+          supplyType: stock.supplyType,
+          districtId: row.districtId,
+          distributed: row.quantity,
+          total: stock.onHand,
+          occurredAt: row.occurredAt,
+        });
+      }
+    }
+    return mapped;
+  },
+};
+const liveSupplyStockReader: SupplyStockReader = {
+  async listStocks(f) {
+    const rows = f.districtId
+      ? await stockRepo.findByDistrictId(f.districtId)
+      : await stockRepo.findAll();
+    return rows.map((s) => ({
+      id: s.id,
+      organizationId: s.organizationId,
+      districtId: s.districtId,
+      supplyType: s.supplyType,
+      onHand: s.onHand,
+      // UC3's in-memory stock entity keeps no updatedAt column; epoch is
+      // stable and nothing downstream reads it (only Prisma has a real one).
+      updatedAt: new Date(0),
+    }));
+  },
+};
+
+const alertReader = isPrisma ? new PrismaAlertReader() : liveAlertReader;
+const attemptReader = isPrisma ? new PrismaAttemptReader() : liveAttemptReader;
+const occupancyReader = isPrisma ? new PrismaOccupancyEventReader() : liveOccupancyReader;
+const distributionReader = isPrisma ? new PrismaDistributionReader() : liveDistributionReader;
+const supplyStockReader = isPrisma ? new PrismaSupplyStockReader() : liveSupplyStockReader;
 const decisionReader = new DecisionQueryService(audits);
 
 const organizationReader = isPrisma
@@ -206,3 +273,6 @@ export const uc4 = createUc4Module({
   clock: prodClock,
   idGenerator: prodIdGenerator,
 });
+
+/** The shared composition root as one object - what runDemoScenario consumes. */
+export const container = { uc1: getUc1Module(), uc2, uc3, uc4, prodClock, stockRepo };

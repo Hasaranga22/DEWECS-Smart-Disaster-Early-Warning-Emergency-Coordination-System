@@ -54,9 +54,16 @@ export default function ExportAndSharePage({
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getReport(reportId);
+      // A2/NA-4: reopening a shared report also shows its prior audit rows.
+      const [data, history] = await Promise.all([
+        api.getReport(reportId),
+        api.getShareHistory(reportId).catch(() => ({ outcomes: [] as ShareOutcome[] })),
+      ]);
       setReport(data);
       setExportLang(data.filters.language);
+      if (history.outcomes.length > 0) {
+        setOutcomes(history.outcomes);
+      }
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setError(`Failed to load report (HTTP ${err.status}): ${err.message}`);
@@ -85,7 +92,8 @@ export default function ExportAndSharePage({
 
   const handleDownloadPdf = () => {
     if (typeof window !== "undefined") {
-      window.open(`/api/analysis/${reportId}/pdf`, "_blank");
+      const qs = new URLSearchParams({ lang: exportLang, mask: String(privacyMasking) });
+      window.open(`/api/analysis/${reportId}/pdf?${qs}`, "_blank");
     }
   };
 
@@ -98,15 +106,9 @@ export default function ExportAndSharePage({
 
     try {
       const res = await api.shareReport(reportId, orgsToShare);
-      
-      // Merge new outcomes into existing ones or set outcomes
-      if (outcomes) {
-        const existingMap = new Map(outcomes.map((o) => [o.organizationId, o]));
-        res.outcomes.forEach((o) => existingMap.set(o.organizationId, o));
-        setOutcomes(Array.from(existingMap.values()));
-      } else {
-        setOutcomes(res.outcomes);
-      }
+
+      // BR8: every attempt appends a new audit row — retries keep history.
+      setOutcomes((prev) => [...(prev ?? []), ...res.outcomes]);
 
       const failedCount = res.outcomes.filter((o) => o.status === "FAILED").length;
       if (failedCount > 0) {
@@ -398,7 +400,7 @@ export default function ExportAndSharePage({
                       ? out.organizationName
                       : PARTNER_ORGS.find((p) => p.id === out.organizationId)?.name || out.organizationId;
                   return (
-                    <tr key={out.organizationId} className="hover:bg-slate-800/40 transition">
+                    <tr key={out.id} className="hover:bg-slate-800/40 transition">
                       <td className="py-2.5 px-3 font-semibold text-white">
                         {orgName}
                       </td>
@@ -419,14 +421,23 @@ export default function ExportAndSharePage({
                         {isSent ? (
                           <span className="text-slate-500 font-mono text-[11px]">—</span>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleShare([out.organizationId])}
-                            disabled={sharing}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1 border border-slate-700 rounded-lg transition inline-flex items-center gap-1.5"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5 text-amber-400" /> Retry
-                          </button>
+                          <span className="inline-flex items-center gap-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleShare([out.organizationId])}
+                              disabled={sharing}
+                              className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1 border border-slate-700 rounded-lg transition inline-flex items-center gap-1.5"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-amber-400" /> Retry
+                            </button>
+                            {/* E4: manual email fallback when the channel stays down */}
+                            <a
+                              href={`mailto:coordinator@partner.org?subject=DEWECS%20Analysis%20Report%20${reportId}`}
+                              className="text-xs font-semibold px-3 py-1 border border-slate-700 rounded-lg transition inline-flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
+                            >
+                              Email Fallback
+                            </a>
+                          </span>
                         )}
                       </td>
                     </tr>

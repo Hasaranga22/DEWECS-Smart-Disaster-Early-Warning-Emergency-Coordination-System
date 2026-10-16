@@ -4,7 +4,7 @@ import { prisma } from '@/shared/infra/prisma/client'
 import type { AnalysisReport } from '../../domain/AnalysisReport'
 import { ValidationError } from '../../domain/errors'
 import type { SnapshotRepository } from '../SnapshotRepository'
-import { toDomainReport, toPrismaReport } from './mappers'
+import { FALLBACK_OFFICER_ID, toDomainReport, toPrismaReport } from './mappers'
 
 /** Prisma P2002 = unique constraint violated. */
 function isUniqueViolation(error: unknown): boolean {
@@ -27,8 +27,18 @@ function isUniqueViolation(error: unknown): boolean {
  */
 export class PrismaSnapshotRepository implements SnapshotRepository {
   async save(report: AnalysisReport): Promise<void> {
+    const data = toPrismaReport(report)
+    // generated_by is a real Officer FK. Session/demo actor ids live in a
+    // different id space than the Officer table, so resolve the FK here at
+    // the DB boundary: missing officer -> seeded fallback officer.
+    const officer = await prisma.officer.findUnique({
+      where: { id: data.generatedBy },
+      select: { id: true },
+    })
     try {
-      await prisma.analysisReport.create({ data: toPrismaReport(report) })
+      await prisma.analysisReport.create({
+        data: officer === null ? { ...data, generatedBy: FALLBACK_OFFICER_ID } : data,
+      })
     } catch (error) {
       if (isUniqueViolation(error)) {
         // Write-once violated: that report id already exists.

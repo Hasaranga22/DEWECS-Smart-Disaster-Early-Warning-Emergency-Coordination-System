@@ -2,17 +2,21 @@ import {
   AggregationTimeoutError,
   ForbiddenError,
   NotFoundError,
+  PdfExportError,
   ValidationError,
 } from '@/modules/uc4-analysis/domain/errors'
 import { getActor, requireRole } from '@/shared/access'
 import { uc4 } from '@/shared/infra/container'
 
+import { parsePdfExportParams, pdfFilename } from './_params'
+
 export const runtime = 'nodejs'
 
 /**
  * GET /api/analysis/[id]/pdf — export the saved snapshot as a PDF.
- * Renders ONLY from the snapshot (never re-aggregates) in the report's
- * own language (§5.4).
+ * Renders ONLY from the snapshot (never re-aggregates), in ?lang= when
+ * requested (falling back to the report's own language, §5.4).
+ * ?mask=true marks the download as a privacy-masked export (NA-4).
  */
 export async function GET(
   request: Request,
@@ -28,14 +32,15 @@ export async function GET(
       return Response.json({ error: 'NotFound' }, { status: 404 })
     }
 
-    const bytes = await uc4.pdfExporter.export(report, report.filters.language)
+    const { lang, mask } = parsePdfExportParams(new URL(request.url))
+    const bytes = await uc4.pdfExporter.export(report, lang ?? report.filters.language)
 
     // Copy into an ArrayBuffer-backed view: pdf-lib returns
     // Uint8Array<ArrayBufferLike>, which BodyInit does not accept.
     return new Response(new Uint8Array(bytes), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="report-${id}.pdf"`,
+        'Content-Disposition': `attachment; filename="${pdfFilename(id, mask)}"`,
       },
     })
   } catch (error) {
@@ -47,6 +52,13 @@ export async function GET(
     }
     if (error instanceof NotFoundError) {
       return Response.json({ error: 'NotFound' }, { status: 404 })
+    }
+    if (error instanceof PdfExportError) {
+      // Exception flow E3: export failure surfaces as 503 with the cause.
+      return Response.json(
+        { error: 'PdfExportError', message: error.message },
+        { status: 503 },
+      )
     }
     if (error instanceof AggregationTimeoutError) {
       return Response.json({ error: 'Timeout' }, { status: 503 })

@@ -9,7 +9,7 @@ import type { AuditLogger } from '../adapters/AuditLogger'
 import { MockPartnerChannel } from '../adapters/MockPartnerChannel'
 import type { Organization, OrganizationReader } from '../adapters/PartnerChannel'
 import type { AnalysisReport } from '../domain/AnalysisReport'
-import { NotFoundError, ValidationError } from '../domain/errors'
+import { ForbiddenError, NotFoundError, ValidationError } from '../domain/errors'
 import type { ShareOutcome } from '../domain/ShareOutcome'
 import { ShareService } from '../services/ShareService'
 
@@ -210,5 +210,17 @@ describe('ShareService', () => {
     expect(shareLog.count()).toBe(3)
     expect(outcomes.every((outcome) => outcome.failureReason !== undefined)).toBe(true)
     expect(audit.shares).toEqual([{ reportId: 'report-1', outcomeCount: 3, actorId: actor.id }])
+  })
+
+  it('A10.b: non-DMC_OFFICIAL actor -> share() throws ForbiddenError before anything runs (BR1)', async () => {
+    const { service, repository, shareLog, audit } = buildService({ rngValues: [0.9] })
+    await repository.save(report)
+    const citizen: Actor = { id: 'citizen-001', role: 'CITIZEN' }
+
+    await expect(service.share('report-1', ['org-1'], citizen)).rejects.toThrow(ForbiddenError)
+
+    // The guard fires before the existence check, the send loop and the audit.
+    expect(shareLog.count()).toBe(0)
+    expect(audit.shares).toEqual([])
   })
 })

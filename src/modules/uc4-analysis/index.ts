@@ -44,6 +44,8 @@ export interface Uc4Module {
   pdfExporter: PdfExporter
   shareService: ShareService
   snapshotRepository: SnapshotRepository
+  shareLogRepository: ShareLogRepository
+  organizationReader: OrganizationReader
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
@@ -98,5 +100,7 @@ export function createUc4Module(deps: Uc4ModuleDeps): Uc4Module {
     pdfExporter,
     shareService,
     snapshotRepository: deps.snapshotRepository,
+    shareLogRepository: deps.shareLogRepository,
+    organizationReader: deps.organizationReader,
   }
 }

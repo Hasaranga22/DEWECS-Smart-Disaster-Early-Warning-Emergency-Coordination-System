@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   FileBarChart,
   Calendar,
@@ -23,22 +23,33 @@ import {
   toIsoRange,
   daysBetween,
 } from "./_types";
+import { prefillFromQuery } from "./_prefill";
 import { Card, CardTitle, Banner } from "./_components";
 
 const DEFAULT_FROM = "2026-08-01";
 const DEFAULT_TO = "2026-08-31";
 
 export default function GenerateReportPage() {
-  const router = useRouter();
+  return (
+    <Suspense fallback={null}>
+      <AnalysisForm />
+    </Suspense>
+  );
+}
 
-  const [from, setFrom] = useState<string>(DEFAULT_FROM);
-  const [to, setTo] = useState<string>(DEFAULT_TO);
-  const [districtId, setDistrictId] = useState<string>("");
-  const [hazardType, setHazardType] = useState<string>("");
+function AnalysisForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefill = prefillFromQuery(Object.fromEntries(searchParams.entries()));
+
+  const [from, setFrom] = useState<string>(prefill.from ?? DEFAULT_FROM);
+  const [to, setTo] = useState<string>(prefill.to ?? DEFAULT_TO);
+  const [districtId, setDistrictId] = useState<string>(prefill.districtId ?? "");
+  const [hazardType, setHazardType] = useState<string>(prefill.hazardType ?? "");
   const [includedSections, setIncludedSections] = useState<Set<string>>(
     new Set(SECTIONS)
   );
-  const [language, setLanguage] = useState<"EN" | "SI" | "TA">("EN");
+  const [language, setLanguage] = useState<"EN" | "SI" | "TA">(prefill.language ?? "EN");
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});

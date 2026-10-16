@@ -9,8 +9,9 @@ import {
   CheckCircle2,
   PackageCheck,
   RotateCcw,
+  Home,
 } from "lucide-react";
-import { api, ApiError, AnalysisReport, formatNumber } from "../../_types";
+import { api, ApiError, AnalysisReport, formatDate, formatNumber } from "../../_types";
 import { Card, CardTitle, Banner, Loading } from "../../_components";
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -83,6 +84,7 @@ export default function ChartsPage({
   }
 
   const { metrics, warningFlag } = report;
+  const included = new Set<string>(report.filters.includedSections);
 
   // 1. Alert severity data
   const severityEntries = Object.entries(metrics.alerts.bySeverity || {});
@@ -101,10 +103,15 @@ export default function ChartsPage({
   // 3. Supply distribution data
   const supplyEntries = Object.entries(metrics.supplies.byType || {});
 
+  const shelterEvents = metrics.shelters.events || [];
+
   const isAllMetricsZero =
-    metrics.alerts.total === 0 &&
-    totalReports === 0 &&
-    supplyEntries.every(([, v]) => v.distributed === 0);
+    (!included.has("ALERTS") || metrics.alerts.total === 0) &&
+    (!included.has("REPORTS") || totalReports === 0) &&
+    (!included.has("SUPPLIES") || supplyEntries.every(([, v]) => v.distributed === 0)) &&
+    (!included.has("REACH") || metrics.reach.distinctCitizens === 0) &&
+    (!included.has("SHELTERS") ||
+      (metrics.shelters.activated === 0 && shelterEvents.length === 0));
 
   return (
     <div className="space-y-6">
@@ -124,7 +131,7 @@ export default function ChartsPage({
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Visual breakdown of alert severity, ground report review outcomes, and relief supply fulfillment.
+            Visual breakdown of the sections included in this report.
           </p>
         </div>
 
@@ -143,7 +150,8 @@ export default function ChartsPage({
         </Banner>
       )}
 
-      {/* Chart Block 1: Alert Severity Distribution */}
+      {/* Chart Block 1: Alert Severity Distribution (A5) */}
+      {included.has("ALERTS") && (
       <Card className="space-y-4">
         <CardTitle>
           <span className="flex items-center gap-2">
@@ -178,8 +186,10 @@ export default function ChartsPage({
           </div>
         )}
       </Card>
+      )}
 
-      {/* Chart Block 2: Ground Report Decisions */}
+      {/* Chart Block 2: Ground Report Decisions (A5) */}
+      {included.has("REPORTS") && (
       <Card className="space-y-4">
         <CardTitle>
           <span className="flex items-center gap-2">
@@ -243,8 +253,10 @@ export default function ChartsPage({
           </div>
         )}
       </Card>
+      )}
 
-      {/* Chart Block 3: Relief Supply Distribution */}
+      {/* Chart Block 3: Relief Supply Distribution (A5) */}
+      {included.has("SUPPLIES") && (
       <Card className="space-y-4">
         <CardTitle>
           <span className="flex items-center gap-2">
@@ -284,6 +296,49 @@ export default function ChartsPage({
           </div>
         )}
       </Card>
+      )}
+
+      {/* Chart Block 4: Shelter Occupancy Timeline (A5) */}
+      {included.has("SHELTERS") && (
+      <Card className="space-y-4">
+        <CardTitle>
+          <span className="flex items-center gap-2">
+            <Home className="w-4 h-4 text-amber-400" /> Shelter Occupancy Timeline
+          </span>
+        </CardTitle>
+
+        {shelterEvents.length === 0 ? (
+          <p className="text-xs text-slate-500 italic py-4 text-center">
+            {metrics.shelters.activated} shelter(s) activated &bull; Peak occupancy:{" "}
+            {formatNumber(metrics.shelters.peakOccupancy)} citizens
+          </p>
+        ) : (
+          <div className="space-y-2 pt-1">
+            {shelterEvents.map((ev, i) => {
+              const delta = ev.newCount - ev.previousCount;
+              return (
+                <div
+                  key={`${ev.shelterId}-${ev.occurredAt}-${i}`}
+                  className="flex flex-wrap items-center justify-between gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs"
+                >
+                  <span className="text-slate-400 font-mono">{formatDate(ev.occurredAt)}</span>
+                  <span className="text-slate-300 font-mono truncate max-w-[180px]">
+                    {ev.shelterId}
+                  </span>
+                  <span className="text-slate-200 tabular-nums">
+                    {formatNumber(ev.previousCount)} &rarr; {formatNumber(ev.newCount)}{" "}
+                    <span className={delta >= 0 ? "text-amber-400" : "text-emerald-400"}>
+                      ({delta >= 0 ? "+" : ""}
+                      {delta})
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+      )}
     </div>
   );
 }

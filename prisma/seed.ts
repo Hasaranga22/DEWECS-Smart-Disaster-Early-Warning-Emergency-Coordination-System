@@ -67,6 +67,27 @@ async function main() {
     create: { id: privOrgId, name: 'Private Relief Donors Alliance', type: 'PRIVATE_DONOR' },
   });
 
+  // UC4 partner organisations offered by the analysis share UI
+  // (PARTNER_ORGS in src/app/resources/analysis/_types.ts) and the in-memory
+  // reader — required for the report_share.organization_id foreign key.
+  await prisma.organization.upsert({
+    where: { id: '75700352-5645-41a3-acc7-c8184f09cf35' },
+    update: {},
+    create: { id: '75700352-5645-41a3-acc7-c8184f09cf35', name: 'Sample Sri Lanka Army', type: 'ARMED_FORCES' },
+  });
+
+  await prisma.organization.upsert({
+    where: { id: '9c343cb9-c47a-4a05-bb4d-be2641a933b4' },
+    update: {},
+    create: { id: '9c343cb9-c47a-4a05-bb4d-be2641a933b4', name: 'Sample World Vision Lanka', type: 'NGO' },
+  });
+
+  await prisma.organization.upsert({
+    where: { id: '656c8a22-e60d-4e32-bfb5-8c5ed132d882' },
+    update: {},
+    create: { id: '656c8a22-e60d-4e32-bfb5-8c5ed132d882', name: 'Sample Private Donor', type: 'PRIVATE_DONOR' },
+  });
+
   // 3. Seed Citizen
   const citizenId = '550e8400-e29b-41d4-a716-446655440001';
   await prisma.citizen.upsert({
