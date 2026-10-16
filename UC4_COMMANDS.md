@@ -19,71 +19,41 @@ This guide provides all terminal commands to run **ONLY UC4 checks** (Use Case 4
 
 ## 📋 Detailed Command Instructions
 
-### 1. Run UC4 Unit Tests (In-Memory, No DB Required)
-Executes all unit tests for UC4 services (`AggregationService`, `PdfExporter`, `ReachCalculator`, `ReportFilterValidator`, `ShareService`, `SnapshotService`, and error handling) in isolated memory.
+Unit tests — src/modules/uc4-analysis/__tests__/ (12 files):
 
-```bash
-# Option A: Direct Vitest runner (Recommended - Fast < 1s)
-npx vitest run src/modules/uc4-analysis
+npx vitest run src/modules/uc4-analysis/__tests__/districtAliases.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/dataBridges.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/hydrate.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/AggregationService.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/SnapshotService.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/ShareService.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/PrismaSnapshotRepository.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/PrismaShareLogRepository.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/PdfExporter.test.ts
+npx vitest run src/modules/uc4-analysis/__tests__/errors.test.ts
+All as one folder: npx vitest run src/modules/uc4-analysis → 12 files / 78 tests green.
 
-# Option B: Run in Watch mode (Auto re-runs on code changes)
-npx vitest src/modules/uc4-analysis
-```
+Integration tests — tests/integration/ (6 files):
 
----
-
-### 2. Run UC4 Full Database Integration Tests
-Executes the comprehensive database verification suite (Sections A through J) testing live database interactions, aggregations, queries, role guards, PDF rendering from DB data, and raw SQL queries.
-
-```bash
-# Option A: via npm script
-npm run test:uc4:db
-
-# Option B: via Vitest directly
-npx vitest run tests/integration/uc4-db-full.test.ts
-```
-
----
-
-### 3. Run UC4 Standalone Database Script (`tsx`)
-Executes the UC4 database integration checks directly using `tsx` without Vitest wrappers, outputting a formatted section-by-section breakdown.
-
-```bash
-# Option A: via npm script
-npm run test:uc4:db:script
-
-# Option B: via tsx directly
-npx tsx scripts/uc4-full-db-test.ts
-```
-
----
-
-### 4. Run UC4 Cross-Module Integration Tests
-Tests data pipeline flow from UC1 (Alerts), UC2 (Reports), and UC3 (Resources) into UC4 (Analysis & Reporting).
-
-```bash
 npx vitest run tests/integration/uc134-to-uc4.test.ts
-```
+npx vitest run tests/integration/roles.test.ts
+npx vitest run tests/integration/uc4-memory-wiring.test.ts
+npx vitest run tests/integration/uc4-demo-scenario.test.ts
+npx vitest run tests/integration/uc4-partner-orgs.test.ts
+npx vitest run tests/integration/uc4-db-full.test.ts
 
----
+All as one folder: npx vitest run tests/integration
 
-### 5. Run EVERY UC4 Test in a Single Command
-To run all unit tests, DB integration tests, and cross-module tests strictly for UC4 in one terminal invocation:
+Full gates (the exact acceptance commands):
 
-```bash
-npx vitest run src/modules/uc4-analysis tests/integration/uc4-db-full.test.ts tests/integration/uc134-to-uc4.test.ts
-```
-
----
-
-### 6. Run UC4 Code Coverage Report
-Generates a code coverage report limited strictly to the UC4 Analysis codebase (`src/modules/uc4-analysis/**`).
-
-```bash
+npx vitest run src/modules/uc4-analysis tests/integration/uc134-to-uc4.test.ts tests/integration/roles.test.ts
 npm run test:uc4
-```
-
----
+npx tsc --noEmit
+npx tsx scripts/uc4-seed-sample-data.ts
+npx tsx scripts/uc4-verify-demo.ts
+Notes: run from repo root (...\DEWECS-Smart-Disaster-Early-Warning-Emergency-Coordination-System); uc4-db-full.test.ts has 2 known pre-existing failures (H.1/H.3, teammate-owned) and its teardown wipes seeded Kegalle demo data — always re-run seed+verify after it.
 
 ## 📁 UC4 Test Directory Structure
 
