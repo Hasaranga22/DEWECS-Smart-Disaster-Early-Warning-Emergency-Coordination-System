@@ -1,9 +1,11 @@
 import { prisma } from '@/shared/infra/prisma/client'
 import type { AlertReader, HazardAlert, Filter, HazardType } from '@/shared/contracts/types'
+import type { Prisma } from '@/generated/prisma/client'
+import { canonicalDistrictName, expandDistrictIds } from '../districtAliases'
 
 export class PrismaAlertReader implements AlertReader {
   async listAlerts(filter: Filter): Promise<HazardAlert[]> {
-    const clauses: any[] = []
+    const clauses: Prisma.HazardAlertWhereInput[] = []
 
     if (filter.from || filter.to) {
       clauses.push({
@@ -15,9 +17,26 @@ export class PrismaAlertReader implements AlertReader {
     }
 
     if (filter.districtId !== undefined) {
-      clauses.push({
-        targetDistricts: { some: { districtId: filter.districtId } },
-      })
+      // Equivalent ids for the same real district (seed vs legacy schemes).
+      const ids = expandDistrictIds(filter.districtId)
+      const name = canonicalDistrictName(filter.districtId)
+      const matches: Prisma.HazardAlertWhereInput[] = [
+        { targetDistricts: { some: { districtId: { in: ids } } } },
+        // Alerts targeting a basin that covers the district.
+        { targetBasins: { some: { basin: { districts: { some: { districtId: { in: ids } } } } } } },
+      ]
+      if (name !== undefined) {
+        // Alerts whose target rows were lost (district removed) still carry
+        // the district name in the message text.
+        matches.push({
+          AND: [
+            { targetDistricts: { none: {} } },
+            { targetBasins: { none: {} } },
+            { message: { contains: name, mode: 'insensitive' } },
+          ],
+        })
+      }
+      clauses.push({ OR: matches })
     }
     if (filter.hazardType !== undefined) clauses.push({ hazardType: filter.hazardType })
     if (filter.cutoff !== undefined) clauses.push({ createdAt: { lte: filter.cutoff } })

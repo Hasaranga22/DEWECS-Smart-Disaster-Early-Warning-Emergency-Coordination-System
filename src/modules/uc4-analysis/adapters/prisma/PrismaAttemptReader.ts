@@ -1,6 +1,7 @@
 import { prisma } from '@/shared/infra/prisma/client'
 import type { AttemptReader, NotificationAttempt, Filter, HazardType, NotificationChannel, DeliveryStatus } from '@/shared/contracts/types'
 import type { Prisma } from '@/generated/prisma/client'
+import { expandDistrictIds } from '../districtAliases'
 
 export class PrismaAttemptReader implements AttemptReader {
   async listAttempts(filter: Filter): Promise<NotificationAttempt[]> {
@@ -15,7 +16,7 @@ export class PrismaAttemptReader implements AttemptReader {
       })
     }
 
-    if (filter.districtId !== undefined) clauses.push({ districtId: filter.districtId })
+    if (filter.districtId !== undefined) clauses.push({ districtId: { in: expandDistrictIds(filter.districtId) } })
     if (filter.hazardType !== undefined) clauses.push({ hazardType: filter.hazardType })
     if (filter.cutoff !== undefined) clauses.push({ occurredAt: { lte: filter.cutoff } })
 

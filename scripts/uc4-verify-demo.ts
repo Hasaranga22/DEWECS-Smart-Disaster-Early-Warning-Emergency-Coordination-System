@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 
 import { container, prodClock } from '@/shared/infra/container'
 import { prisma } from '@/shared/infra/prisma/client'
+import { hydrateIncompleteSnapshot } from '@/modules/uc4-analysis/seed/ensureUc4SampleData'
 
 // ─── Sample report identity ──────────────────────────────────────────────────
 
@@ -34,7 +35,13 @@ interface ExpectedReport {
   alerts: { total: number; bySeverity: Record<string, number>; byHazardType: Record<string, number> }
   reach: { distinctCitizens: number; perChannel: { PUSH: ChannelStats; SMS: ChannelStats } }
   reports: { verified: number; pending: number; rejected: number }
-  shelters: { activated: number; peakOccupancy: number; eventTimes: string[] }
+  shelters?: { activated: number; peakOccupancy: number; eventTimes: string[] }
+  /**
+   * Bridge-synthesized shelters (no real occupancy events in-window): teammate
+   * shelter rows in the district may come and go, so assert floors plus the
+   * strict "2 events per activated shelter" relation instead of exact times.
+   */
+  sheltersMin?: { activated: number; peakOccupancy: number }
   supplies: Record<string, { distributed: number; total: number; percent: number | null }>
   shares: Array<{ organizationName: string; status: string; failureReason?: string }>
 }
@@ -159,7 +166,9 @@ const EXPECTED: ExpectedReport[] = [
       },
     },
     reports: { verified: 0, pending: 0, rejected: 0 },
-    shelters: { activated: 0, peakOccupancy: 0, eventTimes: [] },
+    // Sep has no real Gampaha occupancy events: the reader bridge synthesizes
+    // 0→60%→occupancy steps from every occupied Gampaha shelter (seeded + teammate rows).
+    sheltersMin: { activated: 1, peakOccupancy: 20 },
     supplies: {},
     shares: [{ organizationName: 'Sample Sri Lanka Army', status: 'SENT' }],
   },
@@ -256,6 +265,49 @@ async function main() {
   const expectedByKey = new Map(EXPECTED.map((e) => [signatureOf(e.filters), e]))
   const seenKeys = new Set<string>()
 
+  // ── Hydration gate (zero-KPI self-heal), run BEFORE the report loop: ──────
+  // blank #2's stored metrics, hydrate, expect KPIs recomputed at the report's
+  // own cutoff and persisted with the warning cleared. Refreshes the snapshot
+  // afterwards, so a prior failed run that left #2 zeroed self-heals here.
+  const hydrateTargetIndex = reports.findIndex(
+    (r) => signatureOf(r.filters as Record<string, unknown>) === signatureOf(EXPECTED[1].filters),
+  )
+  if (hydrateTargetIndex < 0) {
+    failures.push('hydrate gate: sample report #2 not found')
+  } else {
+    const hydrateTarget = reports[hydrateTargetIndex]
+    const blanked = JSON.parse(JSON.stringify(hydrateTarget.metrics))
+    blanked.alerts = { total: 0, bySeverity: {}, byHazardType: {} }
+    blanked.reach = {
+      distinctCitizens: 0,
+      perChannel: { PUSH: { attempted: 0, delivered: 0, failed: 0 }, SMS: { attempted: 0, delivered: 0, failed: 0 } },
+    }
+    blanked.reports = { verified: 0, pending: 0, rejected: 0 }
+    blanked.shelters = { activated: 0, peakOccupancy: 0, events: [] }
+    blanked.supplies = { byType: {} }
+    await prisma.analysisReport.update({
+      where: { id: hydrateTarget.id },
+      data: { metrics: blanked, warningFlag: true },
+    })
+    const stored = await container.uc4.snapshotRepository.getById(hydrateTarget.id)
+    const hydrated =
+      stored === null ? null : await hydrateIncompleteSnapshot(stored, container.uc4.aggregation)
+    check('hydrate :: recomputed alerts', hydrated?.metrics.alerts, EXPECTED[1].alerts)
+    check('hydrate :: recomputed reach', hydrated?.metrics.reach, EXPECTED[1].reach)
+    check('hydrate :: warning cleared', hydrated?.warningFlag ?? null, false)
+    const reloaded = await prisma.analysisReport.findUnique({ where: { id: hydrateTarget.id } })
+    check(
+      'hydrate :: persisted alerts',
+      (reloaded?.metrics as Record<string, any>)?.alerts,
+      EXPECTED[1].alerts,
+    )
+    check('hydrate :: persisted warningFlag', reloaded?.warningFlag, false)
+    if (reloaded) {
+      hydrateTarget.metrics = reloaded.metrics
+      hydrateTarget.warningFlag = reloaded.warningFlag
+    }
+  }
+
   const rows: string[] = []
 
   for (const report of reports) {
@@ -289,15 +341,32 @@ async function main() {
     check(`${expected.label} :: alerts`, metrics.alerts, expected.alerts)
     check(`${expected.label} :: reach`, metrics.reach, expected.reach)
     check(`${expected.label} :: reports tallies`, metrics.reports, expected.reports)
-    check(
-      `${expected.label} :: shelters`,
-      {
-        activated: metrics.shelters.activated,
-        peakOccupancy: metrics.shelters.peakOccupancy,
-        eventTimes: (metrics.shelters.events as Array<{ occurredAt: string }>).map((e) => e.occurredAt),
-      },
-      expected.shelters,
-    )
+    const eventTimes = (metrics.shelters.events as Array<{ occurredAt: string }>).map((e) => e.occurredAt)
+    if (expected.sheltersMin) {
+      const activated = metrics.shelters.activated as number
+      const peak = metrics.shelters.peakOccupancy as number
+      const ok =
+        activated >= expected.sheltersMin.activated &&
+        peak >= expected.sheltersMin.peakOccupancy &&
+        eventTimes.length === activated * 2
+      if (!ok) {
+        failures.push(
+          `${expected.label} :: shelters (bridge floors): expected activated>=${expected.sheltersMin.activated}, ` +
+            `peak>=${expected.sheltersMin.peakOccupancy}, events=2/activated shelter; ` +
+            `got activated=${activated}, peak=${peak}, events=${eventTimes.length}`,
+        )
+      }
+    } else if (expected.shelters) {
+      check(
+        `${expected.label} :: shelters`,
+        {
+          activated: metrics.shelters.activated,
+          peakOccupancy: metrics.shelters.peakOccupancy,
+          eventTimes,
+        },
+        expected.shelters,
+      )
+    }
     check(`${expected.label} :: supplies.byType`, metrics.supplies.byType, expected.supplies)
 
     // Shares (order-insensitive multiset)
@@ -351,7 +420,8 @@ async function main() {
   }
 
   console.log(' PASS: all 5 sample reports match the expected KPIs, filters,')
-  console.log('       warning flags, freeze state (Object.isFrozen) and share outcomes.')
+  console.log('       warning flags, freeze state (Object.isFrozen), share outcomes')
+  console.log('       and the zero-KPI hydration gate (recompute + persist).')
   console.log('')
   console.log(' Demo URLs (start the app with `npm run dev`):')
   console.log('   http://localhost:3000/resources/analysis?districtId=00000000-0000-4000-8000-000000000001&from=2026-08-01&to=2026-08-31&hazardType=FLOOD')

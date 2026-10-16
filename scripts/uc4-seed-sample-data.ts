@@ -4,38 +4,24 @@ import type { AnalysisReport } from '@/modules/uc4-analysis/domain/AnalysisRepor
 import type { Organization, PartnerChannel } from '@/modules/uc4-analysis/adapters/PartnerChannel'
 import type { AuditLogger } from '@/modules/uc4-analysis/adapters/AuditLogger'
 import { ShareService } from '@/modules/uc4-analysis/services/ShareService'
-import type { Prisma } from '@/generated/prisma/client'
 import type { Actor } from '@/shared/contracts/types'
 import { container, prodClock, prodIdGenerator } from '@/shared/infra/container'
 import { prisma } from '@/shared/infra/prisma/client'
-
-// ─── Fixed ids shared with the UI (src/app/resources/analysis/_types.ts) ─────
-
-const KEGALLE = '00000000-0000-4000-8000-000000000001'
-const GAMPAHA = '00000000-0000-4000-8000-000000000002'
-const COLOMBO = '00000000-0000-4000-8000-000000000010'
-
-const ORG_ARMY = '75700352-5645-41a3-acc7-c8184f09cf35'
-const ORG_WV = '9c343cb9-c47a-4a05-bb4d-be2641a933b4'
-const ORG_DONOR = '656c8a22-e60d-4e32-bfb5-8c5ed132d882'
-
-const SAMPLE_DMC = '00000000-0004-4000-8000-000000000801'
-const SAMPLE_DUTY = '00000000-0004-4000-8000-000000000802'
-const SAMPLE_DISTRICT_OFFICER = '00000000-0004-4000-8000-000000000803'
-
-const SHELTER_IDS = [
-  '00000000-0000-4000-c000-000000000001', // Kegalle 1
-  '00000000-0000-4000-c000-000000000002', // Kegalle 2
-  '00000000-0000-4000-c000-000000000003', // Colombo 1
-  '00000000-0000-4000-c000-000000000004', // Colombo 2
-  '00000000-0000-4000-c000-000000000005', // Gampaha 1
-]
+import {
+  CITIZEN_IDS,
+  COLOMBO,
+  GAMPAHA,
+  KEGALLE,
+  ORG_ARMY,
+  ORG_DONOR,
+  ORG_WV,
+  SAMPLE_DMC,
+  SHELTER_IDS,
+  ensureUc4SampleData,
+} from '@/modules/uc4-analysis/seed/ensureUc4SampleData'
 
 const ALL_SECTIONS = ['ALERTS', 'REACH', 'REPORTS', 'SHELTERS', 'SUPPLIES'] as const
 const TIMEOUT_REASON = 'Partner gateway timeout - retry or use email fallback'
-
-const citizenId = (n: number) => `00000000-0000-4000-a000-${n.toString().padStart(12, '0')}`
-const CITIZEN_IDS = Array.from({ length: 1250 }, (_, i) => citizenId(i + 1))
 
 const actor: Actor = { id: SAMPLE_DMC, role: 'DMC_OFFICIAL', name: 'Sample DMC Official' }
 
@@ -101,413 +87,16 @@ async function main() {
   await prisma.shelter.deleteMany({ where: { id: { in: SHELTER_IDS } } })
   console.log('   Cleanup done\n')
 
-  // ── STEP 1: districts (fixed UI ids; upsert keeps teammate rows intact) ────
-  console.log(' STEP 1: Seeding districts...')
-  const kegalle = await prisma.district.upsert({
-    where: { id: KEGALLE },
-    update: {},
-    create: { id: KEGALLE, name: 'Kegalle' },
-  })
-  // 'Gampaha' is already taken by the legacy ...0020 row; UC4 resolves the
-  // display name from _types by id, so the DB name here is cosmetic only.
-  const gampaha = await prisma.district.upsert({
-    where: { id: GAMPAHA },
-    update: {},
-    create: { id: GAMPAHA, name: 'Gampaha (Sample)' },
-  })
-  const colombo = await prisma.district.upsert({
-    where: { id: COLOMBO },
-    update: {},
-    create: { id: COLOMBO, name: 'Colombo' },
-  })
-  console.log(`   Kegalle ${kegalle.id} | Gampaha ${gampaha.id} | Colombo ${colombo.id}\n`)
+  // ── STEP 1: source data (districts, officers, orgs, citizens, alerts, ──────
+  //             attempts, ground reports, shelters, stocks) — shared with the
+  //             API-route auto-heal path; every block is marker-gated.
+  console.log(' STEP 1: Ensuring sample source data...')
+  await ensureUc4SampleData()
+  console.log('   Districts / officers / orgs / citizens / alerts / attempts')
+  console.log('   ground reports / shelters / stocks ready\n')
 
-  // ── STEP 2: officers (fixed ids so generatedBy / actorId FKs stay stable) ──
-  console.log(' STEP 2: Seeding officers...')
-  await prisma.officer.upsert({
-    where: { id: SAMPLE_DMC },
-    update: {},
-    create: {
-      id: SAMPLE_DMC,
-      name: 'Sample DMC Official',
-      role: 'DMC_OFFICIAL',
-      phone: '0771000001',
-      email: 'sample.dmc@dewecs.lk',
-    },
-  })
-  await prisma.officer.upsert({
-    where: { id: SAMPLE_DUTY },
-    update: {},
-    create: {
-      id: SAMPLE_DUTY,
-      name: 'Sample Duty Officer',
-      role: 'DUTY_OFFICER',
-      districtId: KEGALLE,
-      phone: '0771000002',
-    },
-  })
-  await prisma.officer.upsert({
-    where: { id: SAMPLE_DISTRICT_OFFICER },
-    update: {},
-    create: {
-      id: SAMPLE_DISTRICT_OFFICER,
-      name: 'Sample District Officer',
-      role: 'DISTRICT_OFFICER',
-      districtId: KEGALLE,
-      phone: '0771000003',
-    },
-  })
-  console.log('   DMC / Duty / District officers ready\n')
-
-  // ── STEP 3: organisations (exact UI PARTNER_ORGS ids) ─────────────────────
-  console.log(' STEP 3: Seeding organizations...')
-  await prisma.organization.upsert({
-    where: { id: ORG_ARMY },
-    update: {},
-    create: { id: ORG_ARMY, name: 'Sample Sri Lanka Army', type: 'ARMED_FORCES', coordinatorName: 'Army Coordinator' },
-  })
-  await prisma.organization.upsert({
-    where: { id: ORG_WV },
-    update: {},
-    create: { id: ORG_WV, name: 'Sample World Vision Lanka', type: 'NGO', coordinatorName: 'NGO Coordinator', coordinatorEmail: 'ngo@example.lk' },
-  })
-  await prisma.organization.upsert({
-    where: { id: ORG_DONOR },
-    update: {},
-    create: { id: ORG_DONOR, name: 'Sample Private Donor', type: 'PRIVATE_DONOR' },
-  })
-  console.log('   Army / World Vision / Private Donor ready\n')
-
-  // ── STEP 4: citizens (1,250: 1,000 Kegalle + 150 Gampaha + 100 Colombo) ────
-  console.log(' STEP 4: Seeding 1250 sample citizens...')
-  const citizenRows = CITIZEN_IDS.map((id, i) => {
-    const n = i + 1
-    const districtId = n <= 1000 ? KEGALLE : n <= 1150 ? GAMPAHA : COLOMBO
-    return { id, name: `Sample Citizen ${n}`, isVolunteer: false, districtId }
-  })
-  for (let i = 0; i < citizenRows.length; i += 500) {
-    await prisma.citizen.createMany({ data: citizenRows.slice(i, i + 500), skipDuplicates: true })
-  }
-  console.log('   1000 Kegalle / 150 Gampaha / 100 Colombo\n')
-
-  // ── STEP 5: hazard alerts (6, Aug–Sep 2026, 4 severities, 4 types) ────────
-  console.log(' STEP 5: Seeding 6 hazard alerts...')
-  const alert1 = await prisma.hazardAlert.create({
-    data: {
-      hazardType: 'FLOOD',
-      severity: 'WARNING',
-      status: 'ACTIVE',
-      message: 'Sample UC4 alert: flood warning for Kegalle district',
-      issuedById: SAMPLE_DMC,
-      occurredAt: new Date('2026-08-15T10:00:00Z'),
-      expiresAt: new Date('2026-08-20T10:00:00Z'),
-      targetDistricts: { create: [{ districtId: KEGALLE }] },
-    },
-  })
-  await prisma.hazardAlert.create({
-    data: {
-      hazardType: 'LANDSLIDE',
-      severity: 'WATCH',
-      status: 'ESCALATED',
-      message: 'Sample UC4 alert: landslide watch for Kegalle district',
-      issuedById: SAMPLE_DMC,
-      occurredAt: new Date('2026-08-20T14:00:00Z'),
-      targetDistricts: { create: [{ districtId: KEGALLE }] },
-    },
-  })
-  await prisma.hazardAlert.create({
-    data: {
-      hazardType: 'CYCLONE',
-      severity: 'EMERGENCY',
-      status: 'ACTIVE',
-      message: 'Sample UC4 alert: cyclone emergency for Colombo district',
-      issuedById: SAMPLE_DMC,
-      occurredAt: new Date('2026-08-27T06:00:00Z'),
-      targetDistricts: { create: [{ districtId: COLOMBO }] },
-    },
-  })
-  await prisma.hazardAlert.create({
-    data: {
-      hazardType: 'DROUGHT',
-      severity: 'ADVISORY',
-      status: 'ACTIVE',
-      message: 'Sample UC4 alert: drought advisory for Gampaha district',
-      issuedById: SAMPLE_DMC,
-      occurredAt: new Date('2026-09-04T09:00:00Z'),
-      targetDistricts: { create: [{ districtId: GAMPAHA }] },
-    },
-  })
-  const alert5 = await prisma.hazardAlert.create({
-    data: {
-      hazardType: 'FLOOD',
-      severity: 'WATCH',
-      status: 'ACTIVE',
-      message: 'Sample UC4 alert: flood watch for Gampaha district',
-      issuedById: SAMPLE_DMC,
-      occurredAt: new Date('2026-09-11T08:00:00Z'),
-      targetDistricts: { create: [{ districtId: GAMPAHA }] },
-    },
-  })
-  const alert6 = await prisma.hazardAlert.create({
-    data: {
-      hazardType: 'CYCLONE',
-      severity: 'WARNING',
-      status: 'ACTIVE',
-      message: 'Sample UC4 alert: cyclone warning for Colombo district',
-      issuedById: SAMPLE_DMC,
-      occurredAt: new Date('2026-09-10T07:00:00Z'),
-      targetDistricts: { create: [{ districtId: COLOMBO }] },
-    },
-  })
-  console.log('   6 alerts (FLOOD/LANDSLIDE/CYCLONE/DROUGHT × ADVISORY..EMERGENCY)\n')
-
-  // ── STEP 6: notification attempts (2,400 total) ────────────────────────────
-  console.log(' STEP 6: Seeding notification attempts...')
-  const attempts: Prisma.NotificationAttemptCreateManyInput[] = []
-
-  // Kegalle: 1,000 citizens × PUSH + SMS = 2,000 attempts (Aug 15).
-  const kegalleTime = new Date('2026-08-15T10:05:00Z')
-  for (let i = 1; i <= 1000; i++) {
-    const pushDelivered = i <= 950
-    const smsDelivered = i <= 850 || i > 950
-    attempts.push(
-      {
-        alertId: alert1.id,
-        citizenId: citizenId(i),
-        districtId: KEGALLE,
-        hazardType: 'FLOOD',
-        channel: 'PUSH',
-        status: pushDelivered ? 'DELIVERED' : 'FAILED',
-        kind: 'ISSUE',
-        occurredAt: kegalleTime,
-        sentAt: kegalleTime,
-        deliveredAt: pushDelivered ? kegalleTime : null,
-        failureReason: pushDelivered ? null : 'Device unreachable',
-      },
-      {
-        alertId: alert1.id,
-        citizenId: citizenId(i),
-        districtId: KEGALLE,
-        hazardType: 'FLOOD',
-        channel: 'SMS',
-        status: smsDelivered ? 'DELIVERED' : 'FAILED',
-        kind: 'ISSUE',
-        occurredAt: kegalleTime,
-        sentAt: kegalleTime,
-        deliveredAt: smsDelivered ? kegalleTime : null,
-        failureReason: smsDelivered ? null : 'Handset unavailable',
-      },
-    )
-  }
-
-  // Gampaha: 150 citizens → 150 PUSH + 50 SMS = 200 attempts (Sep 11).
-  const gampahaTime = new Date('2026-09-11T08:30:00Z')
-  for (let i = 1001; i <= 1150; i++) {
-    attempts.push({
-      alertId: alert5.id,
-      citizenId: citizenId(i),
-      districtId: GAMPAHA,
-      hazardType: 'FLOOD',
-      channel: 'PUSH',
-      status: 'DELIVERED',
-      kind: 'ISSUE',
-      occurredAt: gampahaTime,
-      sentAt: gampahaTime,
-      deliveredAt: gampahaTime,
-      failureReason: null,
-    })
-    if (i <= 1050) {
-      attempts.push({
-        alertId: alert5.id,
-        citizenId: citizenId(i),
-        districtId: GAMPAHA,
-        hazardType: 'FLOOD',
-        channel: 'SMS',
-        status: 'DELIVERED',
-        kind: 'ISSUE',
-        occurredAt: gampahaTime,
-        sentAt: gampahaTime,
-        deliveredAt: gampahaTime,
-        failureReason: null,
-      })
-    }
-  }
-
-  // Colombo: 100 citizens → 100 PUSH + 100 SMS = 200 attempts (Sep 15).
-  const colomboTime = new Date('2026-09-15T08:30:00Z')
-  for (let i = 1151; i <= 1250; i++) {
-    const smsDelivered = i <= 1240
-    attempts.push(
-      {
-        alertId: alert6.id,
-        citizenId: citizenId(i),
-        districtId: COLOMBO,
-        hazardType: 'CYCLONE',
-        channel: 'PUSH',
-        status: 'DELIVERED',
-        kind: 'ISSUE',
-        occurredAt: colomboTime,
-        sentAt: colomboTime,
-        deliveredAt: colomboTime,
-        failureReason: null,
-      },
-      {
-        alertId: alert6.id,
-        citizenId: citizenId(i),
-        districtId: COLOMBO,
-        hazardType: 'CYCLONE',
-        channel: 'SMS',
-        status: smsDelivered ? 'DELIVERED' : 'FAILED',
-        kind: 'ISSUE',
-        occurredAt: colomboTime,
-        sentAt: colomboTime,
-        deliveredAt: smsDelivered ? colomboTime : null,
-        failureReason: smsDelivered ? null : 'Network busy',
-      },
-    )
-  }
-
-  for (let i = 0; i < attempts.length; i += 500) {
-    await prisma.notificationAttempt.createMany({ data: attempts.slice(i, i + 500) })
-  }
-  console.log(`   ${attempts.length} attempts (Kegalle 2000 / Gampaha 200 / Colombo 200)`)
-  console.log('     Kegalle PUSH 1000/950/50, SMS 1000/900/100, distinct citizens 1000\n')
-
-  // ── STEP 7: ground reports + audit entries (51 → 42 verified / 6 pending / 3 rejected) ──
-  console.log(' STEP 7: Seeding 51 ground reports + audit entries...')
-  for (let i = 1; i <= 51; i++) {
-    const localId = `sample-report-${i.toString().padStart(3, '0')}`
-    const day = ((i % 28) + 1).toString().padStart(2, '0')
-    const captureTime = new Date(`2026-08-${day}T10:00:00Z`)
-    const hazardType = i % 4 === 0 ? 'LANDSLIDE' : 'FLOOD'
-
-    let reviewStatus: 'VERIFIED' | 'REJECTED' | 'NEEDS_INFO' | 'PENDING_REVIEW'
-    let action: 'VERIFIED' | 'REJECTED' | 'NEEDS_INFO' | 'CLARIFIED'
-    let reason: string | null
-    if (i <= 42) {
-      reviewStatus = 'VERIFIED'
-      action = 'VERIFIED'
-      reason = null
-    } else if (i <= 45) {
-      reviewStatus = 'REJECTED'
-      action = 'REJECTED'
-      reason = 'Insufficient evidence'
-    } else if (i <= 48) {
-      reviewStatus = 'NEEDS_INFO'
-      action = 'NEEDS_INFO'
-      reason = 'Awaiting photo evidence'
-    } else {
-      reviewStatus = 'PENDING_REVIEW'
-      action = 'CLARIFIED'
-      reason = 'Citizen supplied additional details'
-    }
-
-    const report = await prisma.groundReport.create({
-      data: {
-        localId,
-        reporterId: citizenId((i % 20) + 1),
-        districtId: KEGALLE,
-        hazardType,
-        description: `Sample UC4 ground report #${i} - observed hazard`,
-        latitude: 7.25 + i * 0.001,
-        longitude: 80.35 + i * 0.001,
-        locationSource: 'GPS',
-        gpsAccuracyM: 15.5,
-        confidence: i % 5 === 0 ? 'REDUCED' : 'FULL',
-        reviewStatus,
-        severityIndication: reviewStatus === 'VERIFIED' ? 'HIGH' : null,
-        captureTime,
-        syncTime: captureTime,
-        version: 1,
-      },
-    })
-
-    // One decision audit entry per report → DecisionQueryService tallies
-    // 42 VERIFIED / 6 pending (NEEDS_INFO + CLARIFIED→PENDING_REVIEW) / 3 REJECTED.
-    await prisma.reportAuditEntry.create({
-      data: {
-        reportId: report.id,
-        action,
-        officerId: SAMPLE_DUTY,
-        reason,
-        occurredAt: new Date(captureTime.getTime() + 3600_000),
-        districtId: KEGALLE,
-        hazardType,
-      },
-    })
-  }
-  console.log('   51 reports + 51 audit entries (42 VERIFIED / 6 pending / 3 REJECTED)\n')
-
-  // ── STEP 8: shelters + occupancy events (5 shelters, peak 420) ─────────────
-  console.log(' STEP 8: Seeding 5 shelters + occupancy events...')
-  const shelters = [
-    { id: SHELTER_IDS[0], name: 'Sample UC4 Shelter Kegalle 1', districtId: KEGALLE, capacity: 500, occupancy: 420 },
-    { id: SHELTER_IDS[1], name: 'Sample UC4 Shelter Kegalle 2', districtId: KEGALLE, capacity: 500, occupancy: 80 },
-    { id: SHELTER_IDS[2], name: 'Sample UC4 Shelter Colombo 1', districtId: COLOMBO, capacity: 400, occupancy: 55 },
-    { id: SHELTER_IDS[3], name: 'Sample UC4 Shelter Colombo 2', districtId: COLOMBO, capacity: 400, occupancy: 35 },
-    { id: SHELTER_IDS[4], name: 'Sample UC4 Shelter Gampaha 1', districtId: GAMPAHA, capacity: 300, occupancy: 20 },
-  ]
-  for (const shelter of shelters) {
-    await prisma.shelter.upsert({
-      where: { id: shelter.id },
-      update: {},
-      create: {
-        id: shelter.id,
-        name: shelter.name,
-        address: `Sample Address, ${shelter.name}`,
-        capacity: shelter.capacity,
-        occupancy: shelter.occupancy,
-        status: 'OPEN',
-        version: 1,
-        districtId: shelter.districtId,
-        organizationId: ORG_WV,
-      },
-    })
-  }
-  await prisma.occupancyEvent.createMany({
-    data: [
-      { shelterId: SHELTER_IDS[0], districtId: KEGALLE, previousCount: 0, newCount: 420, actorId: SAMPLE_DUTY, occurredAt: new Date('2026-08-16T10:00:00Z'), actionId: 'sample-occupancy-k1' },
-      { shelterId: SHELTER_IDS[1], districtId: KEGALLE, previousCount: 0, newCount: 80, actorId: SAMPLE_DUTY, occurredAt: new Date('2026-08-17T10:00:00Z'), actionId: 'sample-occupancy-k2' },
-      { shelterId: SHELTER_IDS[2], districtId: COLOMBO, previousCount: 0, newCount: 55, actorId: SAMPLE_DUTY, occurredAt: new Date('2026-08-25T10:00:00Z'), actionId: 'sample-occupancy-c1' },
-      { shelterId: SHELTER_IDS[3], districtId: COLOMBO, previousCount: 0, newCount: 35, actorId: SAMPLE_DUTY, occurredAt: new Date('2026-08-26T10:00:00Z'), actionId: 'sample-occupancy-c2' },
-      { shelterId: SHELTER_IDS[4], districtId: GAMPAHA, previousCount: 0, newCount: 20, actorId: SAMPLE_DUTY, occurredAt: new Date('2026-08-28T10:00:00Z'), actionId: 'sample-occupancy-g1' },
-    ],
-  })
-  console.log('   5 shelters, 5 occupancy events (peak 420, activated 5 in Aug)\n')
-
-  // ── STEP 9: supply stocks + distributions (50 / 100 / 80 / 70 %) ──────────
-  console.log(' STEP 9: Seeding supply stocks + distributions...')
-  const stockData = [
-    { supplyType: 'FOOD', onHand: 10000 },
-    { supplyType: 'WATER', onHand: 5500 },
-    { supplyType: 'MEDICINE', onHand: 800 },
-    { supplyType: 'SHELTER_MATERIAL', onHand: 300 },
-  ]
-  const stockIds: Record<string, string> = {}
-  for (const stock of stockData) {
-    const row = await prisma.supplyStock.create({
-      data: {
-        organizationId: ORG_WV,
-        districtId: KEGALLE,
-        supplyType: stock.supplyType,
-        onHand: stock.onHand,
-      },
-    })
-    stockIds[stock.supplyType] = row.id
-  }
-  await prisma.distribution.createMany({
-    data: [
-      { stockId: stockIds.FOOD, destinationShelterId: SHELTER_IDS[0], organizationId: ORG_WV, districtId: KEGALLE, quantity: 3000, actorId: SAMPLE_DISTRICT_OFFICER, occurredAt: new Date('2026-08-16T11:00:00Z'), actionId: 'sample-action-food-1' },
-      { stockId: stockIds.FOOD, destinationShelterId: SHELTER_IDS[1], organizationId: ORG_WV, districtId: KEGALLE, quantity: 2000, actorId: SAMPLE_DISTRICT_OFFICER, occurredAt: new Date('2026-08-17T11:00:00Z'), actionId: 'sample-action-food-2' },
-      { stockId: stockIds.WATER, destinationShelterId: SHELTER_IDS[0], organizationId: ORG_WV, districtId: KEGALLE, quantity: 5500, actorId: SAMPLE_DISTRICT_OFFICER, occurredAt: new Date('2026-08-16T12:00:00Z'), actionId: 'sample-action-water-1' },
-      { stockId: stockIds.MEDICINE, destinationShelterId: SHELTER_IDS[1], organizationId: ORG_WV, districtId: KEGALLE, quantity: 640, actorId: SAMPLE_DISTRICT_OFFICER, occurredAt: new Date('2026-08-17T12:00:00Z'), actionId: 'sample-action-med-1' },
-      { stockId: stockIds.SHELTER_MATERIAL, destinationShelterId: SHELTER_IDS[0], organizationId: ORG_WV, districtId: KEGALLE, quantity: 210, actorId: SAMPLE_DISTRICT_OFFICER, occurredAt: new Date('2026-08-18T11:00:00Z'), actionId: 'sample-action-shelter-1' },
-    ],
-  })
-  console.log('   FOOD 50%, WATER 100%, MEDICINE 80%, SHELTER_MATERIAL 70%\n')
-
-  // ── STEP 10: generate the 5 sample AnalysisReports via the REAL UC4 service ─
-  console.log(' STEP 10: Generating 5 sample analysis reports (SnapshotService)...')
+  // ── STEP 2: generate the 5 sample AnalysisReports via the REAL UC4 service ─
+  console.log(' STEP 2: Generating 5 sample analysis reports (SnapshotService)...')
   const snapshotService = container.uc4.snapshotService
 
   const r1 = await snapshotService.generate(
@@ -567,8 +156,8 @@ async function main() {
   console.log(`   #4 ${r4.id}  Gampaha FLOOD Sep TA  warning=${r4.warningFlag}`)
   console.log(`   #5 ${r5.id}  Colombo Jan EN  warning=${r5.warningFlag} (zero activity)\n`)
 
-  // ── STEP 11: shares with deterministic outcomes (real ShareService) ───────
-  console.log(' STEP 11: Sharing reports to partner organisations...')
+  // ── STEP 3: shares with deterministic outcomes (real ShareService) ─────────
+  console.log(' STEP 3: Sharing reports to partner organisations...')
   const channel = new ScriptedPartnerChannel()
   const shareService = new ShareService(
     container.uc4.snapshotRepository,

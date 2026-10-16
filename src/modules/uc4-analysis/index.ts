@@ -46,6 +46,8 @@ export interface Uc4Module {
   snapshotRepository: SnapshotRepository
   shareLogRepository: ShareLogRepository
   organizationReader: OrganizationReader
+  /** Reader aggregation — exposed for zero-KPI snapshot hydration in routes. */
+  aggregation: AggregationService
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
@@ -102,5 +104,6 @@ export function createUc4Module(deps: Uc4ModuleDeps): Uc4Module {
     snapshotRepository: deps.snapshotRepository,
     shareLogRepository: deps.shareLogRepository,
     organizationReader: deps.organizationReader,
+    aggregation,
   }
 }

@@ -42,6 +42,13 @@ import { PrismaAttemptReader } from "@/modules/uc4-analysis/adapters/prisma/Pris
 import { PrismaOccupancyEventReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaOccupancyEventReader";
 import { PrismaDistributionReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaDistributionReader";
 import { PrismaOrganizationReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaOrganizationReader";
+import { PrismaReportDecisionReader } from "@/modules/uc4-analysis/adapters/prisma/PrismaReportDecisionReader";
+import {
+  buildSyntheticDistributions,
+  buildSyntheticOccupancyEvents,
+  canSynthesize,
+} from "@/modules/uc4-analysis/adapters/dataBridges";
+import { expandDistrictIds } from "@/modules/uc4-analysis/adapters/districtAliases";
 import { InMemoryShareLogRepository } from "@/shared/infra/InMemoryShareLogRepository";
 import { InMemorySnapshotRepository } from "@/shared/infra/InMemorySnapshotRepository";
 import { InMemoryOrganizationReader } from "@/shared/infra/InMemoryOrganizationReader";
@@ -183,11 +190,29 @@ const liveAttemptReader: AttemptReader = {
   },
 };
 const liveOccupancyReader: OccupancyEventReader = {
-  listEvents: (f) => occupancyEventRepo.findByFilter(f),
+  async listEvents(f) {
+    const rows = await occupancyEventRepo.findByFilter(f);
+    if (rows.length === 0 && canSynthesize(f.from, f.to)) {
+      const districtIds = f.districtId ? new Set(expandDistrictIds(f.districtId)) : null;
+      const shelters = (await shelterRepo.findAll()).filter(
+        (s) => (!districtIds || districtIds.has(s.districtId)) && s.occupancy > 0,
+      );
+      if (shelters.length > 0) return buildSyntheticOccupancyEvents(shelters, f.from!, f.to!);
+    }
+    return rows;
+  },
 };
 const liveDistributionReader: DistributionReader = {
   async listDistributions(f) {
     const rows = await distributionRepo.findByFilter(f);
+    if (rows.length === 0 && canSynthesize(f.from, f.to)) {
+      const districtIds = f.districtId ? new Set(expandDistrictIds(f.districtId)) : null;
+      const stocks = (await stockRepo.findAll()).filter(
+        (s) => !districtIds || districtIds.has(s.districtId),
+      );
+      const synthetic = buildSyntheticDistributions(stocks, f.from!, f.to!);
+      if (synthetic.length > 0) return synthetic;
+    }
     const mapped: Distribution[] = [];
     for (const row of rows) {
       const stock = await stockRepo.findById(row.stockId);
@@ -229,7 +254,7 @@ const attemptReader = isPrisma ? new PrismaAttemptReader() : liveAttemptReader;
 const occupancyReader = isPrisma ? new PrismaOccupancyEventReader() : liveOccupancyReader;
 const distributionReader = isPrisma ? new PrismaDistributionReader() : liveDistributionReader;
 const supplyStockReader = isPrisma ? new PrismaSupplyStockReader() : liveSupplyStockReader;
-const decisionReader = new DecisionQueryService(audits);
+const decisionReader = isPrisma ? new PrismaReportDecisionReader() : new DecisionQueryService(audits);
 
 const organizationReader = isPrisma
   ? new PrismaOrganizationReader()

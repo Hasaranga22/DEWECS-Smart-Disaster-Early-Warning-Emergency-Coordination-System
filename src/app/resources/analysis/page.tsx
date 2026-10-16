@@ -18,6 +18,7 @@ import {
   ApiError,
   DISTRICTS,
   HAZARD_TYPES,
+  PRESETS,
   SECTIONS,
   LANGUAGES,
   toIsoRange,
@@ -273,6 +274,28 @@ function AnalysisForm() {
                 <Filter className="w-4 h-4 text-blue-400" /> Filters
               </span>
             </CardTitle>
+            <div>
+              <span className="block text-xs text-slate-400 mb-1 font-medium">
+                Demo presets
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      setFrom(p.from);
+                      setTo(p.to);
+                      setDistrictId(p.districtId);
+                      setHazardType(p.hazardType);
+                    }}
+                    className="px-2.5 py-1 rounded-full bg-slate-950 border border-slate-700 hover:border-blue-500 hover:text-white text-[11px] text-slate-300 transition"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-3">
               <div>
                 <label htmlFor="district-select" className="block text-xs text-slate-400 mb-1 font-medium">
