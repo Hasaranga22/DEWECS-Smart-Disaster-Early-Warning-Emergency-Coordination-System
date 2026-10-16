@@ -1,12 +1,12 @@
 UC4 Full End-to-End DB Integration Test
 ========================================
-generated : 2026-10-16T10:26:35.609Z
-duration  : 44.1s
+generated : 2026-10-16T11:13:10.299Z
+duration  : 82.3s
 clock     : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
 window    : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
 database  : PostgreSQL via Prisma (DATABASE_URL configured, value not shown)
 
-checks    : 57 total, 55 passed, 2 failed, 0 skipped
+checks    : 57 total, 56 passed, 1 failed, 0 skipped
 
 Section                                                   Total   Pass   Fail   Skip
 ------------------------------------------------------------------------------------
@@ -17,11 +17,11 @@ D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      5      0   
 E. PdfExporter from DB snapshots (A11, BR12)                  4      4      0      0
 F. ShareService vs DB (A07, BR8, BR9)                         6      6      0      0
 G. Business rules BR1-BR12                                   12     12      0      0
-H. Role enforcement (ROLE-01/02/03)                           3      1      2      0
+H. Role enforcement (ROLE-01/02/03)                           3      2      1      0
 I. API routes (in-process)                                    8      8      0      0
 J. Persistence & raw SQL checks                               5      5      0      0
 ------------------------------------------------------------------------------------
-TOTAL                                                        57     55      2      0
+TOTAL                                                        57     56      1      0
 
 rows created by suite : 3165
 rows after cleanup    : 0
@@ -44,7 +44,7 @@ LOG TRANSCRIPT:
 UC4 FULL END-TO-END DB INTEGRATION — SETUP
 clock mode : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
 window     : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
-started    : 2026-10-16T10:25:49.458Z
+started    : 2026-10-16T11:11:45.363Z
 ========================================================================
 seeded 3135 rows: alerts=3 attempts=2000 groundReports=51 auditEntries=51 occupancyEvents=10 distributions=4
 
@@ -69,7 +69,7 @@ G.BR1: SnapshotService itself performs no role check — enforcement is API-side
 ── H. Role enforcement (ROLE-01/02/03) (3 checks)
 
 ── I. API routes (in-process) (8 checks)
-I.4: route generated report 834a4602-ef9a-48e1-ac23-01bdb162ce62
+I.4: route generated report 2288702f-c732-4674-9cdd-60a2d3cc40e1
 I.8: container organizationReader is a null stub, so all three outcomes are FAILED (see findings)
 
 ── J. Persistence & raw SQL checks (5 checks)
@@ -87,11 +87,11 @@ D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      5      0   
 E. PdfExporter from DB snapshots (A11, BR12)                  4      4      0      0
 F. ShareService vs DB (A07, BR8, BR9)                         6      6      0      0
 G. Business rules BR1-BR12                                   12     12      0      0
-H. Role enforcement (ROLE-01/02/03)                           3      1      2      0
+H. Role enforcement (ROLE-01/02/03)                           3      2      1      0
 I. API routes (in-process)                                    8      8      0      0
 J. Persistence & raw SQL checks                               5      5      0      0
 ------------------------------------------------------------------------------------
-TOTAL                                                        57     55      2      0
+TOTAL                                                        57     56      1      0
 
 FINDINGS / DEVIATIONS:
   1. Clock: the spec example 2026-09-01 is in the past, so the suite uses FIXED_NOW = 2026-11-01T00:00:00.000Z (mode: preferred); expired-clock tests use 2020-01-01T00:00:00.000Z.
@@ -105,4 +105,4 @@ FINDINGS / DEVIATIONS:
   9. DecisionQueryService maps UC2 action CLARIFIED -> PENDING_REVIEW; the seed produces the pending tally through NEEDS_INFO rows.
   10. Route-level 403/400/404 mappings are exercised in Section I rather than in H, because BR1 is documented as enforced by API requireRole.
 
-duration: 44.1s
+duration: 82.3s
