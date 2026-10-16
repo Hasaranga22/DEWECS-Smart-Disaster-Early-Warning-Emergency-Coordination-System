@@ -50,7 +50,9 @@ export class DecisionQueryService {
     const entries = await this.audits.findAll();
 
     return entries
-      .filter((entry) => this.matchesFilter(entry, filter))
+      // Resolution is an operational map-lifecycle event, not a second review
+      // decision. Excluding it avoids double-counting verified reports in UC4.
+      .filter((entry) => entry.action !== "RESOLVED" && entry.action !== "EXTENDED" && this.matchesFilter(entry, filter))
       .map((entry) => this.toDecision(entry));
   }
 
@@ -93,6 +95,10 @@ export class DecisionQueryService {
       REJECTED: "REJECTED",
       NEEDS_INFO: "NEEDS_INFO",
       CLARIFIED: "PENDING_REVIEW",
+      // Resolutions are filtered from decision analytics above; retaining the
+      // original verified decision is the safe fallback for direct callers.
+      RESOLVED: "VERIFIED",
+      EXTENDED: "VERIFIED",
     };
     return mapping[action];
   }

@@ -6,6 +6,9 @@ export interface OfficerReport {
   version: number;
   hazardType: string;
   reviewStatus: "PENDING_REVIEW" | "VERIFIED" | "REJECTED";
+  mapStatus?: "ACTIVE" | "RESOLVED";
+  mapVisibleUntil?: string | null;
+  resolvedAt?: string | null;
   severityIndication?: "LOW" | "MEDIUM" | "HIGH" | null;
   confidence: "FULL" | "REDUCED";
   description: string;

@@ -3,7 +3,7 @@ import { DEMO_ACTORS, type Actor } from './actors';
 import { AccessDeniedError, ForbiddenError } from './errors';
 
 export const ROLE_COOKIE = 'dewecs_role';
-export const DEFAULT_ROLE: Role = 'CITIZEN';
+export const DEFAULT_ROLE: Role = 'DMC_OFFICIAL';
 
 export const ROLE_VALUES: readonly string[] = [
   'CITIZEN',

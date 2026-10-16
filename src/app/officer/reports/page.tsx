@@ -33,6 +33,60 @@ const REJECTION_REASONS = [
   "Duplicate report", "Unclear photo or description",
   "Outside affected area", "Not a hazard",
 ];
+// The map is an operational view, not an archive. Verified incident markers
+// expire seven days after the reported incident time.
+const MAP_INCIDENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+const isActiveMapIncident = (report: OfficerReport, now: number) => {
+  const legacyExpiry = new Date(report.captureTime).getTime() + MAP_INCIDENT_WINDOW_MS;
+  const persistedExpiry = report.mapVisibleUntil ? new Date(report.mapVisibleUntil).getTime() : legacyExpiry;
+  return report.reviewStatus === "VERIFIED"
+    && report.mapStatus !== "RESOLVED"
+    && Number.isFinite(persistedExpiry)
+    && persistedExpiry > now;
+};
+
+const expiryLabel = (report: OfficerReport, now: number) => {
+  const legacyExpiry = new Date(report.captureTime).getTime() + MAP_INCIDENT_WINDOW_MS;
+  const expiry = report.mapVisibleUntil ? new Date(report.mapVisibleUntil).getTime() : legacyExpiry;
+  const remainingMs = expiry - now;
+  if (remainingMs <= 0) return "Expired — extend to restore";
+  const remainingHours = Math.max(0, Math.ceil(remainingMs / (60 * 60 * 1000)));
+  if (remainingHours <= 24) return "Expires today";
+  const days = Math.ceil(remainingHours / 24);
+  return `Expires in ${days} days`;
+};
+
+const KNOWN_LOCATIONS = [
+  { name: "Kelaniya", latitude: 6.956, longitude: 79.922 },
+  { name: "Colombo", latitude: 6.927, longitude: 79.861 },
+  { name: "Gampaha", latitude: 7.087, longitude: 80.014 },
+  { name: "Kandy", latitude: 7.291, longitude: 80.634 },
+  { name: "Galle", latitude: 6.033, longitude: 80.217 },
+  { name: "Ratnapura", latitude: 6.682, longitude: 80.402 },
+  { name: "Kurunegala", latitude: 7.486, longitude: 80.364 },
+  { name: "Jaffna", latitude: 9.662, longitude: 80.025 },
+] as const;
+
+const nearestLocationLabel = (latitude: number, longitude: number) => {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const distanceKm = (place: typeof KNOWN_LOCATIONS[number]) => {
+    const latitudeDelta = toRadians(place.latitude - latitude);
+    const longitudeDelta = toRadians(place.longitude - longitude);
+    const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(toRadians(latitude)) * Math.cos(toRadians(place.latitude)) * Math.sin(longitudeDelta / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+  const nearest = KNOWN_LOCATIONS.reduce((best, place) => distanceKm(place) < distanceKm(best) ? place : best);
+  return `Near ${nearest.name} · ${distanceKm(nearest).toFixed(1)} km`;
+};
+
+const incidentDateLabel = (iso: string) => new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+}).format(new Date(iso));
 const PANEL = "rounded-[20px] border border-slate-200/80 bg-white shadow-[0_3px_18px_rgba(15,23,42,0.035)]";
 const CONTROL = "rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 const BUTTON_FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2";
@@ -109,8 +163,9 @@ function Modal({ title, description, children, onClose, busy = false }: {
   );
 }
 
-function ReportCard({ report, onReview, onBroadcast, onFocus, onPhoto }: {
+function ReportCard({ report, mapVisible, onReview, onBroadcast, onFocus, onPhoto }: {
   report: OfficerReport;
+  mapVisible: boolean;
   onReview: (action: ReviewAction) => void;
   onBroadcast: () => void;
   onFocus: () => void;
@@ -156,7 +211,9 @@ function ReportCard({ report, onReview, onBroadcast, onFocus, onPhoto }: {
           {report.severityIndication && <span className={`rounded-lg px-2 py-1 text-[11px] font-semibold ${SEVERITY_META[report.severityIndication].chip}`}>{SEVERITY_META[report.severityIndication].label} severity</span>}
           <span className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">{photos.length ? `${photos.length} photo${photos.length === 1 ? "" : "s"}` : "No photo"}</span>
         </div>
-        <button type="button" onClick={onFocus} className={`${BUTTON_FOCUS} mt-4 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800`}><MapPin size={13} /> Locate on map <ArrowUpRight size={12} /></button>
+        {mapVisible && (
+          <button type="button" onClick={onFocus} className={`${BUTTON_FOCUS} mt-4 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800`}><MapPin size={13} /> Locate on map <ArrowUpRight size={12} /></button>
+        )}
         <p className="mt-2 text-[11px] text-slate-400 tabular-nums">{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}</p>
       </div>
       {report.reviewStatus === "PENDING_REVIEW" && (
@@ -180,21 +237,38 @@ export default function OfficerDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [activeRoleName, setActiveRoleName] = useState("DMC Officer");
   const [status, setStatus] = useState<Status>("PENDING_REVIEW");
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|;\s*)dewecs_role=([^;]+)/);
+      if (match) {
+        const val = decodeURIComponent(match[1]);
+        if (val === "DUTY_OFFICER") setActiveRoleName("Duty Officer");
+        else if (val === "DISTRICT_OFFICER") setActiveRoleName("District Officer");
+        else if (val === "CITIZEN") setActiveRoleName("Citizen");
+        else setActiveRoleName("DMC Officer");
+      }
+    }
+  }, []);
   const [hazard, setHazard] = useState("ALL");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [photoFilter, setPhotoFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [showIncidentControls, setShowIncidentControls] = useState(false);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [review, setReview] = useState<ReviewDialog>(null);
   const [reviewSeverity, setReviewSeverity] = useState<Severity>("MEDIUM");
   const [rejectReason, setRejectReason] = useState("");
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resolvingIncidentId, setResolvingIncidentId] = useState<string | null>(null);
   const [dispatchTarget, setDispatchTarget] = useState<OfficerReport | null>(null);
   const [photo, setPhoto] = useState<PhotoDialog>(null);
   const [notice, setNotice] = useState("");
+  const mapNow = lastSync?.getTime() ?? 0;
 
   const fetchReports = useCallback(async (initial = false) => {
     if (!initial) setRefreshing(true);
@@ -242,6 +316,22 @@ export default function OfficerDashboard() {
       && (photoFilter === "ALL" || report.confidence === photoFilter)
       && (!query || `${report.description} ${hazardMeta(report.hazardType).label} ${report.id}`.toLowerCase().includes(query));
   }), [reports, status, hazard, severityFilter, photoFilter, search]);
+
+  // Pending, rejected, and expired reports remain in the review history but
+  // never become live map markers.
+  const mappedReports = useMemo(() => {
+    return reports.filter((report) => (
+      isActiveMapIncident(report, mapNow)
+        && (hazard === "ALL" || report.hazardType === hazard)
+    ));
+  }, [reports, hazard, mapNow]);
+  const mappedReportIds = useMemo(() => new Set(mappedReports.map((report) => report.id)), [mappedReports]);
+  const activeIncidents = useMemo(() => {
+    return reports.filter((report) => isActiveMapIncident(report, mapNow));
+  }, [reports, mapNow]);
+  const managedIncidents = useMemo(() => reports.filter((report) => (
+    report.reviewStatus === "VERIFIED" && report.mapStatus !== "RESOLVED"
+  )), [reports]);
 
   const hazardStats = useMemo(() => HAZARD_KEYS.map((key) => ({
     key, label: HAZARD_META[key].label,
@@ -309,6 +399,30 @@ export default function OfficerDashboard() {
     }
   };
 
+  const updateIncidentLifecycle = async (report: OfficerReport, action: "resolve" | "extend") => {
+    if (resolvingIncidentId) return;
+    setResolvingIncidentId(report.id);
+    try {
+      const response = await fetch(`/api/officer/reports/${report.id}/incident-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          expectedVersion: report.version,
+          officerId: "550e8400-e29b-41d4-a716-446655440002",
+        }),
+      });
+      const data: { message?: string } = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Unable to update this incident.");
+      setNotice(action === "resolve" ? "Incident resolved and removed from the live map" : "Map visibility extended by 7 days");
+      await fetchReports();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Unable to update this incident.");
+    } finally {
+      setResolvingIncidentId(null);
+    }
+  };
+
   const tabs: { key: Status; label: string; count: number }[] = [
     { key: "PENDING_REVIEW", label: "Pending", count: counts.PENDING_REVIEW },
     { key: "VERIFIED", label: "Verified", count: counts.VERIFIED },
@@ -322,15 +436,32 @@ export default function OfficerDashboard() {
       <header className="border-b border-slate-200/80 bg-white">
         <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-7 lg:px-10">
           <div className="flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-[14px] bg-indigo-600 text-white shadow-md shadow-indigo-200"><ShieldCheck size={22} /></div>
+            <div className="grid size-11 place-items-center rounded-[14px] bg-indigo-600 text-white shadow-md shadow-indigo-200">
+              <ShieldCheck size={22} />
+            </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">DEWECS / Operations</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">DEWECS / Operations</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                  <span className="size-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                  Role: {activeRoleName}
+                </span>
+              </div>
               <h1 className="text-lg font-bold tracking-tight text-slate-950 sm:text-xl">Officer command center</h1>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <span className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><span className={`size-2 rounded-full ${loadError ? "bg-rose-500" : "bg-emerald-500"}`} />{loadError ? "Sync issue" : lastSync ? `Synced ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Connecting"}</span>
-            <button type="button" onClick={() => void fetchReports()} disabled={refreshing} className={`${BUTTON_FOCUS} flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50`}><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> Refresh</button>
+            <div className="hidden sm:flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200/80 px-3 py-1.5 text-xs">
+              <span className="text-slate-500 font-medium">Logged in as:</span>
+              <span className="font-bold text-slate-900">{activeRoleName}</span>
+            </div>
+            <span className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
+              <span className={`size-2 rounded-full ${loadError ? "bg-rose-500" : "bg-emerald-500"}`} />
+              {loadError ? "Sync issue" : lastSync ? `Synced ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Connecting"}
+            </span>
+            <button type="button" onClick={() => void fetchReports()} disabled={refreshing} className={`${BUTTON_FOCUS} flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50`}>
+              <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> Refresh
+            </button>
           </div>
         </div>
       </header>
@@ -365,14 +496,17 @@ export default function OfficerDashboard() {
         <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,1fr)]">
           <section id="incident-map" className={`${PANEL} min-w-0 overflow-hidden`}>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
-              <SectionTitle eyebrow="Incident geography" title="Live report map" detail={`${filtered.length} matching reports · ${reports.length} total`} />
-              <span className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700"><MapPin size={13} /> Map view</span>
+              <SectionTitle eyebrow="Incident geography" title="Active verified incident map" detail={`${mappedReports.length} active ${mappedReports.length === 1 ? "report" : "reports"} · markers expire after 7 days`} />
+              <div className="flex items-center gap-2">
+                <span className="hidden items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 sm:flex"><MapPin size={13} /> Map view</span>
+                <button type="button" onClick={() => setShowIncidentControls((value) => !value)} aria-expanded={showIncidentControls} aria-controls="incident-lifecycle" className={`${BUTTON_FOCUS} inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800`}><CheckCircle2 size={14} /> Manage incidents <ChevronDown size={14} className={showIncidentControls ? "rotate-180" : ""} /></button>
+              </div>
             </div>
             <div className={`flex gap-2 overflow-x-auto px-4 py-3 ${HIDDEN_SCROLLBAR}`} aria-label="Hazard map filters">
               <button type="button" onClick={() => setHazard("ALL")} aria-pressed={hazard === "ALL"} className={`${BUTTON_FOCUS} shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${hazard === "ALL" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>All hazards</button>
               {HAZARD_KEYS.map((key) => <button key={key} type="button" onClick={() => setHazard(key)} aria-pressed={hazard === key} className={`${BUTTON_FOCUS} shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${hazard === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{HAZARD_META[key].icon} {HAZARD_META[key].label}</button>)}
             </div>
-            <div className="relative h-[350px] bg-slate-100 sm:h-[425px] lg:h-[470px]"><DisasterMap reports={filtered} focusedId={focusedId} onSelect={setFocusedId} /></div>
+            <div className="relative h-[350px] bg-slate-100 sm:h-[425px] lg:h-[470px]"><DisasterMap reports={mappedReports} focusedId={focusedId} onSelect={setFocusedId} /></div>
             <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 px-4 py-3 sm:px-5">
               {HAZARD_KEYS.map((key) => <span key={key} className="flex items-center gap-1.5 text-[11px] text-slate-500"><span className="size-2 rounded-full" style={{ backgroundColor: HAZARD_META[key].color }} />{HAZARD_META[key].label}</span>)}
             </div>
@@ -393,6 +527,42 @@ export default function OfficerDashboard() {
           </div>
         </div>
 
+        {showIncidentControls && <section id="incident-lifecycle" className={`${PANEL} overflow-hidden`} aria-labelledby="incident-lifecycle-heading">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+            <SectionTitle eyebrow="Map lifecycle" title="Incident controls" detail="Use evidence and location context to resolve an incident or extend its map visibility." />
+            <span className="rounded-full bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700">{activeIncidents.length} active on map</span>
+          </div>
+          {managedIncidents.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[940px] text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  <tr><th className="px-4 py-3.5 sm:px-5">Incident</th><th className="px-4 py-3.5">Evidence</th><th className="px-4 py-3.5">Reported</th><th className="px-4 py-3.5">Nearest location</th><th className="px-4 py-3.5">Map status</th><th className="px-4 py-3.5 text-right sm:px-5">Action</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {managedIncidents.map((report) => {
+                    const hazardInfo = hazardMeta(report.hazardType);
+                    const legacyExpiry = new Date(report.captureTime).getTime() + MAP_INCIDENT_WINDOW_MS;
+                    const expiresAt = report.mapVisibleUntil ? new Date(report.mapVisibleUntil).getTime() : legacyExpiry;
+                    const expired = expiresAt <= mapNow;
+                    const expiresSoon = !expired && expiresAt - mapNow <= 48 * 60 * 60 * 1000;
+                    const photos = parsePhotos(report.photo);
+                    return (
+                      <tr key={report.id} className="bg-white">
+                        <td className="px-4 py-3.5 sm:px-5"><div className="flex items-center gap-2.5"><span className={`grid size-8 place-items-center rounded-lg ${hazardInfo.tint}`}>{hazardInfo.icon}</span><div><p className="font-bold text-slate-900">{hazardInfo.label}</p><p className="mt-0.5 max-w-[240px] truncate text-xs text-slate-500">{report.description}</p></div></div></td>
+                        <td className="px-4 py-3.5"><div className="flex -space-x-2">{photos.length ? photos.slice(0, 2).map((src, index) => <button key={`${src}-${index}`} type="button" onClick={() => setPhoto({ src, report })} className="size-9 overflow-hidden rounded-lg border-2 border-white bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"><img src={src} alt={`Evidence ${index + 1}`} className="size-full object-cover" /></button>) : <span className="grid size-9 place-items-center rounded-lg bg-slate-100 text-[10px] font-bold text-slate-400">None</span>}</div></td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-xs font-medium text-slate-600">{incidentDateLabel(report.captureTime)}</td>
+                        <td className="px-4 py-3.5"><p className="text-xs font-semibold text-slate-700">{nearestLocationLabel(report.latitude, report.longitude)}</p><p className="mt-0.5 text-[11px] text-slate-400 tabular-nums">{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}</p></td>
+                        <td className="px-4 py-3.5"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${expired ? "bg-rose-50 text-rose-700" : expiresSoon ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>{expiryLabel(report, mapNow)}</span></td>
+                        <td className="px-4 py-3.5 text-right sm:px-5"><div className="flex justify-end gap-2"><button type="button" onClick={() => void updateIncidentLifecycle(report, "extend")} disabled={resolvingIncidentId !== null} className={`${BUTTON_FOCUS} rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:cursor-wait disabled:opacity-60`}>{resolvingIncidentId === report.id ? "Updating..." : "Extend 7 days"}</button><button type="button" onClick={() => void updateIncidentLifecycle(report, "resolve")} disabled={resolvingIncidentId !== null} className={`${BUTTON_FOCUS} rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-wait disabled:opacity-60`}>Resolve</button></div></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : <div className="px-5 py-9 text-center text-sm text-slate-500">No unresolved verified incidents need map management.</div>}
+        </section>}
+
         <section id="report-queue" className="scroll-mt-5 space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3"><SectionTitle eyebrow="Review workspace" title="Incoming report queue" detail="Review evidence, assign severity, and manage decisions." /><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">{filtered.length} shown</span></div>
           <div className={`${PANEL} space-y-3 p-3 sm:p-4`}>
@@ -412,7 +582,7 @@ export default function OfficerDashboard() {
             {filtersActive && <button type="button" onClick={clearFilters} className={`${BUTTON_FOCUS} text-xs font-semibold text-indigo-600 hover:text-indigo-800`}>Clear all filters</button>}
           </div>
           {loading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((index) => <div key={index} className={`${PANEL} h-64 animate-pulse bg-slate-100`} />)}</div>
-            : filtered.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((report) => <ReportCard key={report.id} report={report} onReview={(action) => openReview(report, action)} onBroadcast={() => setDispatchTarget(report)} onFocus={() => focusOnMap(report.id)} onPhoto={(src) => setPhoto({ src, report })} />)}</div>
+            : filtered.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((report) => <ReportCard key={report.id} report={report} mapVisible={mappedReportIds.has(report.id)} onReview={(action) => openReview(report, action)} onBroadcast={() => setDispatchTarget(report)} onFocus={() => focusOnMap(report.id)} onPhoto={(src) => setPhoto({ src, report })} />)}</div>
             : <div className={`${PANEL} py-16 text-center`}><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-slate-100 text-slate-400"><Search size={21} /></div><h3 className="mt-3 text-sm font-bold text-slate-900">No matching reports</h3><p className="mt-1 text-sm text-slate-500">Adjust your search or filters to see more incidents.</p><button type="button" onClick={clearFilters} className="mt-4 text-sm font-semibold text-indigo-600 hover:underline">Clear filters</button></div>}
         </section>
       </main>

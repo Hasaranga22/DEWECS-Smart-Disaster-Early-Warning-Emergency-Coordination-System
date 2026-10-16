@@ -15,7 +15,7 @@ const districtOfficer = OFFICERS.find((o) => o.role === 'DISTRICT_OFFICER' && o.
 export const DEMO_ACTORS: Record<Role, Actor> = {
   CITIZEN: { id: CITIZENS[0].id, role: 'CITIZEN', userId: CITIZENS[0].id, name: CITIZENS[0].name, districtId: CITIZENS[0].districtId },
   DUTY_OFFICER: { id: DUTY_OFFICER_ID, role: 'DUTY_OFFICER', userId: DUTY_OFFICER_ID, name: 'Duty Officer Silva' },
-  DMC_OFFICIAL: { id: DMC_OFFICIAL_ID, role: 'DMC_OFFICIAL', userId: DMC_OFFICIAL_ID, name: 'DMC Official Perera' },
+  DMC_OFFICIAL: { id: DMC_OFFICIAL_ID, role: 'DMC_OFFICIAL', userId: DMC_OFFICIAL_ID, name: 'DMC Officer Perera' },
   DISTRICT_OFFICER: {
     id: districtOfficer.id,
     role: 'DISTRICT_OFFICER',
@@ -28,6 +28,6 @@ export const DEMO_ACTORS: Record<Role, Actor> = {
 export const ROLE_LABELS: Record<Role, string> = {
   CITIZEN: 'Citizen',
   DUTY_OFFICER: 'Duty Officer',
-  DMC_OFFICIAL: 'DMC Official',
+  DMC_OFFICIAL: 'DMC Officer',
   DISTRICT_OFFICER: 'District Officer',
 };

@@ -6,7 +6,8 @@ import { Clock, IdGenerator } from "@/shared/contracts/Clock";
 
 // ─── Audit Entry Types ────────────────────────────────────────────────────────
 
-export type AuditAction = "VERIFIED" | "REJECTED" | "NEEDS_INFO" | "CLARIFIED";
+export type AuditAction = "VERIFIED" | "REJECTED" | "NEEDS_INFO" | "CLARIFIED" | "RESOLVED" | "EXTENDED";
+const MAP_VISIBILITY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface ReportAuditEntry {
   id: string;
@@ -56,6 +57,20 @@ export interface AddClarificationInput {
   updatedPhoto?: string;
 }
 
+export interface ResolveIncidentInput {
+  reportId: string;
+  expectedVersion: number;
+  officerId: string;
+  note?: string;
+}
+
+export interface ExtendIncidentInput {
+  reportId: string;
+  expectedVersion: number;
+  officerId: string;
+  note?: string;
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 /**
@@ -91,6 +106,7 @@ export class ReviewService {
     const report = await this.loadOrThrow(input.reportId);
 
     report.verify(input.severityIndication);
+    report.activateOnMap(new Date(this.clock.now().getTime() + MAP_VISIBILITY_WINDOW_MS));
     await this.reports.update(report, input.expectedVersion);
 
     await this.recordAudit({
@@ -162,6 +178,50 @@ export class ReviewService {
     await this.recordAudit({
       reportId: report.id,
       action: "CLARIFIED",
+      districtId: report.districtId,
+      hazardType: report.hazardType,
+    });
+
+    return report;
+  }
+
+  /**
+   * Marks a verified incident as resolved. The report remains verified and
+   * auditable, but is removed from the operational map immediately.
+   */
+  async resolveIncident(input: ResolveIncidentInput): Promise<GroundReport> {
+    const report = await this.loadOrThrow(input.reportId);
+
+    report.resolveIncident(input.officerId, this.clock.now());
+    await this.reports.update(report, input.expectedVersion);
+
+    await this.recordAudit({
+      reportId: report.id,
+      action: "RESOLVED",
+      officerId: input.officerId,
+      note: input.note,
+      districtId: report.districtId,
+      hazardType: report.hazardType,
+    });
+
+    return report;
+  }
+
+  /** Extends map visibility by seven days from the later of now or the current expiry. */
+  async extendIncident(input: ExtendIncidentInput): Promise<GroundReport> {
+    const report = await this.loadOrThrow(input.reportId);
+    const now = this.clock.now();
+    const currentExpiry = report.mapVisibleUntil?.getTime() ?? now.getTime();
+    const baseTime = Math.max(now.getTime(), currentExpiry);
+
+    report.extendMapVisibility(new Date(baseTime + MAP_VISIBILITY_WINDOW_MS));
+    await this.reports.update(report, input.expectedVersion);
+
+    await this.recordAudit({
+      reportId: report.id,
+      action: "EXTENDED",
+      officerId: input.officerId,
+      note: input.note,
       districtId: report.districtId,
       hazardType: report.hazardType,
     });

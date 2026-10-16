@@ -7,6 +7,8 @@ export type ReviewStatus =
   | "VERIFIED"
   | "REJECTED";
 
+export type IncidentMapStatus = "ACTIVE" | "RESOLVED";
+
 /**
  * Props required to instantiate a GroundReport.
  * All date/ID values must be injected via Clock and IdGenerator —
@@ -30,6 +32,10 @@ export interface GroundReportProps {
   captureTime: Date;
   syncTime?: Date;
   severityIndication?: SeverityIndication;
+  mapStatus?: IncidentMapStatus;
+  mapVisibleUntil?: Date;
+  resolvedAt?: Date;
+  resolvedByOfficerId?: string;
   linkedToReportId?: string;
 }
 
@@ -50,7 +56,7 @@ export class GroundReport {
   private _props: GroundReportProps;
 
   private constructor(props: GroundReportProps) {
-    this._props = { ...props };
+    this._props = { ...props, mapStatus: props.mapStatus ?? "ACTIVE" };
   }
 
   // ─── Factory ──────────────────────────────────────────────────────────────
@@ -78,6 +84,10 @@ export class GroundReport {
   get captureTime(): Date { return this._props.captureTime; }
   get syncTime(): Date | undefined { return this._props.syncTime; }
   get severityIndication(): SeverityIndication | undefined { return this._props.severityIndication; }
+  get mapStatus(): IncidentMapStatus { return this._props.mapStatus ?? "ACTIVE"; }
+  get mapVisibleUntil(): Date | undefined { return this._props.mapVisibleUntil; }
+  get resolvedAt(): Date | undefined { return this._props.resolvedAt; }
+  get resolvedByOfficerId(): string | undefined { return this._props.resolvedByOfficerId; }
   get linkedToReportId(): string | undefined { return this._props.linkedToReportId; }
 
   // ─── State Machine Transitions ────────────────────────────────────────────
@@ -94,6 +104,13 @@ export class GroundReport {
       this._props.severityIndication = severityIndication;
     }
     this._props.version += 1;
+  }
+
+  /** Starts the seven-day map lifecycle when an officer verifies a report. */
+  activateOnMap(visibleUntil: Date): void {
+    this.assertStatus("VERIFIED", "activate incident");
+    this._props.mapStatus = "ACTIVE";
+    this._props.mapVisibleUntil = visibleUntil;
   }
 
   /**
@@ -132,6 +149,31 @@ export class GroundReport {
       // Photo supplied → restore full confidence
       this._props.confidence = "FULL";
     }
+    this._props.version += 1;
+  }
+
+  /**
+   * Removes a verified incident from the live operations map while preserving
+   * the verified report and its audit history for post-event review.
+   */
+  resolveIncident(officerId: string, resolvedAt: Date): void {
+    this.assertStatus("VERIFIED", "resolve incident");
+    if (this.mapStatus !== "ACTIVE") {
+      throw new InvalidStateTransitionError(this.mapStatus, "resolve incident");
+    }
+    this._props.mapStatus = "RESOLVED";
+    this._props.resolvedAt = resolvedAt;
+    this._props.resolvedByOfficerId = officerId;
+    this._props.version += 1;
+  }
+
+  /** Keeps an unresolved verified incident on the live map for longer. */
+  extendMapVisibility(visibleUntil: Date): void {
+    this.assertStatus("VERIFIED", "extend incident");
+    if (this.mapStatus !== "ACTIVE") {
+      throw new InvalidStateTransitionError(this.mapStatus, "extend incident");
+    }
+    this._props.mapVisibleUntil = visibleUntil;
     this._props.version += 1;
   }
 
