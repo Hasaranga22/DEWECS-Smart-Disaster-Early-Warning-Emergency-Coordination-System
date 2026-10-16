@@ -1,0 +1,195 @@
+@startuml class-integrated
+skinparam fontName Arial
+skinparam fontSize 12
+
+package "Domain Layer (src/modules/uc4-analysis/domain)" {
+  class AnalysisReport <<immutable, write-once (BR2)>> {
+    + id: string
+    + filters: ReportFilters
+    + sourceCutoff: Date
+    + generatedAt: Date
+    + generatedBy: string
+    + metrics: Metrics
+    + warningFlag: boolean
+  }
+
+  interface ReportFilters {
+    + from: Date
+    + to: Date
+    + districtId?: string
+    + hazardType?: HazardType
+    + includedSections: IncludedSection[]
+    + language: Language
+  }
+
+  interface Metrics {
+    + alerts: { total, bySeverity, byHazardType }
+    + reach: ReachMetrics
+    + reports: { verified, rejected, pending }
+    + shelters: { activated, peakOccupancy, events[] }
+    + supplies: { byType: Record<string, SupplyCount> }
+  }
+
+  interface ReachMetrics {
+    + distinctCitizens: number
+    + perChannel: { PUSH: ChannelStats, SMS: ChannelStats }
+  }
+
+  interface ChannelStats {
+    + attempted: number
+    + delivered: number
+    + failed: number
+  }
+
+  interface ReportShare <<append-only (BR8)>> {
+    + id: string
+    + reportId: string
+    + organizationId: string
+    + status: 'SENT' | 'FAILED'
+    + attemptedAt: Date
+    + actorId: string
+    + failureReason?: string
+  }
+
+  interface ShareOutcome {
+    + organizationName: string
+  }
+  ShareOutcome --|> ReportShare
+
+  class ValidationError
+  class AggregationTimeoutError
+  class NotFoundError
+  class PdfExportError
+  class ForbiddenError
+  class DuplicateSnapshotError
+
+  AnalysisReport *-- ReportFilters
+  AnalysisReport *-- Metrics
+  Metrics *-- ReachMetrics
+  ReachMetrics *-- ChannelStats
+}
+
+package "Services & Application Layer (src/modules/uc4-analysis/services)" {
+  class ReportFilterValidator {
+    + validate(input: unknown): ValidatedFilters
+  }
+
+  class SnapshotService {
+    + generate(input, actor): Promise<AnalysisReport>
+  }
+
+  class AggregationService {
+    + aggregate(filters, sourceCutoff, deadline): Promise<Metrics>
+  }
+
+  class ReachCalculator {
+    + compute(attempts): ReachMetrics
+  }
+
+  class PdfExporter {
+    + export(snapshot, language): Promise<Uint8Array>
+  }
+
+  class ShareService {
+    + share(reportId, organizationIds, actor): Promise<ShareOutcome[]>
+  }
+}
+
+package "Ports & Adapters (src/modules/uc4-analysis/adapters)" {
+  interface SnapshotRepository {
+    + save(report): Promise<void>
+    + getById(id): Promise<AnalysisReport | null>
+    + list(query?): Promise<AnalysisReport[]>
+  }
+
+  interface ShareLogRepository {
+    + save(share: ReportShare): Promise<void>
+    + listByReport(reportId): Promise<ReportShare[]>
+  }
+
+  interface AuditLogger {
+    + logGeneration(reportId, actorId): void
+    + logFailure(reason, actorId): void
+    + logShare(reportId, outcomes, actorId): void
+  }
+
+  interface PartnerChannel {
+    + send(report, organization): Promise<void>
+  }
+
+  interface OrganizationReader {
+    + getById(id): Organization | null
+  }
+
+  class MockPartnerChannel {
+    + send(report, organization): Promise<void>
+  }
+  MockPartnerChannel ..|> PartnerChannel
+}
+
+package "Cross-Module Reader Contracts (src/shared/contracts/types)" {
+  interface Filter {
+    + from?: Date
+    + to?: Date
+    + districtId?: string
+    + hazardType?: HazardType
+    + cutoff?: Date
+  }
+
+  interface AlertReader {
+    + listAlerts(f: Filter): Promise<HazardAlert[]>
+  }
+
+  interface AttemptReader {
+    + listAttempts(f: Filter): Promise<NotificationAttempt[]>
+  }
+
+  interface ReportDecisionReader {
+    + listDecisions(f: Filter): Promise<ReportDecision[]>
+  }
+
+  interface OccupancyEventReader {
+    + listEvents(f: Filter): Promise<OccupancyEvent[]>
+  }
+
+  interface DistributionReader {
+    + listDistributions(f: Filter): Promise<Distribution[]>
+  }
+
+  interface SupplyStockReader {
+    + listStocks(f: Filter): Promise<SupplyStock[]>
+  }
+}
+
+SnapshotService --> ReportFilterValidator : validates with
+SnapshotService --> AggregationService : aggregates via
+SnapshotService --> SnapshotRepository : persists to
+SnapshotService --> AuditLogger : audits via
+AggregationService --> ReachCalculator : reach via
+AggregationService --> AlertReader : reads
+AggregationService --> AttemptReader : reads
+AggregationService --> ReportDecisionReader : reads
+AggregationService --> OccupancyEventReader : reads
+AggregationService --> DistributionReader : reads
+AggregationService --> SupplyStockReader : reads
+ShareService --> SnapshotRepository : loads snapshot from
+ShareService --> ShareLogRepository : appends rows to
+ShareService --> OrganizationReader : resolves recipients via
+ShareService --> PartnerChannel : delivers through
+ShareService --> AuditLogger : audits via
+PdfExporter --> AnalysisReport : renders
+
+note bottom of SnapshotRepository
+  In-memory and Prisma adapters only.
+  No update / no delete by design (BR2).
+end note
+
+note bottom of AlertReader
+  Implemented by UC1 (alerts/attempts),
+  UC2 (decisions), UC3 (occupancy,
+  distributions, stock) readers and the
+  shared in-memory delegates wired in
+  src/shared/infra/container.ts.
+end note
+
+@enduml

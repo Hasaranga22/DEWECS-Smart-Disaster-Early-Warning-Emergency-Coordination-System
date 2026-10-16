@@ -45,6 +45,7 @@ enum DistrictNotificationKind {
 
 model HazardAlert {
   id                 String        @id @default(uuid()) @db.Uuid
+  title              String?       @db.VarChar(80)
   hazardType         HazardType    @map("hazard_type")
   severity           AlertSeverity
   status             AlertStatus

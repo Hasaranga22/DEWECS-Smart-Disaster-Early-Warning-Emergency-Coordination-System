@@ -15,6 +15,12 @@ enum ConflictStatus {
   RESOLVED
 }
 
+enum DispatchRequestStatus {
+  UNASSIGNED
+  ASSIGNED
+  CANCELLED
+}
+
 model Shelter {
   id             String        @id @default(uuid()) @db.Uuid
   districtId     String        @map("district_id") @db.Uuid
@@ -26,7 +32,7 @@ model Shelter {
   capacity       Int
   occupancy      Int
   status         ShelterStatus
-  version        Int
+  version        Int           @default(0)
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -45,6 +51,7 @@ model RescueTeam {
   name             String           @db.VarChar(200)
   capability       String           @db.Text
   status           RescueTeamStatus
+  version          Int              @default(0)
   currentLatitude  Decimal?         @map("current_latitude") @db.Decimal(9, 6)
   currentLongitude Decimal?         @map("current_longitude") @db.Decimal(9, 6)
   createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
@@ -63,6 +70,7 @@ model SupplyStock {
   districtId     String   @map("district_id") @db.Uuid
   supplyType     String   @map("supply_type") @db.VarChar(100)
   onHand         Int      @map("on_hand")
+  version        Int      @default(0)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   organization  Organization   @relation(fields: [organizationId], references: [id])
@@ -148,4 +156,18 @@ model ConflictQueueItem {
   resolvingOfficer Officer? @relation(fields: [resolvedBy], references: [id])
 
   @@map("conflict_queue_item")
+}
+
+model DispatchRequest {
+  id          String                @id @default(uuid()) @db.Uuid
+  districtId  String                @map("district_id") @db.Uuid
+  incident    String?               @db.Text
+  location    String                @db.Text
+  requestedBy String                @map("requested_by") @db.Uuid
+  status      DispatchRequestStatus
+  teamId      String?               @map("team_id") @db.Uuid
+  actionId    String                @map("action_id") @db.VarChar(100)
+  occurredAt  DateTime              @map("occurred_at") @db.Timestamptz
+
+  @@map("dispatch_request")
 }

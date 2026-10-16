@@ -1,0 +1,112 @@
+@startuml seq-uc3-resources
+skinparam fontName Arial
+skinparam fontSize 12
+skinparam boxPadding 10
+skinparam participantPadding 10
+
+autonumber
+
+box "User & UI" #LightDark
+actor "District Officer" as Officer
+participant "Dashboard & Resource UI" as UI
+end box
+
+box "API Layer" #AliceBlue
+participant "API Routes (/api/resources/*)" as API
+end box
+
+box "Domain & Application Services" #LightYellow
+participant "ShelterService" as ShelterSvc
+participant "DispatchService" as DispatchSvc
+participant "DistributionService" as DistSvc
+participant "ProcessedActionStore / Idempotency" as Idem
+participant "ConflictQueue" as ConflictQ
+end box
+
+box "Infrastructure & Persistence" #Snow
+participant "TransactionRunner" as Tx
+participant "Repositories (Prisma/Memory)" as Repos
+participant "PartnerNotifier" as Partner
+end box
+
+== Main Flow 1-3 & Alternate A6: Register & Update Shelter Occupancy ==
+Officer -> UI: Register new shelter (A6) or Update Occupancy (absolute newCount)
+UI -> API: POST /api/resources/shelters/{id}/occupancy {actionId, expectedVersion, newCount}
+API -> Idem: executeCommand(actionId)
+alt Idempotency Replay (R05)
+    Idem --> API: Return original cached result
+    API --> UI: HTTP 200 (Original Result)
+else New Command Execution
+    Idem -> ShelterSvc: updateOccupancy()
+    ShelterSvc -> Repos: findById(shelterId)
+    Repos --> ShelterSvc: shelter (currentVersion)
+    
+    alt E4: Version Conflict (stale expectedVersion != currentVersion)
+        ShelterSvc -> ConflictQ: enqueue(actionType, payload, expectedVersion, actualVersion)
+        ConflictQ -> Repos: save(conflictItem)
+        ShelterSvc --> API: throw VersionConflictError
+        API --> UI: HTTP 409 Conflict (Shown in Conflict Queue banner)
+    else E1: Over Capacity (newCount > capacity)
+        ShelterSvc -> Repos: findByDistrictId(districtId)
+        ShelterSvc --> API: throw OverCapacityError(alternatives)
+        API --> UI: HTTP 422 Unprocessable Entity (Alternatives suggested)
+    else Happy Path
+        ShelterSvc -> ShelterSvc: shelter.withOccupancy(newCount)
+        ShelterSvc -> Repos: save(updatedShelter)
+        ShelterSvc -> Repos: save(occupancyEvent)
+        ShelterSvc -> Idem: recordAction(actionId)
+        ShelterSvc --> API: updated Shelter
+        API --> UI: HTTP 200 OK (Occupancy Updated)
+    end
+end
+
+== Main Flow 4-5 & Alternates A2, A3, A5 & Exception E2: Dispatch Rescue Team ==
+Officer -> UI: Select team & confirm dispatch destination
+UI -> API: POST /api/resources/dispatch {actionId, teamId, destinationDistrictId, isConfirmed}
+API -> DispatchSvc: dispatch()
+
+alt Alternate A3 & A5: Confirmation Rules
+    DispatchSvc -> DispatchSvc: CrossOrganizationRule & CrossDistrictRule check
+    opt Unconfirmed Cross-Org / Cross-District
+        DispatchSvc --> API: throw ConfirmationRequiredError
+        API --> UI: HTTP 422 (Combined Confirmation Alert Dialog shown)
+    end
+end
+
+alt Happy Path Dispatch
+    DispatchSvc -> Repos: findById(teamId)
+    DispatchSvc -> DispatchSvc: team.dispatch() (AVAILABLE -> EN_ROUTE)
+    DispatchSvc -> Repos: save(dispatchedTeam)
+    DispatchSvc -> Repos: save(teamStatusEvent)
+    DispatchSvc -> Partner: notifyPartnerDispatch()
+    DispatchSvc --> API: dispatchedTeam
+    API --> UI: HTTP 200 OK (Team EN_ROUTE)
+else Exception E2: No Team Available
+    DispatchSvc -> Repos: save(dispatchRequest - UNASSIGNED)
+    DispatchSvc --> API: dispatchRequest (UNASSIGNED)
+    API --> UI: HTTP 200 OK (Saved as UNASSIGNED)
+end
+
+== Main Flow 6 & Exception E3: Atomic Supply Distribution ==
+Officer -> UI: Select stock, destination shelter & quantity
+UI -> API: POST /api/resources/distributions {actionId, stockId, destinationShelterId, quantity}
+API -> DistSvc: distribute()
+DistSvc -> Tx: runInTransaction()
+Tx -> Repos: findById(stockId)
+
+alt Exception E3: Insufficient Stock (onHand < quantity)
+    Tx -> Stock: stock.withDeduction(quantity)
+    Stock --> Tx: throw InsufficientStockError
+    Tx -> Tx: Rollback transaction (State unchanged)
+    Tx --> API: throw InsufficientStockError
+    API --> UI: HTTP 422 ("Insufficient stock - nothing was recorded")
+else Happy Path Atomic Distribution (G09)
+    Tx -> Repos: save(deductedStock)
+    Tx -> Repos: save(distributionRecord)
+    Tx -> Idem: recordAction(actionId)
+    Tx --> DistSvc: distributionRecord
+    DistSvc --> API: distributionRecord
+    API --> UI: HTTP 201 Created (Transaction Receipt Modal)
+end
+
+@enduml

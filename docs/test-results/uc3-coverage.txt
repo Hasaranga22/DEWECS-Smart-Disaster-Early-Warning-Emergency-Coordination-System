@@ -1,0 +1,69 @@
+================================================================================
+UC3 EMERGENCY RESOURCES MODULE - TEST COVERAGE REPORT
+Date: 2026-10-16
+Target: src/modules/uc3-resources/**
+Engine: Vitest v8 Coverage Engine
+Student: Sandaruwan H M K (IT23633322) - UC3 Emergency Resources & Shared Infra
+Status: PASSED (26 / 26 tests passing, 0 failures, 0 errors)
+================================================================================
+
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   96.58 |    85.93 |   93.98 |   98.91 |                   
+ uc3-resources     |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+ ...dapters/memory |   92.36 |     87.5 |   88.88 |   99.09 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+  ...Repository.ts |     100 |    83.33 |     100 |     100 | 16                
+  ...Repository.ts |   86.36 |       80 |   72.72 |     100 | 11-17             
+  ...Repository.ts |   86.36 |       80 |   72.72 |     100 | 11-17             
+  ...Repository.ts |   91.66 |      100 |     100 |   91.66 | 40                
+  ...Repository.ts |   92.85 |      100 |      90 |     100 |                   
+  ...Repository.ts |   92.85 |      100 |      90 |     100 |                   
+  ...Repository.ts |   92.85 |      100 |      90 |     100 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+ ...adapters/ports |     100 |    91.66 |     100 |     100 |                   
+  ...tAdjacency.ts |     100 |    91.66 |     100 |     100 | 36                
+  ...erNotifier.ts |     100 |      100 |     100 |     100 |                   
+ ...sources/domain |     100 |      100 |     100 |     100 |                   
+  errors.ts        |     100 |      100 |     100 |     100 |                   
+ ...omain/entities |     100 |    88.88 |     100 |     100 |                   
+  ...tQueueItem.ts |     100 |      100 |     100 |     100 |                   
+  ...tchRequest.ts |     100 |      100 |     100 |     100 |                   
+  Distribution.ts  |     100 |      100 |     100 |     100 |                   
+  ...pancyEvent.ts |     100 |      100 |     100 |     100 |                   
+  ...ssedAction.ts |     100 |      100 |     100 |     100 |                   
+  RescueTeam.ts    |     100 |       75 |     100 |     100 | 34-35             
+  Shelter.ts       |     100 |      100 |     100 |     100 |                   
+  SupplyStock.ts   |     100 |       75 |     100 |     100 | 27                
+  ...tatusEvent.ts |     100 |      100 |     100 |     100 |                   
+ .../domain/states |     100 |      100 |     100 |     100 |                   
+  TeamState.ts     |     100 |      100 |     100 |     100 |                   
+ ...n/valueObjects |     100 |      100 |     100 |     100 |                   
+  ...pancyCount.ts |     100 |      100 |     100 |     100 |                   
+  Quantity.ts      |     100 |      100 |     100 |     100 |                   
+ ...resources/seed |     100 |    71.42 |     100 |     100 |                   
+  buildUc3Seed.ts  |     100 |    71.42 |     100 |     100 | 21-25             
+ ...urces/services |   96.13 |    78.68 |   95.23 |   97.64 |                   
+  ConflictQueue.ts |     100 |      100 |     100 |     100 |                   
+  ...ardService.ts |   96.42 |       75 |   83.33 |     100 | 67                
+  ...tchService.ts |   91.93 |       80 |   88.88 |   94.73 | 136-139           
+  ...eryService.ts |     100 |       50 |     100 |     100 | 25-28             
+  ...ionService.ts |   95.23 |    66.66 |     100 |      95 | 70                
+  ...ndExecutor.ts |     100 |       75 |     100 |     100 | 24                
+  ...eryService.ts |     100 |      100 |     100 |     100 |                   
+  ...ctionStore.ts |     100 |      100 |     100 |     100 |                   
+  ...cessPolicy.ts |     100 |     87.5 |     100 |     100 | 16                
+  ...terService.ts |     100 |     87.5 |     100 |     100 | 119               
+ ...services/rules |     100 |     92.3 |     100 |     100 |                   
+  DispatchRule.ts  |     100 |     92.3 |     100 |     100 | 20                
+-------------------|---------|----------|---------|---------|-------------------
+
+SUMMARY:
+- Line Coverage: 98.91% (Target: > 80.00%) -> EXCEEDED (+18.91%)
+- Statement Coverage: 96.58% (Target: > 80.00%) -> EXCEEDED (+16.58%)
+- Function Coverage: 93.98% (Target: > 80.00%) -> EXCEEDED (+13.98%)
+- Branch Coverage: 85.93% (Target: > 80.00%) -> EXCEEDED (+5.93%)
+- Pure interfaces (src/modules/uc3-resources/adapters/repositories/*) excluded from coverage as non-executable type definitions.
+- All 26 test cases in uc3Core.test.ts and OfflineActionQueue.test.ts execute and pass successfully.

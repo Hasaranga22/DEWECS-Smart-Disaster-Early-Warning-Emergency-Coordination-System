@@ -1,0 +1,17 @@
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90mC:/Users/USER/Desktop/All/3y 2s/css/assiment/Asimrnt 2 project/DEWECS-Smart-Disaster-Early-Warning-Emergency-Coordination-System[39m
+
+ [32m✓[39m tests/integration/roles.test.ts[2m > [22mUC4 role guards[2m > [22mROLE-01: District Officer actor → requireRole([DMC_OFFICIAL]) throws ForbiddenError[32m 2[2mms[22m[39m
+ [32m✓[39m tests/integration/roles.test.ts[2m > [22mUC4 role guards[2m > [22mROLE-02: Citizen actor → requireRole([DMC_OFFICIAL]) throws ForbiddenError[32m 0[2mms[22m[39m
+ [32m✓[39m tests/integration/roles.test.ts[2m > [22mUC4 role guards[2m > [22mROLE-03: DMC Official actor → requireRole([DMC_OFFICIAL]) does not throw[32m 1[2mms[22m[39m
+ [32m✓[39m tests/integration/uc134-to-uc4.test.ts[2m > [22mUC4 integration: UC1+UC3 → UC4 full flow[2m > [22mINT-01: full flow produces correct metrics[32m 7[2mms[22m[39m
+ [32m✓[39m tests/integration/uc134-to-uc4.test.ts[2m > [22mUC4 integration: share retry semantics[2m > [22mINT-02: share failures append without invalidating snapshot[32m 61[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 22:00:06
+[2m   Duration [22m 497ms[2m (import 40%, transform 38%, tests 19%, worker 3%)[22m
+
