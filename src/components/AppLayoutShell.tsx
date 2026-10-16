@@ -27,6 +27,7 @@ export function AppLayoutShell({ children, roleSwitcher }: AppLayoutShellProps) 
     "",
     "/",
     "/report/new",
+    "/report/alerts",
     "/report/outbox",
     "/report/history",
   ];
