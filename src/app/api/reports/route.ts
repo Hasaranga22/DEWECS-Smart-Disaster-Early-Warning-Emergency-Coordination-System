@@ -10,7 +10,11 @@ const submitReportSchema = z.object({
   reporterId: z.string().min(1, "Reporter ID is required"),
   districtId: z.string().min(1, "District ID is required"),
   hazardType: z.enum(["FLOOD", "LANDSLIDE", "CYCLONE", "DROUGHT", "OTHER"]),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  description: z
+    .string()
+    .optional()
+    .default("")
+    .transform((str) => (str && str.trim().length > 0 ? str.trim() : "Incident reported without description.")),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   locationSource: z.enum(["GPS", "MANUAL_PIN"]),

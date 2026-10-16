@@ -25,6 +25,10 @@ export class PrismaReportRepository implements ReportRepository {
           confidence: snap.confidence,
           reviewStatus: snap.reviewStatus,
           severityIndication: snap.severityIndication,
+          mapStatus: snap.mapStatus,
+          mapVisibleUntil: snap.mapVisibleUntil,
+          resolvedAt: snap.resolvedAt,
+          resolvedByOfficerId: snap.resolvedByOfficerId,
           linkedToReportId: snap.linkedToReportId,
           captureTime: snap.captureTime,
           version: snap.version,
@@ -52,6 +56,10 @@ export class PrismaReportRepository implements ReportRepository {
       data: {
         reviewStatus: snap.reviewStatus,
         severityIndication: snap.severityIndication,
+        mapStatus: snap.mapStatus,
+        mapVisibleUntil: snap.mapVisibleUntil,
+        resolvedAt: snap.resolvedAt,
+        resolvedByOfficerId: snap.resolvedByOfficerId,
         version: snap.version, // Increment to new version
         linkedToReportId: snap.linkedToReportId,
       }

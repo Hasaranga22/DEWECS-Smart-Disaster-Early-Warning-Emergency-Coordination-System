@@ -1,34 +1,54 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import dynamic from "next/dynamic";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Camera,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  ImagePlus,
+  Inbox,
+  LocateFixed,
+  MapPin,
+  Mountain,
+  Send,
+  Sun,
+  Waves,
+  WifiOff,
+  Wind,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+import { CreativeDewecsLogo } from "@/components/CreativeDewecsLogo";
 import { useNetworkStatus } from "@/modules/uc2-report/client/network";
 import { getCurrentLocation } from "@/modules/uc2-report/client/geolocation";
 import { compressImage } from "@/modules/uc2-report/client/compressImage";
 import { IdbOutboxRepository } from "@/modules/uc2-report/client/IdbOutboxRepository";
 import { DEMO_CITIZEN_ID } from "@/modules/uc2-report/client/citizen";
-import { HazardType } from "@/shared/contracts/types";
-import {
-  Camera, ImagePlus, MapPin, AlertTriangle, Send, X, CheckCircle2,
-  ChevronLeft, WifiOff, LocateFixed, Inbox, Check, ClipboardList,
-} from "lucide-react";
-import Link from "next/link";
-import { CreativeDewecsLogo } from "@/components/CreativeDewecsLogo";
+import type { HazardType } from "@/shared/contracts/types";
 
 const MAX_PHOTOS = 3;
-const MIN_DESC = 10;
 const REQUEST_TIMEOUT_MS = 30_000;
 
-// Full static class strings so Tailwind never purges them.
-const HAZARDS: {
-  type: HazardType; label: string; icon: string;
-  tile: string; ring: string; dot: string;
-}[] = [
-  { type: "FLOOD", label: "Flood", icon: "🌊", tile: "bg-sky-50 border-sky-500 text-sky-800", ring: "ring-sky-200", dot: "bg-sky-500" },
-  { type: "LANDSLIDE", label: "Landslide", icon: "⛰️", tile: "bg-amber-50 border-amber-500 text-amber-800", ring: "ring-amber-200", dot: "bg-amber-500" },
-  { type: "CYCLONE", label: "Cyclone", icon: "🌀", tile: "bg-teal-50 border-teal-500 text-teal-800", ring: "ring-teal-200", dot: "bg-teal-500" },
-  { type: "DROUGHT", label: "Drought", icon: "☀️", tile: "bg-orange-50 border-orange-500 text-orange-800", ring: "ring-orange-200", dot: "bg-orange-500" },
-  { type: "OTHER", label: "Other", icon: "⚠️", tile: "bg-slate-100 border-slate-500 text-slate-800", ring: "ring-slate-200", dot: "bg-slate-500" },
+type StatusType = "info" | "success" | "error";
+
+type HazardOption = {
+  type: HazardType;
+  label: string;
+  Icon: LucideIcon;
+};
+
+const HAZARDS: HazardOption[] = [
+  { type: "FLOOD", label: "Flood", Icon: Waves },
+  { type: "LANDSLIDE", label: "Landslide", Icon: Mountain },
+  { type: "CYCLONE", label: "Cyclone", Icon: Wind },
+  { type: "DROUGHT", label: "Drought", Icon: Sun },
+  { type: "OTHER", label: "Other", Icon: AlertTriangle },
 ];
 
 export default function NewReportPage() {
@@ -39,6 +59,7 @@ export default function NewReportPage() {
   const [hazardType, setHazardType] = useState<HazardType | null>(null);
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
@@ -46,146 +67,205 @@ export default function NewReportPage() {
   const [gpsWarning, setGpsWarning] = useState("");
 
   const [statusMsg, setStatusMsg] = useState("");
-  const [statusType, setStatusType] = useState<"info" | "success" | "error">("info");
+  const [statusType, setStatusType] = useState<StatusType>("info");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [done, setDone] = useState<null | "sent" | "queued">(null);
+  const [done, setDone] = useState<"sent" | "queued" | null>(null);
 
-  const showStatus = (msg: string, type: "info" | "success" | "error") => {
-    setStatusMsg(msg);
+  const hasLocation = lat !== null && lng !== null;
+  const poorGps = accuracy !== null && accuracy > 100;
+  // Description is optional for emergency reports; only hazard type and location are required.
+  const canSubmit = !isSubmitting && !!hazardType && hasLocation;
+
+  const showStatus = (message: string, type: StatusType) => {
+    setStatusMsg(message);
     setStatusType(type);
   };
 
-  const fetchLocation = async () => {
+  const fetchLocation = useCallback(async () => {
     setLocating(true);
+    setGpsWarning("");
+
     try {
-      const geo = await getCurrentLocation();
-      setLat(geo.latitude);
-      setLng(geo.longitude);
-      setAccuracy(geo.accuracy);
-      setGpsWarning(geo.requiresManualPin ? "GPS signal is weak. Move to open sky, then tap Refresh." : "");
+      const location = await getCurrentLocation();
+      setLat(location.latitude);
+      setLng(location.longitude);
+      setAccuracy(location.accuracy);
+
+      if (location.requiresManualPin || location.accuracy > 100) {
+        setGpsWarning(
+          "GPS accuracy is low. Refresh your location if it is safe to do so."
+        );
+      }
     } catch {
-      setGpsWarning("Turn on location access to send a report.");
+      setLat(null);
+      setLng(null);
+      setAccuracy(null);
+      setGpsWarning("Allow location access, then try again.");
     } finally {
       setLocating(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchLocation(); }, []);
+  useEffect(() => {
+    void fetchLocation();
+  }, [fetchLocation]);
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = ""; // allow re-selecting the same file
+  const handlePhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = ""; // Allow choosing the same image again.
     if (files.length === 0) return;
 
-    const room = MAX_PHOTOS - photos.length;
-    if (files.length > room) {
-      showStatus(`You can add ${room} more photo${room === 1 ? "" : "s"}.`, "error");
+    const remaining = MAX_PHOTOS - photos.length;
+    if (files.length > remaining) {
+      showStatus(
+        `You can add ${remaining} more photo${remaining === 1 ? "" : "s"}.`,
+        "error"
+      );
       return;
     }
+
     try {
       showStatus("Preparing photos…", "info");
-      const compressed = await Promise.all(files.map((f) => compressImage(f)));
-      setPhotos((prev) => [...prev, ...compressed]);
+      const compressed = await Promise.all(
+        files.map(async (file) => {
+          try {
+            return await compressImage(file);
+          } catch {
+            // Direct data URL fallback if canvas compression fails on unsupported image formats
+            return await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+          }
+        })
+      );
+      setPhotos((current) => [...current, ...compressed].slice(0, MAX_PHOTOS));
       setStatusMsg("");
-    } catch {
-      showStatus("Couldn't process that photo. Try another one.", "error");
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      showStatus("Could not prepare that photo. Try another image.", "error");
     }
   };
 
-  const removePhoto = (i: number) => setPhotos((p) => p.filter((_, idx) => idx !== i));
+  const removePhoto = (index: number) => {
+    setPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index));
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hazardType) return showStatus("Choose what you're reporting.", "error");
-    if (lat === null || lng === null) return showStatus("Waiting for your location…", "error");
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!hazardType) {
+      showStatus("Select the type of hazard.", "error");
+      return;
+    }
+    if (!hasLocation || lat === null || lng === null) {
+      showStatus("Your location is required. Please refresh it.", "error");
+      return;
+    }
 
     setIsSubmitting(true);
-    showStatus("Sending report…", "info");
+    showStatus(isOnline ? "Sending report…" : "Saving report…", "info");
 
-    const localId = crypto.randomUUID();
-    const captureTime = new Date().toISOString();
-    const photoPayload = photos.length > 0 ? JSON.stringify(photos) : undefined;
-
+    const photoPayload = photos.length ? JSON.stringify(photos) : undefined;
     const payload = {
-      localId,
+      localId: crypto.randomUUID(),
       reporterId: DEMO_CITIZEN_ID,
-      districtId: "550e8400-e29b-41d4-a716-446655440000", // Colombo UUID
+      districtId: "550e8400-e29b-41d4-a716-446655440000",
       hazardType,
-      description,
+      description: description.trim() || "Incident reported without description.",
       latitude: lat,
       longitude: lng,
-      locationSource: accuracy && accuracy > 100 ? "MANUAL_PIN" : "GPS",
-      gpsAccuracyM: accuracy || undefined,
+      locationSource: "GPS" as const,
+      gpsAccuracyM: accuracy ?? undefined,
       photo: photoPayload,
-      captureTime,
+      captureTime: new Date().toISOString(),
     };
 
-    let timeout: number | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
     try {
       if (isOnline) {
         const controller = new AbortController();
-        timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
         const response = await fetch("/api/reports", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
+
         if (!response.ok) {
           const error = await response.json().catch(() => null);
-          throw new Error(error?.error ?? error?.message ?? "The server couldn't accept this report. Try again.");
+          throw new Error(
+            error?.error ??
+              error?.message ??
+              "The server could not accept this report. Try again."
+          );
         }
         setDone("sent");
       } else {
         const outbox = new IdbOutboxRepository();
         await outbox.save({
           ...payload,
-          locationSource: payload.locationSource as "GPS" | "MANUAL_PIN",
           confidence: photoPayload ? "FULL" : "REDUCED",
           status: "PENDING_SYNC",
         });
         setDone("queued");
       }
+
       setStatusMsg("");
       setHazardType(null);
       setDescription("");
       setPhotos([]);
-    } catch (err: unknown) {
-      const message = err instanceof DOMException && err.name === "AbortError"
-        ? "Sending took too long. Your report was not confirmed; please try again."
-        : err instanceof Error ? err.message : "Couldn't send the report. Please try again.";
+    } catch (error: unknown) {
+      const message =
+        error instanceof DOMException && error.name === "AbortError"
+          ? "Sending timed out. Your report was not confirmed. Please try again."
+          : error instanceof Error
+            ? error.message
+            : "Could not send the report. Please try again.";
       showStatus(message, "error");
     } finally {
-      if (timeout !== undefined) window.clearTimeout(timeout);
+      if (timeout !== undefined) clearTimeout(timeout);
       setIsSubmitting(false);
     }
   };
 
-  const poorGps = !!accuracy && accuracy > 100;
-  const steps = [!!hazardType, !!(lat && lng), photos.length > 0, description.length >= MIN_DESC];
-  const completed = steps.filter(Boolean).length;
-  const canSubmit = !isSubmitting && lat !== null && lng !== null && !!hazardType && description.length >= MIN_DESC;
-  const selected = HAZARDS.find((h) => h.type === hazardType);
-
-  /* ---------- Success screen ---------- */
   if (done) {
     const queued = done === "queued";
+
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6 text-center">
-        <div className={`h-24 w-24 rounded-full flex items-center justify-center mb-6 ${queued ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}>
-          {queued ? <Inbox size={44} /> : <CheckCircle2 size={44} />}
-        </div>
-        <h1 className="text-2xl font-bold text-white">{queued ? "Saved on your phone" : "Report sent"}</h1>
-        <p className="text-slate-400 mt-2 max-w-xs">
-          {queued
-            ? "You're offline. We'll send it automatically once you reconnect."
-            : "Thank you. Responders in your district can see it now."}
-        </p>
-        <div className="w-full max-w-xs mt-8 space-y-3">
-          <button onClick={() => setDone(null)} className="w-full py-4 rounded-2xl bg-white text-slate-900 font-semibold active:scale-[0.98] transition-transform">
-            Report another
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-10 text-center">
+        <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white px-6 py-10 shadow-sm">
+          <div
+            className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${
+              queued ? "bg-amber-50 text-amber-700" : "bg-teal-50 text-teal-700"
+            }`}
+          >
+            {queued ? <Inbox size={30} /> : <CheckCircle2 size={30} />}
+          </div>
+          <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-950">
+            {queued ? "Report saved" : "Report sent"}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {queued
+              ? "Your report is stored on this device and will sync when you reconnect."
+              : "Your report has been received. Thank you for helping keep others informed."}
+          </p>
+          <button
+            type="button"
+            onClick={() => setDone(null)}
+            className="mt-7 w-full rounded-xl bg-teal-700 px-4 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            Report another hazard
           </button>
-          <Link href={queued ? "/report/outbox" : "/report/history"} className="block w-full py-4 rounded-2xl bg-white/10 text-white font-semibold active:bg-white/20">
+          <Link
+            href={queued ? "/report/outbox" : "/report/history"}
+            className="mt-3 block rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
             {queued ? "View outbox" : "View sent reports"}
           </Link>
         </div>
@@ -193,240 +273,331 @@ export default function NewReportPage() {
     );
   }
 
+  const footerHint = !hazardType
+    ? "Choose a hazard type to continue"
+    : !hasLocation
+      ? "Waiting for your GPS location"
+      : isOnline
+        ? "Ready to submit report"
+        : "Offline: your report will be saved on this device";
+
   return (
-    <div className="min-h-screen bg-slate-100 pb-48">
-      {/* Hero header with progress */}
-      <header className="bg-slate-950 text-white px-5 pt-5 pb-20 rounded-b-[2.5rem] shadow-xl border-b border-white/5">
-        {/* Brand bar with live status */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
-          <CreativeDewecsLogo variant="dark" size="sm" showTagline={true} />
-          {!isOnline ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-3 py-1.5 rounded-full shadow-sm">
-              <WifiOff size={13} /> Offline mode
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-400/15 border border-emerald-400/30 px-3 py-1.5 rounded-full shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Live network
-            </span>
-          )}
-        </div>
-
-        {/* Navigation pills */}
-        <div className="flex items-center gap-2 mt-4">
-          <Link
-            href="/report/outbox"
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-full transition-all active:scale-95"
+    <div className="min-h-screen bg-slate-50 pb-36 text-slate-900">
+      {/* Compact brand header. The reporting task, not the branding, is the focus. */}
+      <header className="bg-slate-950 text-white">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <CreativeDewecsLogo variant="dark" size="sm" showTagline={false} />
+          <span
+            className={`inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-xs font-medium ${
+              isOnline
+                ? "bg-teal-400/10 text-teal-200"
+                : "bg-amber-400/10 text-amber-200"
+            }`}
           >
-            <Inbox size={14} className="text-teal-400" /> Outbox
-          </Link>
-          <Link
-            href="/report/history"
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-full transition-all active:scale-95"
-          >
-            <ClipboardList size={14} className="text-teal-400" /> Sent reports
-          </Link>
-        </div>
-
-        <div className="mt-4">
-          <h1 className="text-2xl font-bold tracking-tight text-white">Report a hazard</h1>
-          <p className="text-xs text-slate-400 mt-1">Takes about a minute. Your GPS location is added automatically.</p>
-        </div>
-
-        <div className="flex gap-1.5 mt-5" role="progressbar" aria-valuemin={0} aria-valuemax={4} aria-valuenow={completed}>
-          {steps.map((ok, i) => (
-            <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${ok ? "bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]" : "bg-white/15"}`} />
-          ))}
+            {isOnline ? (
+              <span className="h-2 w-2 rounded-full bg-teal-400" aria-hidden="true" />
+            ) : (
+              <WifiOff size={13} aria-hidden="true" />
+            )}
+            {isOnline ? "Online" : "Offline"}
+          </span>
         </div>
       </header>
 
-      <main className="px-4 -mt-9 max-w-md mx-auto space-y-4 relative z-10">
-        {/* Hazard type */}
-        <section className="bg-white rounded-3xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 text-base">What's happening?</h2>
-          <div className="grid grid-cols-3 gap-2.5 mt-4">
-            {HAZARDS.map((h) => {
-              const on = hazardType === h.type;
-              return (
-                <button
-                  key={h.type}
-                  type="button"
-                  onClick={() => setHazardType(h.type)}
-                  aria-pressed={on}
-                  className={`relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl border-2 transition-all active:scale-95 ${
-                    on ? `${h.tile} ring-4 ${h.ring}` : "bg-slate-50 border-transparent text-slate-600"
-                  }`}
-                >
-                  {on && (
-                    <span className={`absolute top-1.5 right-1.5 h-4 w-4 rounded-full ${h.dot} text-white flex items-center justify-center`}>
-                      <Check size={10} strokeWidth={4} />
-                    </span>
-                  )}
-                  <span className="text-3xl leading-none">{h.icon}</span>
-                  <span className="text-xs font-semibold">{h.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+      <div className="mx-auto max-w-2xl px-4 pt-5 sm:px-6">
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-600" aria-label="Reporting navigation">
+          <Link href="/report/alerts" className="inline-flex items-center gap-1.5 py-1 hover:text-teal-800 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700">
+            <AlertTriangle size={14} /> Alerts
+          </Link>
+          <Link href="/report/outbox" className="inline-flex items-center gap-1.5 py-1 hover:text-teal-800 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700">
+            <Inbox size={14} /> Outbox
+          </Link>
+          <Link href="/report/history" className="inline-flex items-center gap-1.5 py-1 hover:text-teal-800 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700">
+            <ClipboardList size={14} /> Sent reports
+          </Link>
+        </nav>
 
-        {/* Location */}
-        <section className="bg-white rounded-3xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-slate-900 text-base">Where is it?</h2>
-            <button
-              type="button"
-              onClick={fetchLocation}
-              disabled={locating}
-              className="flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 px-3 py-1.5 rounded-full active:bg-teal-100 disabled:opacity-50"
-            >
-              <LocateFixed size={14} className={locating ? "animate-spin" : ""} /> Refresh
-            </button>
-          </div>
+        <div className="mb-5 mt-5">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+            Report a hazard
+          </h1>
+          <p className="mt-1.5 text-sm leading-5 text-slate-600">
+            Share what is happening. Your GPS location is added automatically.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-3 mt-4">
-            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${
-              !lat ? "bg-slate-100 text-slate-400" : poorGps ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
-            }`}>
-              <MapPin size={24} />
-            </div>
-            <div className="min-w-0 flex-1">
-              {lat && lng ? (
-                <>
-                  <p className="font-semibold text-slate-900 tabular-nums">{lat.toFixed(5)}, {lng.toFixed(5)}</p>
-                  <p className={`text-xs font-medium mt-0.5 ${poorGps ? "text-red-600" : "text-emerald-600"}`}>
-                    {poorGps ? "Weak signal" : "Good signal"} · within {accuracy ? Math.round(accuracy) : "?"} m
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-semibold text-slate-900">{locating ? "Finding you…" : "Location unavailable"}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{locating ? "Keep this screen open" : "Allow location access, then tap Refresh"}</p>
-                </>
-              )}
-            </div>
-          </div>
-
-          {gpsWarning && (
-            <div role="alert" className="mt-4 px-3.5 py-2.5 flex items-start gap-2 rounded-xl bg-red-50 text-red-700 text-sm font-medium">
-              <AlertTriangle size={18} className="shrink-0 mt-0.5" /> {gpsWarning}
-            </div>
-          )}
-
-          {lat && lng && (
-            <div className="mt-4 h-64 rounded-2xl overflow-hidden bg-slate-100 pointer-events-none">
-              <iframe
-                width="100%" height="100%" frameBorder="0" scrolling="no"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.005},${lat - 0.005},${lng + 0.005},${lat + 0.005}&layer=mapnik&marker=${lat},${lng}`}
-                title="Your location on the map"
-              />
-            </div>
-          )}
-        </section>
-
-        {/* Photos */}
-        <section className="bg-white rounded-3xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-bold text-slate-900 text-base">Add photos</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Photos help responders judge severity.</p>
-            </div>
-            <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-              {photos.length}/{MAX_PHOTOS}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2.5 mt-4">
-            {photos.map((photo, idx) => (
-              <div key={idx} className="relative aspect-square">
-                <img src={photo} alt={`Evidence ${idx + 1}`} className="h-full w-full object-cover rounded-2xl" />
-                {idx === 0 && (
-                  <span className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Cover</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => removePhoto(idx)}
-                  aria-label={`Remove photo ${idx + 1}`}
-                  className="absolute -top-1.5 -right-1.5 h-7 w-7 bg-slate-900 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white active:scale-90"
-                >
-                  <X size={14} strokeWidth={3} />
-                </button>
-              </div>
-            ))}
-
-            {/* empty slots */}
-            {Array.from({ length: MAX_PHOTOS - photos.length }).map((_, i) => (
-              <div
-                key={`slot-${i}`}
-                className={`aspect-square rounded-2xl border-2 border-dashed flex items-center justify-center ${
-                  i === 0 ? "border-teal-300 bg-teal-50 text-teal-600" : "border-slate-200 text-slate-300"
-                }`}
-              >
-                <ImagePlus size={22} />
-              </div>
-            ))}
-          </div>
-
-          {photos.length < MAX_PHOTOS && (
-            <div className="grid grid-cols-2 gap-2.5 mt-3">
-              <button type="button" onClick={() => cameraRef.current?.click()}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-600 text-white text-sm font-semibold active:bg-teal-700">
-                <Camera size={18} /> Take photo
-              </button>
-              <button type="button" onClick={() => galleryRef.current?.click()}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 text-slate-800 text-sm font-semibold active:bg-slate-200">
-                <ImagePlus size={18} /> From gallery
-              </button>
-            </div>
-          )}
-
-          <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="hidden" />
-          <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
-        </section>
-
-        {/* Details */}
-        <section className="bg-white rounded-3xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-slate-900 text-base">Tell us more</h2>
-            <span className={`text-xs font-semibold ${description.length >= MIN_DESC ? "text-emerald-600" : "text-slate-400"}`}>
-              {description.length >= MIN_DESC ? "Looks good" : `${description.length}/${MIN_DESC} min`}
-            </span>
-          </div>
-          <textarea
-            className="mt-3 w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-base"
-            rows={4}
-            placeholder="How severe is it? Is anyone in danger? What help is needed?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+        {/* Animated safety alert box with smooth traveling red border line */}
+        <div className="relative mb-5 rounded-2xl p-[2px] overflow-hidden group shadow-sm">
+          {/* Smooth moving red border beam line */}
+          <div
+            className="absolute -inset-[150%] animate-spin"
+            style={{
+              animationDuration: "3.5s",
+              background:
+                "conic-gradient(from 0deg, transparent 0deg 280deg, #f87171 310deg, #ef4444 340deg, #b91c1c 360deg)",
+            }}
+            aria-hidden="true"
           />
-        </section>
-      </main>
 
-      {/* Sticky action bar */}
-      <div className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-slate-200 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="max-w-md mx-auto">
-          {statusMsg && (
-            <div role="status" className={`mb-3 px-3.5 py-2.5 flex items-start gap-2 rounded-xl text-sm font-medium ${
-              statusType === "error" ? "bg-red-50 text-red-700" : statusType === "success" ? "bg-emerald-50 text-emerald-700" : "bg-sky-50 text-sky-700"
-            }`}>
-              {statusType === "error" && <AlertTriangle size={18} className="shrink-0 mt-0.5" />}
-              {statusType === "success" && <CheckCircle2 size={18} className="shrink-0 mt-0.5" />}
-              {statusMsg}
+          {/* Inner Card Content */}
+          <Link
+            href="/report/alerts"
+            className="relative flex items-center justify-between gap-3 rounded-[14px] bg-gradient-to-r from-amber-50 via-white to-amber-50/80 px-4 py-3.5 text-sm transition-all hover:bg-amber-100/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
+          >
+            <div className="flex min-w-0 items-center gap-3 text-amber-950">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600 border border-red-200/80 shadow-sm">
+                <AlertTriangle size={18} className="animate-pulse text-red-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900 text-sm">Check current safety alerts</span>
+                  <span className="flex h-2 w-2 relative shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5 truncate">
+                  View active danger warnings & district evacuation orders
+                </p>
+              </div>
             </div>
-          )}
+            <div className="flex items-center gap-1 shrink-0 font-bold text-xs text-red-700 bg-red-50 group-hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl transition-colors">
+              <span>View</span>
+              <ArrowRight size={14} />
+            </div>
+          </Link>
+        </div>
+
+        <form id="hazard-report-form" onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* 1. Hazard selection: two balanced rows rather than an awkward 3 + 2 grid. */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="hazard-heading">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h2 id="hazard-heading" className="text-base font-bold text-slate-950">
+                  What is happening?
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">Choose one hazard type</p>
+              </div>
+              <span className="text-xs font-medium text-slate-400">Required</span>
+            </div>
+            <div className="grid grid-cols-6 gap-2" role="group" aria-label="Hazard type">
+              {HAZARDS.map(({ type, label, Icon }, index) => {
+                const selected = hazardType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setHazardType(type)}
+                    className={`relative flex min-h-[83px] flex-col items-center justify-center gap-1.5 rounded-xl border px-1.5 py-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${
+                      index > 2 ? "col-span-3" : "col-span-2"
+                    } ${
+                      selected
+                        ? "border-teal-700 bg-teal-50 text-teal-800"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    {selected && (
+                      <Check size={14} strokeWidth={3} className="absolute right-2 top-2" aria-hidden="true" />
+                    )}
+                    <Icon size={23} strokeWidth={1.9} aria-hidden="true" />
+                    <span className="text-xs font-semibold">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* 2. Optional description */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="description-heading">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="description-heading" className="text-base font-bold text-slate-950">
+                Describe the situation
+              </h2>
+              <span className="text-xs font-medium text-slate-400">Optional</span>
+            </div>
+            <label htmlFor="hazard-description" className="sr-only">Describe the hazard</label>
+            <textarea
+              id="hazard-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder="What can you see? (Optional - you can submit without a description)"
+              aria-describedby="description-help"
+              className="block w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-base leading-6 text-slate-900 placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/15"
+            />
+            <div id="description-help" className="mt-2 flex items-center justify-between gap-3 text-xs">
+              <span className="text-slate-500">Optional details</span>
+              <span className="text-slate-500">
+                {description.trim().length}/1000
+              </span>
+            </div>
+          </section>
+
+          {/* 3. Auto-detected GPS location with direct map preview */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="location-heading">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="location-heading" className="text-base font-bold text-slate-950">
+                  Your location
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">Detected automatically by GPS</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void fetchLocation()}
+                disabled={locating}
+                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60"
+              >
+                <LocateFixed size={15} aria-hidden="true" />
+                {locating ? "Locating…" : "Refresh"}
+              </button>
+            </div>
+
+            <div className="mt-3 flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-3">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                hasLocation && !poorGps ? "bg-teal-100 text-teal-700" : "bg-amber-100 text-amber-700"
+              }`}>
+                <MapPin size={21} aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900">
+                  {locating && !hasLocation
+                    ? "Finding your location…"
+                    : hasLocation
+                      ? poorGps
+                        ? "Location detected · low accuracy"
+                        : "Location detected"
+                      : "Location unavailable"}
+                </p>
+                {hasLocation ? (
+                  <p className="mt-0.5 break-words text-xs leading-5 text-slate-600">
+                    {lat?.toFixed(5)}, {lng?.toFixed(5)}
+                    {accuracy !== null && ` · Accuracy ±${Math.round(accuracy)} m`}
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-xs leading-5 text-slate-600">
+                    {locating ? "Please wait a moment" : "Location access is required to submit"}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {gpsWarning && (
+              <p role="alert" className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-900">
+                <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+                {gpsWarning}
+              </p>
+            )}
+
+            {/* Direct Location Map Display (No hide button) */}
+            {hasLocation && lat !== null && lng !== null && (
+              <div className="mt-3">
+                <div id="gps-preview" className="h-48 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 sm:h-56 shadow-inner">
+                  <iframe
+                    title="GPS location map preview"
+                    width="100%"
+                    height="100%"
+                    loading="lazy"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.005},${lat - 0.005},${lng + 0.005},${lat + 0.005}&layer=mapnik&marker=${lat},${lng}`}
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* 4. Photos Section with Guaranteed Previews */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="photos-heading">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="photos-heading" className="text-base font-bold text-slate-950">
+                  Add photos
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">Helpful for responders, but optional</p>
+              </div>
+              <span className="shrink-0 text-xs font-semibold text-slate-600">{photos.length}/{MAX_PHOTOS}</span>
+            </div>
+
+            {/* Uploaded Photos Preview Grid */}
+            {photos.length > 0 && (
+              <div className="mt-3 grid grid-cols-3 gap-2.5">
+                {photos.map((photo, index) => (
+                  <div key={index} className="relative aspect-square w-full min-h-[96px] sm:min-h-[110px] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo}
+                      alt={`Hazard evidence ${index + 1}`}
+                      className="h-full w-full object-cover block"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      aria-label={`Remove photo ${index + 1}`}
+                      className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/80 hover:bg-slate-900 text-white shadow-md transition-colors"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {photos.length < MAX_PHOTOS && (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraRef.current?.click()}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-2 py-3 text-xs font-semibold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:text-sm"
+                >
+                  <Camera size={17} aria-hidden="true" /> Take photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-3 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:text-sm"
+                >
+                  <ImagePlus size={17} aria-hidden="true" /> Choose photo
+                </button>
+              </div>
+            )}
+
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="sr-only" tabIndex={-1} aria-label="Take photo" />
+            <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} className="sr-only" tabIndex={-1} aria-label="Choose photos" />
+          </section>
+
+        </form>
+      </div>
+
+      {/* One clear primary action. The footer is compact and respects safe areas. */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-6px_24px_rgba(15,23,42,0.04)] backdrop-blur-sm sm:px-6">
+        <div className="mx-auto max-w-2xl">
+          <p
+            role={statusMsg && statusType === "error" ? "alert" : "status"}
+            className={`mb-2 text-center text-xs leading-4 ${
+              statusMsg && statusType === "error"
+                ? "font-medium text-red-700"
+                : "text-slate-600"
+            }`}
+          >
+            {statusMsg || footerHint}
+          </p>
           <button
-            onClick={handleSubmit}
+            type="submit"
+            form="hazard-report-form"
             disabled={!canSubmit}
-            className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-semibold text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 ${
-              isOnline ? "bg-teal-600" : "bg-amber-600"
+            className={`flex min-h-[49px] w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${
+              canSubmit
+                ? "bg-teal-700 text-white hover:bg-teal-800"
+                : "cursor-not-allowed bg-slate-200 text-slate-500"
             }`}
           >
             {isSubmitting ? (
-              <span className="animate-pulse">Sending…</span>
+              "Processing…"
             ) : (
               <>
-                <Send size={19} />
-                {isOnline ? "Send report" : "Save to outbox"}
-                {selected && <span className="opacity-80 font-medium">· {selected.label}</span>}
+                <Send size={17} aria-hidden="true" />
+                {isOnline ? "Send hazard report" : "Save report for later"}
               </>
             )}
           </button>
