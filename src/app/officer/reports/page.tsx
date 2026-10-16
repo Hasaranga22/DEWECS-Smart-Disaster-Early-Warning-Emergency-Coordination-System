@@ -1,225 +1,212 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
-  RefreshCw, ShieldAlert, Megaphone, MapPin, Clock, CheckCircle2, XCircle, AlertTriangle,
-  Hourglass, X, Crosshair, ImageOff, Check,
+  Activity, AlertCircle, AlertTriangle, ArrowUpRight, Check, CheckCircle2,
+  ChevronDown, Clock3, ImageOff, ListFilter, MapPin,
+  Megaphone, RefreshCw, Search, ShieldCheck, SlidersHorizontal, X, XCircle,
 } from "lucide-react";
 import {
-  OfficerReport, HAZARD_META, HAZARD_KEYS, statusMeta, SEVERITY_META, hazardMeta, parsePhotos, timeAgo,
+  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from "recharts";
+import {
+  HAZARD_KEYS, HAZARD_META, SEVERITY_META, hazardMeta,
+  parsePhotos, statusMeta, timeAgo,
 } from "@/modules/uc2-report/client/reportUi";
+import type { OfficerReport } from "@/modules/uc2-report/client/reportUi";
 
 const DisasterMap = dynamic(() => import("@/modules/uc2-report/client/DisasterMap"), {
   ssr: false,
-  loading: () => <div className="h-full w-full bg-slate-200 animate-pulse" />,
+  loading: () => <div className="h-full animate-pulse bg-slate-100" />,
 });
 
-type StatusFilter = "ALL" | OfficerReport["reviewStatus"];
-const REJECT_REASONS = ["Duplicate report", "Unclear photo or description", "Outside affected area", "Not a hazard"];
-const noScrollbar = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+type Status = "ALL" | OfficerReport["reviewStatus"];
+type ReviewAction = "verify" | "reject";
+type Severity = keyof typeof SEVERITY_META;
+type ReviewDialog = { report: OfficerReport; action: ReviewAction } | null;
+type PhotoDialog = { src: string; report: OfficerReport } | null;
 
-/* ------------------------------------------------------------------ */
-/* Small presentational components                                     */
-/* ------------------------------------------------------------------ */
+const REJECTION_REASONS = [
+  "Duplicate report", "Unclear photo or description",
+  "Outside affected area", "Not a hazard",
+];
+const PANEL = "rounded-[20px] border border-slate-200/80 bg-white shadow-[0_3px_18px_rgba(15,23,42,0.035)]";
+const CONTROL = "rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
+const BUTTON_FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2";
+const HIDDEN_SCROLLBAR = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
-function StatCard({ label, value, icon, tone, active, onClick }: {
-  label: string; value: number; icon: React.ReactNode; tone: string; active?: boolean; onClick?: () => void;
+function Metric({ label, count, icon, color, selected, onClick, description }: {
+  label: string;
+  count: number;
+  icon: ReactNode;
+  color: string;
+  selected: boolean;
+  onClick: () => void;
+  description: string;
 }) {
-  const [clicking, setClicking] = useState(false);
-
-  const handleClick = () => {
-    if (onClick) {
-      setClicking(true);
-      // Faux preloader to make the UI feel responsive
-      setTimeout(() => {
-        setClicking(false);
-        onClick();
-      }, 300);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className={`text-left rounded-3xl p-4 sm:p-5 shadow-sm transition-all active:scale-[0.98] focus:outline-none ${
-        active ? "bg-slate-100 ring-2 ring-slate-200" : "bg-white ring-0"
-      }`}
-    >
-      <div className={`h-10 w-10 rounded-2xl flex items-center justify-center ${tone}`}>
-        {clicking ? <RefreshCw className="animate-spin" size={20} /> : icon}
-      </div>
-      <p className="text-3xl font-bold text-slate-900 mt-3 tabular-nums">{value}</p>
-      <p className="text-sm text-slate-500 mt-0.5">{label}</p>
-    </button>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-pressed={active}
-      className={`shrink-0 px-3.5 py-2 rounded-full text-sm font-semibold shadow-md transition-colors ${
-        active ? "bg-slate-900 text-white" : "bg-white text-slate-700 active:bg-slate-100"
-      }`}
+      aria-pressed={selected}
+      className={`${PANEL} ${BUTTON_FOCUS} group flex min-w-0 flex-col gap-3 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 ${selected ? "border-indigo-300 ring-1 ring-indigo-100" : ""}`}
     >
-      {children}
+      <div className="flex w-full items-start justify-between gap-2">
+        <span className={`grid size-10 place-items-center rounded-xl ${color}`}>{icon}</span>
+        <ArrowUpRight size={15} className="text-slate-300 transition group-hover:text-indigo-500" />
+      </div>
+      <div>
+        <p className="text-2xl font-semibold tracking-tight text-slate-950 tabular-nums sm:text-[28px]">{count.toLocaleString()}</p>
+        <p className="mt-0.5 text-sm font-semibold text-slate-700">{label}</p>
+        <p className="mt-1 text-xs text-slate-400">{description}</p>
+      </div>
     </button>
   );
 }
 
-function ReportCard({ report, onVerify, onReject, onBroadcast, onFocus, onPhoto }: {
+function SectionTitle({ eyebrow, title, detail, action }: {
+  eyebrow?: string;
+  title: string;
+  detail?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        {eyebrow && <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-500">{eyebrow}</p>}
+        <h2 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">{title}</h2>
+        {detail && <p className="mt-0.5 text-xs text-slate-500">{detail}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function Modal({ title, description, children, onClose, busy = false }: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  onClose: () => void;
+  busy?: boolean;
+}) {
+  // Keep destructive confirmation visible until the request finishes.
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-[3px] sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-label={title} className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[24px] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-[24px] sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">{title}</h2>
+            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+          </div>
+          <button type="button" aria-label="Close dialog" disabled={busy} onClick={onClose} className={`${BUTTON_FOCUS} rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40`}><X size={18} /></button>
+        </div>
+        <div className="mt-5">{children}</div>
+      </section>
+    </div>
+  );
+}
+
+function ReportCard({ report, onReview, onBroadcast, onFocus, onPhoto }: {
   report: OfficerReport;
-  onVerify: () => void; onReject: () => void; onBroadcast: () => void; onFocus: () => void;
+  onReview: (action: ReviewAction) => void;
+  onBroadcast: () => void;
+  onFocus: () => void;
   onPhoto: (src: string) => void;
 }) {
-  const h = hazardMeta(report.hazardType);
-  const photos = parsePhotos(report.photo);
+  const hazard = hazardMeta(report.hazardType);
   const status = statusMeta(report.reviewStatus);
-  const isHighVerified = report.reviewStatus === "VERIFIED" && report.severityIndication === "HIGH";
-
-  const [isExpanded, setIsExpanded] = useState(false);
-  const isLong = report.description.length > 120;
+  const photos = parsePhotos(report.photo);
+  const [expanded, setExpanded] = useState(false);
+  const canAlert = report.reviewStatus === "VERIFIED" && report.severityIndication === "HIGH";
 
   return (
-    <article className="bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden">
-      <div className="p-5 flex-1">
-        <div className="flex items-start gap-3">
-          <div className={`h-12 w-12 rounded-2xl ${h.tint} flex items-center justify-center text-2xl shrink-0`}>{h.icon}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="font-semibold text-slate-900">{h.label}</h3>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${status.chip}`}>{status.label}</span>
+    <article className={`${PANEL} flex h-full flex-col overflow-hidden transition hover:shadow-md`}>
+      <div className="flex-1 p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={`grid size-11 shrink-0 place-items-center rounded-xl text-xl ${hazard.tint}`} aria-hidden="true">{hazard.icon}</div>
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-bold text-slate-900">{hazard.label}</h3>
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Clock3 size={12} /> {timeAgo(report.captureTime)}</p>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-              <Clock size={12} /> {timeAgo(report.captureTime)}
-            </p>
           </div>
+          <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${status.chip}`}>{status.label}</span>
         </div>
-
-        <div className="mt-4">
-          <p className={`text-sm text-slate-700 leading-relaxed ${isExpanded ? "" : "line-clamp-3"}`}>
-            {report.description}
-          </p>
-          {isLong && (
-            <button 
-              type="button" 
-              onClick={() => setIsExpanded(!isExpanded)} 
-              className="text-teal-600 text-xs font-bold mt-1.5 active:text-teal-800 transition-colors"
-            >
-              {isExpanded ? "Show less" : "Read full description"}
-            </button>
-          )}
-        </div>
-
-        {/* Photos */}
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          {photos.length === 0 ? (
-            <div className="col-span-3 h-16 rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center gap-2 text-xs text-slate-400">
-              <ImageOff size={16} /> No photos attached
-            </div>
-          ) : (
-            photos.slice(0, 3).map((p, i) => (
-              <button key={i} type="button" onClick={() => onPhoto(p)} className="aspect-square rounded-2xl overflow-hidden active:opacity-80" aria-label={`Open photo ${i + 1}`}>
-                <img src={p} alt={`Evidence ${i + 1}`} className="h-full w-full object-cover" />
-              </button>
-            ))
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 mt-4">
-          {report.severityIndication && (
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${SEVERITY_META[report.severityIndication].chip}`}>
-              {SEVERITY_META[report.severityIndication].label} severity
-            </span>
-          )}
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
-            {report.confidence === "FULL" ? "With photo" : "No photo"}
-          </span>
-          <button type="button" onClick={onFocus} className="ml-auto flex items-center gap-1 text-xs font-semibold text-teal-700 px-2.5 py-1 rounded-full bg-teal-50 active:bg-teal-100">
-            <Crosshair size={13} /> Show on map
+        <p className={`mt-4 text-sm leading-6 text-slate-600 ${expanded ? "" : "line-clamp-3"}`}>{report.description}</p>
+        {report.description.length > 125 && (
+          <button type="button" onClick={() => setExpanded((value) => !value)} className={`${BUTTON_FOCUS} mt-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800`}>
+            {expanded ? "Show less" : "Read full report"}
           </button>
+        )}
+        <div className="mt-4 flex gap-2">
+          {photos.length ? photos.slice(0, 3).map((src, index) => (
+            <button key={`${src}-${index}`} type="button" onClick={() => onPhoto(src)} aria-label={`Open evidence photo ${index + 1}`} className={`${BUTTON_FOCUS} size-[68px] overflow-hidden rounded-xl bg-slate-100`}>
+              {/* Evidence URLs originate from report data; keep the original URL intact. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={`Evidence photo ${index + 1}`} className="size-full object-cover transition hover:scale-105" />
+            </button>
+          )) : (
+            <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400"><ImageOff size={14} /> No evidence photos</div>
+          )}
         </div>
-        <p className="text-xs text-slate-400 mt-3 flex items-center gap-1 tabular-nums">
-          <MapPin size={12} /> {report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}
-        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {report.severityIndication && <span className={`rounded-lg px-2 py-1 text-[11px] font-semibold ${SEVERITY_META[report.severityIndication].chip}`}>{SEVERITY_META[report.severityIndication].label} severity</span>}
+          <span className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">{photos.length ? `${photos.length} photo${photos.length === 1 ? "" : "s"}` : "No photo"}</span>
+        </div>
+        <button type="button" onClick={onFocus} className={`${BUTTON_FOCUS} mt-4 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800`}><MapPin size={13} /> Locate on map <ArrowUpRight size={12} /></button>
+        <p className="mt-2 text-[11px] text-slate-400 tabular-nums">{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}</p>
       </div>
-
       {report.reviewStatus === "PENDING_REVIEW" && (
-        <div className="p-3 bg-slate-50 grid grid-cols-2 gap-2.5">
-          <button onClick={onReject} className="py-3 rounded-2xl bg-white text-red-600 font-semibold text-sm border border-red-200 active:bg-red-50">Reject</button>
-          <button onClick={onVerify} className="py-3 rounded-2xl bg-emerald-600 text-white font-semibold text-sm active:bg-emerald-700">Verify</button>
+        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/70 p-3">
+          <button type="button" onClick={() => onReview("reject")} className={`${BUTTON_FOCUS} rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-600`}>Reject</button>
+          <button type="button" onClick={() => onReview("verify")} className={`${BUTTON_FOCUS} flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700`}><Check size={15} /> Verify</button>
         </div>
       )}
-      {isHighVerified && (
-        <div className="p-3 bg-red-50">
-          <button onClick={onBroadcast} className="w-full py-3 rounded-2xl bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 active:bg-red-700">
-            <Megaphone size={16} /> Send emergency alert
-          </button>
+      {canAlert && (
+        <div className="border-t border-rose-100 bg-rose-50/60 p-3">
+          <button type="button" onClick={onBroadcast} className={`${BUTTON_FOCUS} flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700`}><Megaphone size={15} /> Emergency dispatch</button>
         </div>
       )}
     </article>
   );
 }
 
-/** Centered dialog on desktop, bottom sheet on mobile. */
-function Modal({ children, onClose, tone = "default" }: { children: React.ReactNode; onClose: () => void; tone?: "default" | "danger" }) {
-  return (
-    <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-        className={`w-full sm:max-w-md bg-white rounded-t-[2rem] sm:rounded-3xl max-h-[92vh] overflow-y-auto shadow-2xl ${tone === "danger" ? "ring-2 ring-red-500" : ""}`}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
-
 export default function OfficerDashboard() {
   const [reports, setReports] = useState<OfficerReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [lastSync, setLastSync] = useState<Date | null>(null);
-
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>("PENDING_REVIEW");
-  const [filterHazard, setFilterHazard] = useState("ALL");
-  const [filterSeverity, setFilterSeverity] = useState("ALL");
-  const [filterConfidence, setFilterConfidence] = useState("ALL");
-
+  const [status, setStatus] = useState<Status>("PENDING_REVIEW");
+  const [hazard, setHazard] = useState("ALL");
+  const [severityFilter, setSeverityFilter] = useState("ALL");
+  const [photoFilter, setPhotoFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<OfficerReport | null>(null);
-  const [actionType, setActionType] = useState<"verify" | "reject" | null>(null);
-  const [severity, setSeverity] = useState<keyof typeof SEVERITY_META>("MEDIUM");
+  const [review, setReview] = useState<ReviewDialog>(null);
+  const [reviewSeverity, setReviewSeverity] = useState<Severity>("MEDIUM");
   const [rejectReason, setRejectReason] = useState("");
   const [actionError, setActionError] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [dispatchTarget, setDispatchTarget] = useState<OfficerReport | null>(null);
+  const [photo, setPhoto] = useState<PhotoDialog>(null);
+  const [notice, setNotice] = useState("");
 
-  const [alertTarget, setAlertTarget] = useState<OfficerReport | null>(null);
-  const [lightbox, setLightbox] = useState<{ src: string; report: OfficerReport } | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
-  /* ---------- data ---------- */
-  const fetchData = useCallback(async (initial = false) => {
+  const fetchReports = useCallback(async (initial = false) => {
     if (!initial) setRefreshing(true);
     try {
-      const res = await fetch("/api/officer/reports");
-      if (res.ok) {
-        setReports(await res.json());
-        setLastSync(new Date());
-      }
-    } catch (err) {
-      console.error(err);
+      const response = await fetch("/api/officer/reports", { cache: "no-store" });
+      if (!response.ok) throw new Error("Unable to load reports. Please try again.");
+      const data: OfficerReport[] = await response.json();
+      setReports(data);
+      setLastSync(new Date());
+      setLoadError("");
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to load reports.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -227,450 +214,231 @@ export default function OfficerDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData(true);
-    const id = setInterval(() => fetchData(), 15000);
-    return () => clearInterval(id);
-  }, [fetchData]);
+    void fetchReports(true);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void fetchReports();
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [fetchReports]);
 
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(t);
-  }, [toast]);
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(""), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
-  /* ---------- derived ---------- */
-  const counts = useMemo(() => {
-    const c = { PENDING_REVIEW: 0, VERIFIED: 0, REJECTED: 0, HIGH: 0 };
-    reports.forEach((r) => {
-      c[r.reviewStatus]++;
-      if (r.reviewStatus === "VERIFIED" && r.severityIndication === "HIGH") c.HIGH++;
-    });
-    return c;
-  }, [reports]);
+  // One pass computes the overview; all views share the same report source.
+  const counts = useMemo(() => reports.reduce((result, report) => {
+    result[report.reviewStatus] += 1;
+    if (report.reviewStatus === "VERIFIED" && report.severityIndication === "HIGH") result.HIGH += 1;
+    return result;
+  }, { PENDING_REVIEW: 0, VERIFIED: 0, REJECTED: 0, HIGH: 0 }), [reports]);
 
-  const filtered = useMemo(
-    () =>
-      reports.filter(
-        (r) =>
-          (filterStatus === "ALL" || r.reviewStatus === filterStatus) &&
-          (filterHazard === "ALL" || r.hazardType === filterHazard) &&
-          (filterSeverity === "ALL" || (r.severityIndication || "NONE") === filterSeverity) &&
-          (filterConfidence === "ALL" || r.confidence === filterConfidence),
-      ),
-    [reports, filterStatus, filterHazard, filterSeverity, filterConfidence],
-  );
+  const filtered = useMemo(() => reports.filter((report) => {
+    const query = search.trim().toLowerCase();
+    return (status === "ALL" || report.reviewStatus === status)
+      && (hazard === "ALL" || report.hazardType === hazard)
+      && (severityFilter === "ALL" || (report.severityIndication ?? "NONE") === severityFilter)
+      && (photoFilter === "ALL" || report.confidence === photoFilter)
+      && (!query || `${report.description} ${hazardMeta(report.hazardType).label} ${report.id}`.toLowerCase().includes(query));
+  }), [reports, status, hazard, severityFilter, photoFilter, search]);
 
-  const hazardStats = useMemo(() => {
-    const m: Record<string, number> = {};
-    reports.forEach((r) => (m[r.hazardType] = (m[r.hazardType] || 0) + 1));
-    return Object.entries(m).map(([name, value]) => ({ name, value }));
-  }, [reports]);
+  const hazardStats = useMemo(() => HAZARD_KEYS.map((key) => ({
+    key, label: HAZARD_META[key].label,
+    value: reports.filter((report) => report.hazardType === key).length,
+    color: HAZARD_META[key].color,
+  })).filter((item) => item.value > 0), [reports]);
 
-  const severityStats = useMemo(
-    () =>
-      (Object.keys(SEVERITY_META) as (keyof typeof SEVERITY_META)[]).map((k) => ({
-        name: SEVERITY_META[k].label,
-        value: reports.filter((r) => r.reviewStatus === "VERIFIED" && r.severityIndication === k).length,
-        fill: SEVERITY_META[k].color,
-      })),
-    [reports],
-  );
+  const severityStats = useMemo(() => (Object.keys(SEVERITY_META) as Severity[]).map((key) => ({
+    name: SEVERITY_META[key].label,
+    value: reports.filter((report) => report.reviewStatus === "VERIFIED" && report.severityIndication === key).length,
+    color: SEVERITY_META[key].color,
+  })), [reports]);
 
-  const criticalThreats = useMemo(
-    () => reports.filter((r) => r.reviewStatus === "VERIFIED" && r.severityIndication === "HIGH"),
-    [reports],
-  );
+  const criticalReports = useMemo(() => reports.filter((report) => report.reviewStatus === "VERIFIED" && report.severityIndication === "HIGH"), [reports]);
+  const filtersActive = hazard !== "ALL" || severityFilter !== "ALL" || photoFilter !== "ALL" || search.trim() !== "";
 
-  const filtersActive = filterSeverity !== "ALL" || filterConfidence !== "ALL";
-
-  /* ---------- actions ---------- */
-  const openAction = (report: OfficerReport, type: "verify" | "reject") => {
-    setSelected(report);
-    setActionType(type);
-    setActionError("");
-    setRejectReason("");
-    setSeverity("MEDIUM");
-  };
-
-  const closeAction = () => {
-    setActionType(null);
-    setSelected(null);
-    setActionError("");
-  };
-
-  const handleActionSubmit = async () => {
-    if (!selected || !actionType) return;
-    setIsProcessing(true);
-    setActionError("");
-    try {
-      const res = await fetch(`/api/officer/reports/${selected.id}/review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: actionType,
-          expectedVersion: selected.version,
-          officerId: "550e8400-e29b-41d4-a716-446655440002",
-          severityIndication: actionType === "verify" ? severity : undefined,
-          reason: actionType === "reject" ? rejectReason : undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Couldn't save this review.");
-      setToast(actionType === "verify" ? "Report verified" : "Report rejected");
-      closeAction();
-      await fetchData();
-    } catch (err: any) {
-      setActionError(err.message);
-      if (err.message.includes("CONFLICT")) {
-        setTimeout(() => { closeAction(); fetchData(); }, 4000);
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const confirmBroadcast = () => {
-    if (!alertTarget) return;
-    // In a real system this calls the UC1 Dispatch API.
-    setToast(`Emergency alert sent for ${hazardMeta(alertTarget.hazardType).label.toLowerCase()} at ${alertTarget.latitude.toFixed(3)}, ${alertTarget.longitude.toFixed(3)}`);
-    setAlertTarget(null);
+  const clearFilters = () => {
+    setHazard("ALL");
+    setSeverityFilter("ALL");
+    setPhotoFilter("ALL");
+    setSearch("");
+    setStatus("ALL");
   };
 
   const focusOnMap = (id: string) => {
     setFocusedId(id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.getElementById("incident-map")?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  /* ---------- render ---------- */
-  const tabs: { key: StatusFilter; label: string; count: number }[] = [
+  const openReview = (report: OfficerReport, action: ReviewAction) => {
+    setReview({ report, action });
+    setReviewSeverity("MEDIUM");
+    setRejectReason("");
+    setActionError("");
+  };
+
+  const submitReview = async () => {
+    if (!review || busy) return;
+    const { report, action } = review;
+    if (action === "reject" && !rejectReason.trim()) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      const response = await fetch(`/api/officer/reports/${report.id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          expectedVersion: report.version,
+          // Preserve the existing API contract. Replace this with an authenticated officer ID server-side.
+          officerId: "550e8400-e29b-41d4-a716-446655440002",
+          severityIndication: action === "verify" ? reviewSeverity : undefined,
+          reason: action === "reject" ? rejectReason.trim() : undefined,
+        }),
+      });
+      const data: { message?: string } = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Unable to save review.");
+      setReview(null);
+      setNotice(action === "verify" ? "Report verified successfully" : "Report rejected successfully");
+      await fetchReports();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to save review.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tabs: { key: Status; label: string; count: number }[] = [
     { key: "PENDING_REVIEW", label: "Pending", count: counts.PENDING_REVIEW },
     { key: "VERIFIED", label: "Verified", count: counts.VERIFIED },
     { key: "REJECTED", label: "Rejected", count: counts.REJECTED },
-    { key: "ALL", label: "All", count: reports.length },
+    { key: "ALL", label: "All reports", count: reports.length },
   ];
 
-  const selectCls = "bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500";
-
   return (
-    <div className="min-h-screen bg-slate-100 pb-16">
-      {/* Top bar */}
-      <header className="bg-slate-950 text-white px-4 sm:px-8 pt-5 pb-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-11 w-11 rounded-2xl bg-teal-500/15 text-teal-300 flex items-center justify-center shrink-0">
-              <ShieldAlert size={24} />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl font-bold truncate">Duty officer dashboard</h1>
-              <p className="text-xs sm:text-sm text-slate-400 truncate">Review and verify citizen reports</p>
+    <div className="min-h-screen bg-[#f7f8fc] pb-16 text-slate-900">
+      <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-indigo-600 to-blue-500" />
+      <header className="border-b border-slate-200/80 bg-white">
+        <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-7 lg:px-10">
+          <div className="flex items-center gap-3">
+            <div className="grid size-11 place-items-center rounded-[14px] bg-indigo-600 text-white shadow-md shadow-indigo-200"><ShieldCheck size={22} /></div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">DEWECS / Operations</p>
+              <h1 className="text-lg font-bold tracking-tight text-slate-950 sm:text-xl">Officer command center</h1>
             </div>
           </div>
-          <button
-            onClick={() => fetchData()}
-            disabled={refreshing}
-            className="shrink-0 flex items-center gap-2 text-sm font-semibold bg-white/10 px-3.5 py-2.5 rounded-xl active:bg-white/20 disabled:opacity-70"
-          >
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">{refreshing ? "Refreshing…" : lastSync ? `Updated ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Refresh"}</span>
-          </button>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><span className={`size-2 rounded-full ${loadError ? "bg-rose-500" : "bg-emerald-500"}`} />{loadError ? "Sync issue" : lastSync ? `Synced ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Connecting"}</span>
+            <button type="button" onClick={() => void fetchReports()} disabled={refreshing} className={`${BUTTON_FOCUS} flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50`}><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> Refresh</button>
+          </div>
         </div>
-
-        {criticalThreats.length > 0 && (
-          <div className="max-w-7xl mx-auto mt-4 bg-red-500/15 border border-red-500/40 text-red-100 rounded-2xl px-4 py-3 flex items-center gap-3">
-            <Megaphone size={18} className="shrink-0 text-red-300" />
-            <p className="text-sm font-semibold shrink-0">{criticalThreats.length} critical {criticalThreats.length === 1 ? "threat" : "threats"}</p>
-            <div className={`flex gap-4 overflow-x-auto whitespace-nowrap text-sm ${noScrollbar}`}>
-              {criticalThreats.map((t) => (
-                <button key={t.id} onClick={() => focusOnMap(t.id)} className="underline underline-offset-2 decoration-red-300/50">
-                  {hazardMeta(t.hazardType).label} · {t.latitude.toFixed(2)}, {t.longitude.toFixed(2)}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6 mt-5">
-        {/* MAP (hero) */}
-        <section className="relative h-[60vh] min-h-[380px] max-h-[640px] rounded-3xl overflow-hidden shadow-sm bg-slate-200 isolate">
-          <DisasterMap reports={filtered} focusedId={focusedId} onSelect={setFocusedId} />
-
-          {/* Hazard filter chips */}
-          <div className="absolute top-3 inset-x-3 z-[1000] pointer-events-none">
-            <div className={`flex gap-2 overflow-x-auto pb-1 pointer-events-auto ${noScrollbar}`}>
-              <Chip active={filterHazard === "ALL"} onClick={() => setFilterHazard("ALL")}>All hazards</Chip>
-              {HAZARD_KEYS.map((k) => (
-                <Chip key={k} active={filterHazard === k} onClick={() => setFilterHazard(k)}>
-                  {HAZARD_META[k].icon} {HAZARD_META[k].label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-
-          {/* Result summary */}
-          <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-3 pointer-events-none">
-            <p className="text-sm font-semibold text-slate-900">{filtered.length} of {reports.length} reports on map</p>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
-              {HAZARD_KEYS.map((k) => (
-                <span key={k} className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: HAZARD_META[k].color }} /> {HAZARD_META[k].label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* KPIs */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <StatCard label="Waiting for review" value={counts.PENDING_REVIEW} icon={<Hourglass size={20} />} tone="bg-amber-50 text-amber-600" active={filterStatus === "PENDING_REVIEW"} onClick={() => setFilterStatus("PENDING_REVIEW")} />
-          <StatCard label="Verified" value={counts.VERIFIED} icon={<CheckCircle2 size={20} />} tone="bg-emerald-50 text-emerald-600" active={filterStatus === "VERIFIED"} onClick={() => setFilterStatus("VERIFIED")} />
-          <StatCard label="Rejected" value={counts.REJECTED} icon={<XCircle size={20} />} tone="bg-slate-100 text-slate-500" active={filterStatus === "REJECTED"} onClick={() => setFilterStatus("REJECTED")} />
-          <StatCard label="High severity" value={counts.HIGH} icon={<AlertTriangle size={20} />} tone="bg-red-50 text-red-600" active={filterSeverity === "HIGH"} onClick={() => { setFilterStatus("VERIFIED"); setFilterSeverity("HIGH"); }} />
-        </section>
-
-        {/* Charts */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-3xl p-5 shadow-sm">
-            <h2 className="font-bold text-slate-900">Reports by hazard</h2>
-            <div className="flex items-center gap-4 mt-2">
-              <div className="h-44 w-44 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={hazardStats} dataKey="value" nameKey="name" innerRadius={48} outerRadius={78} paddingAngle={3} stroke="none">
-                      {hazardStats.map((e) => <Cell key={e.name} fill={hazardMeta(e.name).color} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: any, n: any) => [v, hazardMeta(String(n)).label]} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="flex-1 space-y-2">
-                {hazardStats.map((e) => (
-                  <li key={e.name} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-slate-600">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: hazardMeta(e.name).color }} />
-                      {hazardMeta(e.name).label}
-                    </span>
-                    <span className="font-semibold text-slate-900 tabular-nums">{e.value}</span>
-                  </li>
-                ))}
-                {hazardStats.length === 0 && <li className="text-sm text-slate-400">No reports yet</li>}
-              </ul>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl p-5 shadow-sm">
-            <h2 className="font-bold text-slate-900">Verified by severity</h2>
-            <div className="h-44 mt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={severityStats} margin={{ top: 10, right: 8, left: -24, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748b" }} />
-                  <YAxis axisLine={false} tickLine={false} allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} />
-                  <Tooltip cursor={{ fill: "#f1f5f9" }} />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={56}>
-                    {severityStats.map((e) => <Cell key={e.name} fill={e.fill} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </section>
-
-        {/* Queue */}
+      <main className="mx-auto max-w-[1480px] space-y-6 px-4 pt-7 sm:px-7 lg:px-10">
         <section>
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
-            <h2 className="text-xl font-bold text-slate-900">Report queue</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className={`flex bg-white rounded-2xl p-1 shadow-sm overflow-x-auto ${noScrollbar}`}>
-                {tabs.map((t) => (
-                  <button
-                    key={t.key}
-                    onClick={() => setFilterStatus(t.key)}
-                    className={`px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors ${
-                      filterStatus === t.key ? "bg-slate-900 text-white" : "text-slate-600 active:bg-slate-100"
-                    }`}
-                  >
-                    {t.label} <span className={filterStatus === t.key ? "text-slate-300" : "text-slate-400"}>{t.count}</span>
-                  </button>
-                ))}
-              </div>
-              <select aria-label="Severity" value={filterSeverity} onChange={(e) => setFilterSeverity(e.target.value)} className={selectCls}>
-                <option value="ALL">Any severity</option>
-                <option value="NONE">Not rated</option>
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-              </select>
-              <select aria-label="Photo" value={filterConfidence} onChange={(e) => setFilterConfidence(e.target.value)} className={selectCls}>
-                <option value="ALL">Any photo status</option>
-                <option value="FULL">With photo</option>
-                <option value="REDUCED">No photo</option>
-              </select>
-              {filtersActive && (
-                <button onClick={() => { setFilterSeverity("ALL"); setFilterConfidence("ALL"); }} className="text-sm font-semibold text-teal-700 px-2 py-2">
-                  Clear filters
-                </button>
-              )}
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-indigo-600">Live incident overview</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-[28px]">Operations overview</h2>
+              <p className="mt-1 text-sm text-slate-500">Prioritize incoming reports and coordinate verified incidents.</p>
             </div>
+            <span className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500"><Activity size={14} className="text-indigo-500" /> Auto-refresh every 15 seconds</span>
           </div>
+          {loadError && <div role="alert" className="mb-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"><AlertCircle size={17} /> {loadError} <button type="button" onClick={() => void fetchReports()} className="ml-auto font-semibold underline">Retry</button></div>}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+            <Metric label="Awaiting review" description="Reports needing a decision" count={counts.PENDING_REVIEW} selected={status === "PENDING_REVIEW" && severityFilter === "ALL"} onClick={() => { setStatus("PENDING_REVIEW"); setSeverityFilter("ALL"); }} icon={<Clock3 size={19} />} color="bg-amber-50 text-amber-600" />
+            <Metric label="Verified incidents" description="Reviewed and approved" count={counts.VERIFIED} selected={status === "VERIFIED" && severityFilter === "ALL"} onClick={() => { setStatus("VERIFIED"); setSeverityFilter("ALL"); }} icon={<CheckCircle2 size={19} />} color="bg-emerald-50 text-emerald-600" />
+            <Metric label="Rejected reports" description="Reviewed and dismissed" count={counts.REJECTED} selected={status === "REJECTED"} onClick={() => { setStatus("REJECTED"); setSeverityFilter("ALL"); }} icon={<XCircle size={19} />} color="bg-slate-100 text-slate-500" />
+            <Metric label="High-severity threats" description="Verified critical incidents" count={counts.HIGH} selected={status === "VERIFIED" && severityFilter === "HIGH"} onClick={() => { setStatus("VERIFIED"); setSeverityFilter("HIGH"); }} icon={<AlertTriangle size={19} />} color="bg-rose-50 text-rose-600" />
+          </div>
+        </section>
 
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {[0, 1, 2].map((i) => <div key={i} className="h-72 bg-white rounded-3xl animate-pulse" />)}
+        {criticalReports.length > 0 && (
+          <section aria-label="Critical incidents" className="flex flex-wrap items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+            <span className="grid size-9 place-items-center rounded-xl bg-rose-100 text-rose-600"><AlertTriangle size={17} /></span>
+            <div className="min-w-0 flex-1"><p className="text-sm font-bold text-rose-900">{criticalReports.length} verified high-severity {criticalReports.length === 1 ? "incident" : "incidents"}</p><p className="text-xs text-rose-700">Inspect the mapped locations and prepare appropriate response.</p></div>
+            <button type="button" onClick={() => { setStatus("VERIFIED"); setSeverityFilter("HIGH"); document.getElementById("report-queue")?.scrollIntoView({ behavior: "smooth" }); }} className={`${BUTTON_FOCUS} rounded-lg bg-white px-3 py-2 text-xs font-bold text-rose-700 shadow-sm hover:bg-rose-100`}>View incidents <ArrowUpRight size={13} className="inline" /></button>
+          </section>
+        )}
+
+        <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,1fr)]">
+          <section id="incident-map" className={`${PANEL} min-w-0 overflow-hidden`}>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+              <SectionTitle eyebrow="Incident geography" title="Live report map" detail={`${filtered.length} matching reports · ${reports.length} total`} />
+              <span className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700"><MapPin size={13} /> Map view</span>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
-              <div className="h-16 w-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-4">
-                <Check size={32} strokeWidth={3} />
+            <div className={`flex gap-2 overflow-x-auto px-4 py-3 ${HIDDEN_SCROLLBAR}`} aria-label="Hazard map filters">
+              <button type="button" onClick={() => setHazard("ALL")} aria-pressed={hazard === "ALL"} className={`${BUTTON_FOCUS} shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${hazard === "ALL" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>All hazards</button>
+              {HAZARD_KEYS.map((key) => <button key={key} type="button" onClick={() => setHazard(key)} aria-pressed={hazard === key} className={`${BUTTON_FOCUS} shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${hazard === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{HAZARD_META[key].icon} {HAZARD_META[key].label}</button>)}
+            </div>
+            <div className="relative h-[350px] bg-slate-100 sm:h-[425px] lg:h-[470px]"><DisasterMap reports={filtered} focusedId={focusedId} onSelect={setFocusedId} /></div>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 px-4 py-3 sm:px-5">
+              {HAZARD_KEYS.map((key) => <span key={key} className="flex items-center gap-1.5 text-[11px] text-slate-500"><span className="size-2 rounded-full" style={{ backgroundColor: HAZARD_META[key].color }} />{HAZARD_META[key].label}</span>)}
+            </div>
+          </section>
+
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-1">
+            <section className={`${PANEL} flex flex-col p-5`}>
+              <SectionTitle eyebrow="Distribution" title="Reports by hazard" detail="Breakdown across all received reports" />
+              {hazardStats.length ? <div className="mt-4 flex min-h-0 flex-1 items-center gap-3">
+                <div className="h-40 w-[44%] min-w-0 shrink-0"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={hazardStats} dataKey="value" nameKey="label" innerRadius="59%" outerRadius="82%" paddingAngle={3} stroke="none">{hazardStats.map((item) => <Cell key={item.key} fill={item.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div>
+                <div className="min-w-0 flex-1 space-y-2.5">{hazardStats.map((item) => <div key={item.key} className="flex items-center justify-between gap-2 text-xs"><span className="flex min-w-0 items-center gap-2 text-slate-600"><span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} /><span className="truncate">{item.label}</span></span><span className="font-bold text-slate-900 tabular-nums">{item.value}</span></div>)}</div>
+              </div> : <div className="flex flex-1 items-center justify-center py-8 text-sm text-slate-400">No hazard data yet</div>}
+            </section>
+            <section className={`${PANEL} flex flex-col p-5`}>
+              <SectionTitle eyebrow="Risk assessment" title="Verified by severity" detail="Severity levels assigned during review" />
+              <div className="mt-4 min-h-[140px] flex-1"><ResponsiveContainer width="100%" height="100%"><BarChart data={severityStats} margin={{ top: 8, right: 4, left: -27, bottom: 0 }}><CartesianGrid strokeDasharray="3 4" vertical={false} stroke="#edf0f7" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} /><YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} /><Tooltip cursor={{ fill: "#f8fafc" }} /><Bar dataKey="value" name="Reports" radius={[5, 5, 0, 0]} maxBarSize={44}>{severityStats.map((item) => <Cell key={item.name} fill={item.color} />)}</Bar></BarChart></ResponsiveContainer></div>
+            </section>
+          </div>
+        </div>
+
+        <section id="report-queue" className="scroll-mt-5 space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3"><SectionTitle eyebrow="Review workspace" title="Incoming report queue" detail="Review evidence, assign severity, and manage decisions." /><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">{filtered.length} shown</span></div>
+          <div className={`${PANEL} space-y-3 p-3 sm:p-4`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className={`flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 ${HIDDEN_SCROLLBAR}`} role="group" aria-label="Review status">
+                {tabs.map((tab) => <button key={tab.key} type="button" onClick={() => setStatus(tab.key)} aria-pressed={status === tab.key} className={`${BUTTON_FOCUS} shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${status === tab.key ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{tab.label} <span className="ml-1 tabular-nums opacity-60">{tab.count}</span></button>)}
               </div>
-              <h3 className="text-lg font-bold text-slate-900">No reports match</h3>
-              <p className="text-sm text-slate-500 mt-1">Try another status or clear your filters.</p>
+              <button type="button" onClick={() => setShowFilters((value) => !value)} aria-expanded={showFilters} className={`${CONTROL} ${BUTTON_FOCUS} inline-flex items-center gap-2 font-semibold`}><SlidersHorizontal size={15} /> Filters <ChevronDown size={14} className={showFilters ? "rotate-180" : ""} /></button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filtered.map((r) => (
-                <ReportCard
-                  key={r.id}
-                  report={r}
-                  onVerify={() => openAction(r, "verify")}
-                  onReject={() => openAction(r, "reject")}
-                  onBroadcast={() => setAlertTarget(r)}
-                  onFocus={() => focusOnMap(r.id)}
-                  onPhoto={(src) => setLightbox({ src, report: r })}
-                />
-              ))}
-            </div>
-          )}
+            <div className="relative"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input aria-label="Search reports" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by hazard, report ID, or description..." className={`${CONTROL} w-full pl-10`} /></div>
+            {showFilters && <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <span className="flex items-center gap-1 text-xs text-slate-400"><ListFilter size={14} /> Refine:</span>
+              <select aria-label="Severity filter" value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)} className={CONTROL}><option value="ALL">Any severity</option><option value="NONE">Not rated</option><option value="LOW">Low severity</option><option value="MEDIUM">Medium severity</option><option value="HIGH">High severity</option></select>
+              <select aria-label="Evidence filter" value={photoFilter} onChange={(event) => setPhotoFilter(event.target.value)} className={CONTROL}><option value="ALL">Any evidence</option><option value="FULL">With photo</option><option value="REDUCED">No photo</option></select>
+              <select aria-label="Hazard filter" value={hazard} onChange={(event) => setHazard(event.target.value)} className={CONTROL}><option value="ALL">All hazards</option>{HAZARD_KEYS.map((key) => <option key={key} value={key}>{HAZARD_META[key].label}</option>)}</select>
+            </div>}
+            {filtersActive && <button type="button" onClick={clearFilters} className={`${BUTTON_FOCUS} text-xs font-semibold text-indigo-600 hover:text-indigo-800`}>Clear all filters</button>}
+          </div>
+          {loading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((index) => <div key={index} className={`${PANEL} h-64 animate-pulse bg-slate-100`} />)}</div>
+            : filtered.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((report) => <ReportCard key={report.id} report={report} onReview={(action) => openReview(report, action)} onBroadcast={() => setDispatchTarget(report)} onFocus={() => focusOnMap(report.id)} onPhoto={(src) => setPhoto({ src, report })} />)}</div>
+            : <div className={`${PANEL} py-16 text-center`}><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-slate-100 text-slate-400"><Search size={21} /></div><h3 className="mt-3 text-sm font-bold text-slate-900">No matching reports</h3><p className="mt-1 text-sm text-slate-500">Adjust your search or filters to see more incidents.</p><button type="button" onClick={clearFilters} className="mt-4 text-sm font-semibold text-indigo-600 hover:underline">Clear filters</button></div>}
         </section>
       </main>
 
-      {/* Review modal */}
-      {actionType && selected && (
-        <Modal onClose={closeAction}>
-          <div className="p-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`h-11 w-11 rounded-2xl flex items-center justify-center text-xl ${hazardMeta(selected.hazardType).tint}`}>{hazardMeta(selected.hazardType).icon}</div>
-              <div>
-                <h2 className="font-bold text-slate-900">{actionType === "verify" ? "Verify report" : "Reject report"}</h2>
-                <p className="text-xs text-slate-500">{hazardMeta(selected.hazardType).label} · {timeAgo(selected.captureTime)}</p>
-              </div>
-            </div>
-            <button onClick={closeAction} aria-label="Close" className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600"><X size={18} /></button>
-          </div>
+      {review && <Modal title={review.action === "verify" ? "Verify incident report" : "Reject incident report"} description={`${hazardMeta(review.report.hazardType).label} · ${timeAgo(review.report.captureTime)}`} onClose={() => setReview(null)} busy={busy}>
+        <p className="rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-600">{review.report.description}</p>
+        {actionError && <p role="alert" className="mt-3 flex gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-700"><AlertCircle size={17} className="shrink-0" />{actionError}</p>}
+        {review.action === "verify" ? <fieldset className="mt-5"><legend className="mb-3 text-sm font-bold text-slate-800">Choose incident severity</legend><div className="grid grid-cols-3 gap-2">{(Object.keys(SEVERITY_META) as Severity[]).map((key) => <button key={key} type="button" onClick={() => setReviewSeverity(key)} aria-pressed={reviewSeverity === key} className={`${BUTTON_FOCUS} rounded-xl border-2 px-2 py-3 text-sm font-semibold ${reviewSeverity === key ? SEVERITY_META[key].pick : "border-slate-100 bg-slate-50 text-slate-600"}`}>{SEVERITY_META[key].label}</button>)}</div></fieldset>
+          : <div className="mt-5"><label htmlFor="reject-reason" className="text-sm font-bold text-slate-800">Reason for rejection</label><div className="mt-3 flex flex-wrap gap-2">{REJECTION_REASONS.map((reason) => <button key={reason} type="button" onClick={() => setRejectReason(reason)} className={`${BUTTON_FOCUS} rounded-lg px-2.5 py-1.5 text-xs font-semibold ${rejectReason === reason ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}`}>{reason}</button>)}</div><textarea id="reject-reason" rows={3} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Explain the rejection clearly..." className={`${CONTROL} mt-3 w-full resize-y`} /></div>}
+        <div className="mt-6 grid grid-cols-2 gap-2"><button type="button" disabled={busy} onClick={() => setReview(null)} className={`${BUTTON_FOCUS} rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700 disabled:opacity-50`}>Cancel</button><button type="button" onClick={() => void submitReview()} disabled={busy || (review.action === "reject" && !rejectReason.trim())} className={`${BUTTON_FOCUS} rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50 ${review.action === "verify" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-rose-600 hover:bg-rose-700"}`}>{busy ? "Saving..." : review.action === "verify" ? "Confirm verification" : "Reject report"}</button></div>
+      </Modal>}
 
-          <div className="px-5 pb-2">
-            <p className="text-sm text-slate-600 bg-slate-50 rounded-2xl p-3.5 line-clamp-3">{selected.description}</p>
+      {dispatchTarget && <Modal title="Emergency dispatch" description="High-severity verified incident" onClose={() => setDispatchTarget(null)}>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="flex items-center gap-2 text-sm font-bold text-amber-900"><AlertTriangle size={17} /> Dispatch integration required</p><p className="mt-2 text-sm leading-6 text-amber-800">The current dashboard does not include a working dispatch API. No SMS, siren, or emergency notification has been sent. Connect and authorize your UC1 dispatch endpoint before enabling this action.</p></div>
+        <p className="mt-4 text-sm text-slate-600">Incident: <strong>{hazardMeta(dispatchTarget.hazardType).label}</strong> at {dispatchTarget.latitude.toFixed(4)}, {dispatchTarget.longitude.toFixed(4)}</p>
+        <button type="button" onClick={() => setDispatchTarget(null)} className={`${BUTTON_FOCUS} mt-5 w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white hover:bg-slate-800`}>Close</button>
+      </Modal>}
 
-            {actionError && (
-              <div role="alert" className="mt-4 p-3.5 bg-red-50 text-red-700 rounded-2xl text-sm font-medium flex gap-2.5">
-                <AlertTriangle size={18} className="shrink-0 mt-0.5" /> {actionError}
-              </div>
-            )}
+      {photo && <div role="dialog" aria-modal="true" aria-label="Incident evidence photo" className="fixed inset-0 z-[2100] flex flex-col items-center justify-center bg-slate-950/95 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setPhoto(null); }}>
+        <button type="button" onClick={() => setPhoto(null)} aria-label="Close evidence" className={`${BUTTON_FOCUS} absolute right-5 top-5 rounded-full bg-white/10 p-3 text-white hover:bg-white/20`}><X size={21} /></button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo.src} alt={`Evidence for ${hazardMeta(photo.report.hazardType).label}`} className="max-h-[75vh] max-w-full rounded-xl object-contain" />
+        <p className="mt-4 max-w-3xl text-center text-sm text-white/80">{photo.report.description}</p>
+      </div>}
 
-            {actionType === "verify" ? (
-              <div className="mt-5">
-                <p className="text-sm font-semibold text-slate-900 mb-2.5">How severe is it?</p>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {(Object.keys(SEVERITY_META) as (keyof typeof SEVERITY_META)[]).map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setSeverity(k)}
-                      aria-pressed={severity === k}
-                      className={`py-3.5 rounded-2xl border-2 text-sm font-semibold transition-colors ${
-                        severity === k ? SEVERITY_META[k].pick : "border-transparent bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {SEVERITY_META[k].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-5">
-                <p className="text-sm font-semibold text-slate-900 mb-2.5">Why are you rejecting it?</p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {REJECT_REASONS.map((r) => (
-                    <button key={r} type="button" onClick={() => setRejectReason(r)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold ${rejectReason === r ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`}>
-                      {r}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  rows={3}
-                  placeholder="Add a reason the reporter will understand"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="p-5 grid grid-cols-2 gap-3">
-            <button onClick={closeAction} disabled={isProcessing} className="py-3.5 rounded-2xl bg-slate-100 text-slate-700 font-semibold disabled:opacity-50">Cancel</button>
-            <button
-              onClick={handleActionSubmit}
-              disabled={isProcessing || (actionType === "reject" && !rejectReason.trim())}
-              className={`py-3.5 rounded-2xl text-white font-semibold disabled:opacity-40 ${actionType === "verify" ? "bg-emerald-600" : "bg-red-600"}`}
-            >
-              {isProcessing ? "Saving…" : actionType === "verify" ? "Verify report" : "Reject report"}
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Emergency alert modal */}
-      {alertTarget && (
-        <Modal onClose={() => setAlertTarget(null)} tone="danger">
-          <div className="p-7 text-center">
-            <div className="h-16 w-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
-              <Megaphone size={30} />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900">Send emergency alert?</h2>
-            <p className="text-sm text-slate-600 leading-relaxed mt-2">
-              This sends the verified <strong>{hazardMeta(alertTarget.hazardType).label.toLowerCase()}</strong> report to the UC1 Dispatch System. SMS alerts and local sirens in Colombo start right away.
-            </p>
-            <div className="grid grid-cols-2 gap-3 mt-6">
-              <button onClick={() => setAlertTarget(null)} className="py-3.5 rounded-2xl bg-slate-100 text-slate-700 font-semibold">Cancel</button>
-              <button onClick={confirmBroadcast} className="py-3.5 rounded-2xl bg-red-600 text-white font-semibold shadow-lg shadow-red-600/30">Send alert</button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Photo lightbox */}
-      {lightbox && (
-        <div className="fixed inset-0 z-[2100] bg-black/95 flex flex-col items-center justify-center" onClick={() => setLightbox(null)}>
-          <button aria-label="Close photo" className="absolute top-4 right-4 z-50 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-sm transition-colors">
-            <X size={24} />
-          </button>
-          
-          <div className="flex-1 w-full flex items-center justify-center p-4 min-h-0 relative">
-            <img src={lightbox.src} alt="Evidence" className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl" />
-          </div>
-
-          <div className="w-full max-w-4xl p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent backdrop-blur-md absolute bottom-0 left-1/2 -translate-x-1/2 rounded-t-3xl border-t border-white/10" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`text-xs font-bold px-2 py-1 rounded-md ${hazardMeta(lightbox.report.hazardType).tint}`}>
-                {hazardMeta(lightbox.report.hazardType).icon} {hazardMeta(lightbox.report.hazardType).label}
-              </span>
-              <span className="text-xs text-slate-300 flex items-center gap-1"><Clock size={12}/> {timeAgo(lightbox.report.captureTime)}</span>
-            </div>
-            <p className="text-sm sm:text-base text-slate-100 leading-relaxed font-medium">
-              {lightbox.report.description}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Toast */}
-      {toast && (
-        <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2200] max-w-[90vw] bg-slate-900 text-white text-sm font-medium px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2">
-          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" /> {toast}
-        </div>
-      )}
+      {notice && <div role="status" className="fixed bottom-5 left-1/2 z-[2200] flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-xl"><CheckCircle2 size={17} className="text-emerald-400" />{notice}</div>}
     </div>
   );
 }
