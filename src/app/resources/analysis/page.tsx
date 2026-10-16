@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   FileBarChart,
   Calendar,
@@ -18,27 +18,39 @@ import {
   ApiError,
   DISTRICTS,
   HAZARD_TYPES,
+  PRESETS,
   SECTIONS,
   LANGUAGES,
   toIsoRange,
   daysBetween,
 } from "./_types";
+import { prefillFromQuery } from "./_prefill";
 import { Card, CardTitle, Banner } from "./_components";
 
 const DEFAULT_FROM = "2026-08-01";
 const DEFAULT_TO = "2026-08-31";
 
 export default function GenerateReportPage() {
-  const router = useRouter();
+  return (
+    <Suspense fallback={null}>
+      <AnalysisForm />
+    </Suspense>
+  );
+}
 
-  const [from, setFrom] = useState<string>(DEFAULT_FROM);
-  const [to, setTo] = useState<string>(DEFAULT_TO);
-  const [districtId, setDistrictId] = useState<string>("");
-  const [hazardType, setHazardType] = useState<string>("");
+function AnalysisForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefill = prefillFromQuery(Object.fromEntries(searchParams.entries()));
+
+  const [from, setFrom] = useState<string>(prefill.from ?? DEFAULT_FROM);
+  const [to, setTo] = useState<string>(prefill.to ?? DEFAULT_TO);
+  const [districtId, setDistrictId] = useState<string>(prefill.districtId ?? "");
+  const [hazardType, setHazardType] = useState<string>(prefill.hazardType ?? "");
   const [includedSections, setIncludedSections] = useState<Set<string>>(
     new Set(SECTIONS)
   );
-  const [language, setLanguage] = useState<"EN" | "SI" | "TA">("EN");
+  const [language, setLanguage] = useState<"EN" | "SI" | "TA">(prefill.language ?? "EN");
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -262,6 +274,28 @@ export default function GenerateReportPage() {
                 <Filter className="w-4 h-4 text-blue-400" /> Filters
               </span>
             </CardTitle>
+            <div>
+              <span className="block text-xs text-slate-400 mb-1 font-medium">
+                Demo presets
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      setFrom(p.from);
+                      setTo(p.to);
+                      setDistrictId(p.districtId);
+                      setHazardType(p.hazardType);
+                    }}
+                    className="px-2.5 py-1 rounded-full bg-slate-950 border border-slate-700 hover:border-blue-500 hover:text-white text-[11px] text-slate-300 transition"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-3">
               <div>
                 <label htmlFor="district-select" className="block text-xs text-slate-400 mb-1 font-medium">

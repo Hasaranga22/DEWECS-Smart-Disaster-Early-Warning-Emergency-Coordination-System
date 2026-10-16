@@ -9,4 +9,3 @@ export default defineConfig({
     ...(process.env.DIRECT_URL ? { directUrl: env("DIRECT_URL") } : {}),
   },
 });
-

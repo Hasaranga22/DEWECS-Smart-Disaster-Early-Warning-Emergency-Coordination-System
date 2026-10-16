@@ -1,11 +1,18 @@
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const plugins = {};
+
+try {
+  require.resolve("@tailwindcss/postcss");
+  plugins["@tailwindcss/postcss"] = {};
+} catch {
+  // @tailwindcss/postcss is optional/not installed in current environment
+}
+
 /** @type {import('postcss').Config} */
 const config = {
-  plugins: {
-    // Required for Tailwind v4. Processes @import "tailwindcss",
-    // @theme, and all utility classes. Replaces the old "tailwindcss"
-    // PostCSS plugin which does not understand v4 syntax.
-    "@tailwindcss/postcss": {},
-  },
+  plugins,
 };
 
 export default config;

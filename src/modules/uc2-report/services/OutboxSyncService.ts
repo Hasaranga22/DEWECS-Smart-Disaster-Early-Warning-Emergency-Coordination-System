@@ -150,7 +150,7 @@ export class OutboxSyncService {
       status: isPermamentFailure ? "FAILED" : "PENDING_SYNC",
       failureReason: isPermamentFailure
         ? `Could not be saved or sent after ${MAX_SYNC_ATTEMPTS} attempts – resubmit or contact the Duty Officer by radio/phone. (${failureReason})`
-        : failureReason,
+        : `attempt ${attemptCount}: ${failureReason}`,
     });
 
     return isPermamentFailure ? "permanentlyFailed" : "failed";

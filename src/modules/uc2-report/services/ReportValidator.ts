@@ -56,10 +56,6 @@ export class ReportValidator {
       invalidFields.push("hazardType");
     }
 
-    if (!draft.description || draft.description.trim().length === 0) {
-      invalidFields.push("description");
-    }
-
     if (!this.hasValidLocation(draft)) {
       invalidFields.push("location");
     }
@@ -92,7 +88,7 @@ export class ReportValidator {
       reporterId: draft.reporterId,
       districtId: draft.districtId,
       hazardType: draft.hazardType,
-      description: draft.description.trim(),
+      description: draft.description?.trim() || "Incident reported without description.",
       latitude: draft.latitude,
       longitude: draft.longitude,
       locationSource: draft.locationSource,

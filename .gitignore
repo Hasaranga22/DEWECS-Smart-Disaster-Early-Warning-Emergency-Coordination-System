@@ -54,6 +54,8 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
+/docs/ai-prompts.md
+
 # IDE / editor
 .idea/
 .vscode/*
@@ -73,3 +75,4 @@ prisma/*.db-journal
 
 # docker / local data
 docker-data/
+

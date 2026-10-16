@@ -66,4 +66,35 @@ describe("GroundReport Domain Entity", () => {
     expect(report.reviewStatus).toBe("VERIFIED");
     expect(report.version).toBe(3);
   });
+
+  it("resolves a verified incident without changing its review decision", () => {
+    report.verify("HIGH");
+    const resolvedAt = new Date("2026-10-16T09:00:00.000Z");
+
+    report.resolveIncident("officer-1", resolvedAt);
+
+    expect(report.reviewStatus).toBe("VERIFIED");
+    expect(report.mapStatus).toBe("RESOLVED");
+    expect(report.resolvedAt).toEqual(resolvedAt);
+    expect(report.resolvedByOfficerId).toBe("officer-1");
+    expect(report.version).toBe(2);
+  });
+
+  it("extends an active verified incident without changing its review decision", () => {
+    report.verify("MEDIUM");
+    const firstExpiry = new Date("2026-10-23T09:00:00.000Z");
+    const extendedExpiry = new Date("2026-10-30T09:00:00.000Z");
+    report.activateOnMap(firstExpiry);
+
+    report.extendMapVisibility(extendedExpiry);
+
+    expect(report.reviewStatus).toBe("VERIFIED");
+    expect(report.mapStatus).toBe("ACTIVE");
+    expect(report.mapVisibleUntil).toEqual(extendedExpiry);
+    expect(report.version).toBe(2);
+  });
+
+  it("does not resolve an unverified incident", () => {
+    expect(() => report.resolveIncident("officer-1", new Date())).toThrowError(InvalidStateTransitionError);
+  });
 });

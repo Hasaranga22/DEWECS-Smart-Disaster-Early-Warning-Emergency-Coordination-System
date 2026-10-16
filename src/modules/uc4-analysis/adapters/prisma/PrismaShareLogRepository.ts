@@ -5,6 +5,9 @@ import { ValidationError } from '../../domain/errors'
 import type { ShareLogRepository } from '../ShareLogRepository'
 import { toDomainShare } from './mappers'
 
+/** Seeded "DMC Official" (prisma/seed.ts) — actor fallback for the Officer FK. */
+const FALLBACK_ACTOR_ID = '00000000-0000-4000-8000-000000000888'
+
 /** Prisma P2002 = unique constraint violated. */
 function isUniqueViolation(error: unknown): boolean {
   return (
@@ -28,6 +31,17 @@ export class PrismaShareLogRepository implements ShareLogRepository {
     const isUuid =
       typeof share.actorId === 'string' &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(share.actorId)
+    const candidate = isUuid ? share.actorId : FALLBACK_ACTOR_ID
+
+    // actor_id is a real Officer FK. Session/demo actor ids live in a
+    // different id space than the Officer table, so resolve the FK here at
+    // the DB boundary: missing officer -> seeded DMC fallback (same id the
+    // non-uuid path already used).
+    const officer = await prisma.officer.findUnique({
+      where: { id: candidate },
+      select: { id: true },
+    })
+    const actorId = officer === null ? FALLBACK_ACTOR_ID : candidate
 
     try {
       await prisma.reportShare.create({
@@ -37,7 +51,7 @@ export class PrismaShareLogRepository implements ShareLogRepository {
           organizationId: share.organizationId,
           status: share.status,
           attemptedAt: share.attemptedAt,
-          actorId: isUuid ? share.actorId : '00000000-0000-4000-8000-000000000888',
+          actorId,
           failureReason: share.failureReason,
         },
       })

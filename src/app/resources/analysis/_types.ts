@@ -83,6 +83,45 @@ export const DISTRICTS = [
   { id: "00000000-0000-4000-8000-000000000010", name: "Colombo" },
 ] as const;
 
+/** One-click filter combos backed by the demo dataset (scripts/uc4-seed-sample-data.ts). */
+export const PRESETS = [
+  {
+    label: "Kegalle flood · Aug",
+    from: "2026-08-01",
+    to: "2026-08-31",
+    districtId: "00000000-0000-4000-8000-000000000001",
+    hazardType: "FLOOD",
+  },
+  {
+    label: "Kegalle · all hazards",
+    from: "2026-08-01",
+    to: "2026-08-31",
+    districtId: "00000000-0000-4000-8000-000000000001",
+    hazardType: "",
+  },
+  {
+    label: "All districts · Aug",
+    from: "2026-08-01",
+    to: "2026-08-31",
+    districtId: "",
+    hazardType: "",
+  },
+  {
+    label: "Gampaha flood · Sep",
+    from: "2026-09-01",
+    to: "2026-09-30",
+    districtId: "00000000-0000-4000-8000-000000000002",
+    hazardType: "FLOOD",
+  },
+  {
+    label: "Colombo · Jan (empty demo)",
+    from: "2026-01-01",
+    to: "2026-01-31",
+    districtId: "00000000-0000-4000-8000-000000000010",
+    hazardType: "",
+  },
+] as const;
+
 export const NAV_LINKS = [
   { href: "/resources/analysis", label: "Generate Report", icon: "FileBarChart" },
   { href: "/resources/analysis/history", label: "Report History", icon: "History" },
@@ -136,6 +175,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ organizationIds }),
     });
+  },
+  getShareHistory(id: string): Promise<{ outcomes: ShareOutcome[] }> {
+    return apiFetch(`/api/analysis/${id}/share`);
   },
 };
 

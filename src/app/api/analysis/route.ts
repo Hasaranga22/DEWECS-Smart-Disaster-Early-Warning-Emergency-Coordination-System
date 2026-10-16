@@ -9,6 +9,7 @@ import {
 import type { HazardType } from '@/shared/contracts/types'
 import { getActor, requireRole } from '@/shared/access'
 import { uc4 } from '@/shared/infra/container'
+import { ensureForRoute } from '@/modules/uc4-analysis/seed/ensureUc4SampleData'
 
 export const runtime = 'nodejs'
 
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     const actor = await getActor(request)
     requireRole(actor, ['DMC_OFFICIAL'])
 
+    await ensureForRoute()
     const body = await request.json()
     const report = await uc4.snapshotService.generate(body, actor)
 
@@ -60,6 +62,7 @@ export async function GET(request: Request) {
     const actor = await getActor(request)
     requireRole(actor, ['DMC_OFFICIAL'])
 
+    await ensureForRoute()
     const { searchParams } = new URL(request.url)
     const limitParam = Number(searchParams.get('limit'))
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.floor(limitParam) : 50

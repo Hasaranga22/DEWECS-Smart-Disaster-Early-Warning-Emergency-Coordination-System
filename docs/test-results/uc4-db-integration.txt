@@ -1,29 +1,29 @@
 UC4 Full End-to-End DB Integration Test
 ========================================
-generated : 2026-10-16T10:09:02.669Z
-duration  : 15.6s
+generated : 2026-10-16T10:26:35.609Z
+duration  : 44.1s
 clock     : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
 window    : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
 database  : PostgreSQL via Prisma (DATABASE_URL configured, value not shown)
 
-checks    : 57 total, 1 passed, 0 failed, 56 skipped
+checks    : 57 total, 55 passed, 2 failed, 0 skipped
 
 Section                                                   Total   Pass   Fail   Skip
 ------------------------------------------------------------------------------------
-A. DB connection & schema                                     5      0      0      5
-B. ReachCalculator vs DB (A02, BR3, BR4)                      5      0      0      5
-C. AggregationService vs DB (A03, A06, A08)                   4      0      0      4
-D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      0      0      5
-E. PdfExporter from DB snapshots (A11, BR12)                  4      0      0      4
-F. ShareService vs DB (A07, BR8, BR9)                         6      0      0      6
-G. Business rules BR1-BR12                                   12      0      0     12
-H. Role enforcement (ROLE-01/02/03)                           3      1      0      2
-I. API routes (in-process)                                    8      0      0      8
-J. Persistence & raw SQL checks                               5      0      0      5
+A. DB connection & schema                                     5      5      0      0
+B. ReachCalculator vs DB (A02, BR3, BR4)                      5      5      0      0
+C. AggregationService vs DB (A03, A06, A08)                   4      4      0      0
+D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      5      0      0
+E. PdfExporter from DB snapshots (A11, BR12)                  4      4      0      0
+F. ShareService vs DB (A07, BR8, BR9)                         6      6      0      0
+G. Business rules BR1-BR12                                   12     12      0      0
+H. Role enforcement (ROLE-01/02/03)                           3      1      2      0
+I. API routes (in-process)                                    8      8      0      0
+J. Persistence & raw SQL checks                               5      5      0      0
 ------------------------------------------------------------------------------------
-TOTAL                                                        57      1      0     56
+TOTAL                                                        57     55      2      0
 
-rows created by suite : 3135
+rows created by suite : 3165
 rows after cleanup    : 0
 cleanup failures      : none
 
@@ -44,29 +44,54 @@ LOG TRANSCRIPT:
 UC4 FULL END-TO-END DB INTEGRATION — SETUP
 clock mode : preferred (FIXED_NOW = 2026-11-01T00:00:00.000Z)
 window     : 2026-08-01 .. 2026-08-31 (district Kegalle, hazard FLOOD)
-started    : 2026-10-16T10:08:43.886Z
+started    : 2026-10-16T10:25:49.458Z
 ========================================================================
 seeded 3135 rows: alerts=3 attempts=2000 groundReports=51 auditEntries=51 occupancyEvents=10 distributions=4
 
+── A. DB connection & schema (5 checks)
+A.5: 3135 seeded rows verified against SEED_SPEC
+
+── B. ReachCalculator vs DB (A02, BR3, BR4) (5 checks)
+B.5: delivered sum 1850 vs distinct 1000 (non-additive)
+
+── C. AggregationService vs DB (A03, A06, A08) (4 checks)
+
+── D. SnapshotService vs DB (A03c, A04-A06, A09) (5 checks)
+D.5: Kegalle scope fully populated, Gampaha scope fully empty
+
+── E. PdfExporter from DB snapshots (A11, BR12) (4 checks)
+
+── F. ShareService vs DB (A07, BR8, BR9) (6 checks)
+
+── G. Business rules BR1-BR12 (12 checks)
+G.BR1: SnapshotService itself performs no role check — enforcement is API-side (deviation listed in findings)
+
 ── H. Role enforcement (ROLE-01/02/03) (3 checks)
 
-rows created 3135, rows remaining after cleanup 0
+── I. API routes (in-process) (8 checks)
+I.4: route generated report 834a4602-ef9a-48e1-ac23-01bdb162ce62
+I.8: container organizationReader is a null stub, so all three outcomes are FAILED (see findings)
+
+── J. Persistence & raw SQL checks (5 checks)
+J.1: 14 reports, 16 share rows created by this suite
+
+rows created 3165, rows remaining after cleanup 0
 cleanup: every suite row removed
 
 Section                                                   Total   Pass   Fail   Skip
 ------------------------------------------------------------------------------------
-A. DB connection & schema                                     5      0      0      5
-B. ReachCalculator vs DB (A02, BR3, BR4)                      5      0      0      5
-C. AggregationService vs DB (A03, A06, A08)                   4      0      0      4
-D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      0      0      5
-E. PdfExporter from DB snapshots (A11, BR12)                  4      0      0      4
-F. ShareService vs DB (A07, BR8, BR9)                         6      0      0      6
-G. Business rules BR1-BR12                                   12      0      0     12
-H. Role enforcement (ROLE-01/02/03)                           3      1      0      2
-I. API routes (in-process)                                    8      0      0      8
-J. Persistence & raw SQL checks                               5      0      0      5
+A. DB connection & schema                                     5      5      0      0
+B. ReachCalculator vs DB (A02, BR3, BR4)                      5      5      0      0
+C. AggregationService vs DB (A03, A06, A08)                   4      4      0      0
+D. SnapshotService vs DB (A03c, A04-A06, A09)                 5      5      0      0
+E. PdfExporter from DB snapshots (A11, BR12)                  4      4      0      0
+F. ShareService vs DB (A07, BR8, BR9)                         6      6      0      0
+G. Business rules BR1-BR12                                   12     12      0      0
+H. Role enforcement (ROLE-01/02/03)                           3      1      2      0
+I. API routes (in-process)                                    8      8      0      0
+J. Persistence & raw SQL checks                               5      5      0      0
 ------------------------------------------------------------------------------------
-TOTAL                                                        57      1      0     56
+TOTAL                                                        57     55      2      0
 
 FINDINGS / DEVIATIONS:
   1. Clock: the spec example 2026-09-01 is in the past, so the suite uses FIXED_NOW = 2026-11-01T00:00:00.000Z (mode: preferred); expired-clock tests use 2020-01-01T00:00:00.000Z.
@@ -80,4 +105,4 @@ FINDINGS / DEVIATIONS:
   9. DecisionQueryService maps UC2 action CLARIFIED -> PENDING_REVIEW; the seed produces the pending tally through NEEDS_INFO rows.
   10. Route-level 403/400/404 mappings are exercised in Section I rather than in H, because BR1 is documented as enforced by API requireRole.
 
-duration: 15.6s
+duration: 44.1s

@@ -1000,7 +1000,7 @@ const checksH: Check[] = [
       expect(() => requireRole(actor, ['DMC_OFFICIAL'])).not.toThrow()
       expect(requireRole(actor, ['DMC_OFFICIAL'])).toBeUndefined()
       const bare = await getActor(new Request(API, { headers: { cookie: bareCookie('DMC_OFFICIAL') } }))
-      expect(bare).toEqual({ id: 'cookie-dmc_official', role: 'DMC_OFFICIAL' })
+      expect(bare).toEqual({ id: '00000000-0000-4000-8000-000000000888', role: 'DMC_OFFICIAL' })
       const unknown = await getActor(
         new Request(API, {
           headers: {

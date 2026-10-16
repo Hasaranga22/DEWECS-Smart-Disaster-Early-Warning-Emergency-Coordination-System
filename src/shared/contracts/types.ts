@@ -20,6 +20,8 @@ export type SeverityIndication = 'LOW' | 'MEDIUM' | 'HIGH';
 export interface Actor {
   id: string;
   role: Role;
+  userId?: string;
+  name?: string;
   districtId?: string;
 }
 

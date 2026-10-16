@@ -6,7 +6,7 @@ import type { OrganizationReader, PartnerChannel } from '../adapters/PartnerChan
 import type { ShareLogRepository } from '../adapters/ShareLogRepository'
 import type { SnapshotRepository } from '../adapters/SnapshotRepository'
 import type { ReportShare } from '../domain/ReportShare'
-import { NotFoundError, ValidationError } from '../domain/errors'
+import { ForbiddenError, NotFoundError, ValidationError } from '../domain/errors'
 import type { ShareOutcome } from '../domain/ShareOutcome'
 
 /**
@@ -49,6 +49,12 @@ export class ShareService {
     organizationIds: string[],
     actor: Actor,
   ): Promise<ShareOutcome[]> {
+    // 0. BR1: only a DMC Official may share a snapshot — enforced at the
+    // service layer as well as at the API route layer.
+    if (actor.role !== 'DMC_OFFICIAL') {
+      throw new ForbiddenError(actor.role, 'share an analysis report')
+    }
+
     // 1. The snapshot must exist — sharing never regenerates it.
     const report = await this.repository.getById(reportId)
     if (report === null) {

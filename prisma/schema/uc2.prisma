@@ -21,39 +21,51 @@ enum SeverityIndication {
   HIGH
 }
 
+enum IncidentMapStatus {
+  ACTIVE
+  RESOLVED
+}
+
 enum AuditAction {
   VERIFIED
   REJECTED
   NEEDS_INFO
   CLARIFIED
+  RESOLVED
+  EXTENDED
 }
 
 model GroundReport {
-  id                 String              @id @default(uuid()) @db.Uuid
-  localId            String              @unique @map("local_id") @db.VarChar(100)
-  reporterId         String              @map("reporter_id") @db.Uuid
-  districtId         String              @map("district_id") @db.Uuid
-  hazardType         HazardType          @map("hazard_type")
-  description        String              @db.Text
-  latitude           Decimal             @db.Decimal(9, 6)
-  longitude          Decimal             @db.Decimal(9, 6)
-  locationSource     LocationSource      @map("location_source")
-  gpsAccuracyM       Decimal?            @map("gps_accuracy_m") @db.Decimal(8, 2)
-  photo              String?             @db.Text
-  confidence         ReportConfidence
-  reviewStatus       ReviewStatus        @map("review_status")
-  severityIndication SeverityIndication? @map("severity_indication")
-  linkedToReportId   String?             @map("linked_to_report_id") @db.Uuid
-  captureTime        DateTime            @map("capture_time") @db.Timestamptz
-  syncTime           DateTime?           @map("sync_time") @db.Timestamptz
-  version            Int
-  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  id                  String              @id @default(uuid()) @db.Uuid
+  localId             String              @unique @map("local_id") @db.VarChar(100)
+  reporterId          String              @map("reporter_id") @db.Uuid
+  districtId          String              @map("district_id") @db.Uuid
+  hazardType          HazardType          @map("hazard_type")
+  description         String              @db.Text
+  latitude            Decimal             @db.Decimal(9, 6)
+  longitude           Decimal             @db.Decimal(9, 6)
+  locationSource      LocationSource      @map("location_source")
+  gpsAccuracyM        Decimal?            @map("gps_accuracy_m") @db.Decimal(8, 2)
+  photo               String?             @db.Text
+  confidence          ReportConfidence
+  reviewStatus        ReviewStatus        @map("review_status")
+  severityIndication  SeverityIndication? @map("severity_indication")
+  mapStatus           IncidentMapStatus   @default(ACTIVE) @map("map_status")
+  mapVisibleUntil     DateTime?           @map("map_visible_until") @db.Timestamptz
+  resolvedAt          DateTime?           @map("resolved_at") @db.Timestamptz
+  resolvedByOfficerId String?             @map("resolved_by_officer_id") @db.Uuid
+  linkedToReportId    String?             @map("linked_to_report_id") @db.Uuid
+  captureTime         DateTime            @map("capture_time") @db.Timestamptz
+  syncTime            DateTime?           @map("sync_time") @db.Timestamptz
+  version             Int
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz
 
-  reporter       Citizen        @relation(fields: [reporterId], references: [id])
-  district       District       @relation(fields: [districtId], references: [id])
-  linkedToReport GroundReport?  @relation("ReportCorroboration", fields: [linkedToReportId], references: [id])
-  corroborations GroundReport[] @relation("ReportCorroboration")
+  reporter          Citizen        @relation(fields: [reporterId], references: [id])
+  district          District       @relation(fields: [districtId], references: [id])
+  resolvedByOfficer Officer?       @relation("ReportResolution", fields: [resolvedByOfficerId], references: [id])
+  linkedToReport    GroundReport?  @relation("ReportCorroboration", fields: [linkedToReportId], references: [id])
+  corroborations    GroundReport[] @relation("ReportCorroboration")
 
   auditEntries ReportAuditEntry[]
 

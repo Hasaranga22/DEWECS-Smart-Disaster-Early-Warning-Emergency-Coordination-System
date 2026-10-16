@@ -5,7 +5,7 @@ import { FakeClock, SequentialIdGenerator } from '@/shared/infra/fakes'
 import { InMemorySnapshotRepository } from '@/shared/infra/InMemorySnapshotRepository'
 
 import type { AuditLogger } from '../adapters/AuditLogger'
-import { AggregationTimeoutError } from '../domain/errors'
+import { AggregationTimeoutError, ForbiddenError } from '../domain/errors'
 import type { ShareOutcome } from '../domain/ShareOutcome'
 import { AggregationService } from '../services/AggregationService'
 import { ReachCalculator } from '../services/ReachCalculator'
@@ -182,5 +182,17 @@ describe('SnapshotService', () => {
     expect(repository.count()).toBe(0)
     expect(audit.failures).toEqual([{ reason: 'TIMEOUT', actorId: actor.id }])
     expect(audit.generations).toEqual([])
+  })
+
+  it('A10.a: non-DMC_OFFICIAL actor -> generate() throws ForbiddenError before anything runs (BR1)', async () => {
+    const { service, repository, audit } = buildService()
+    const dutyOfficer: Actor = { id: 'duty-001', role: 'DUTY_OFFICER' }
+
+    await expect(service.generate(baseInput, dutyOfficer)).rejects.toThrow(ForbiddenError)
+
+    // The guard fires before validation, aggregation, save and audit.
+    expect(repository.count()).toBe(0)
+    expect(audit.generations).toEqual([])
+    expect(audit.failures).toEqual([])
   })
 })

@@ -1,227 +1,286 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { IdbOutboxRepository } from "@/modules/uc2-report/client/IdbOutboxRepository";
-import { LocalOutboxEntry } from "@/modules/uc2-report/domain/LocalOutboxEntry";
-import { useNetworkStatus } from "@/modules/uc2-report/client/network";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { WifiOff, Wifi, RefreshCw, AlertCircle, Clock, CheckCircle2, Plus, ImageIcon, Inbox, ClipboardList } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
+  Clock3,
+  ClipboardList,
+  ImageIcon,
+  Inbox,
+  Plus,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
+import { CreativeDewecsLogo } from "@/components/CreativeDewecsLogo";
+import { IdbOutboxRepository } from "@/modules/uc2-report/client/IdbOutboxRepository";
+import type { LocalOutboxEntry } from "@/modules/uc2-report/domain/LocalOutboxEntry";
+import { useNetworkStatus } from "@/modules/uc2-report/client/network";
+import { hazardMeta, timeAgo } from "@/modules/uc2-report/client/reportUi";
 
-const HAZARD_META: Record<string, { icon: string; bg: string }> = {
-  FLOOD: { icon: "🌊", bg: "bg-sky-50" },
-  LANDSLIDE: { icon: "⛰️", bg: "bg-amber-50" },
-  CYCLONE: { icon: "🌀", bg: "bg-teal-50" },
-  DROUGHT: { icon: "☀️", bg: "bg-orange-50" },
-  OTHER: { icon: "⚠️", bg: "bg-slate-100" },
+type Notice = { message: string; type: "info" | "success" | "error" };
+
+const STATUS_STYLE: Record<string, string> = {
+  PENDING_SYNC: "bg-amber-50 text-amber-800",
+  SYNCING: "bg-sky-50 text-sky-800",
+  FAILED: "bg-rose-50 text-rose-700",
 };
 
-const timeAgo = (iso: string) => {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} min ago`;
-  const h = Math.round(mins / 60);
-  if (h < 24) return `${h} hr ago`;
-  return new Date(iso).toLocaleDateString();
+const STATUS_LABEL: Record<string, string> = {
+  PENDING_SYNC: "Waiting to send",
+  SYNCING: "Sending",
+  FAILED: "Failed",
 };
 
-const photoCount = (photo?: string) => {
+function countPhotos(photo?: string | null): number {
   if (!photo) return 0;
-  try { const p = JSON.parse(photo); return Array.isArray(p) ? p.length : 1; } catch { return 1; }
-};
+  try {
+    const parsed: unknown = JSON.parse(photo);
+    return Array.isArray(parsed) ? parsed.length : 1;
+  } catch {
+    return 1;
+  }
+}
 
 export default function OutboxPage() {
   const { isOnline, simulateOffline, setSimulateOffline } = useNetworkStatus();
   const [entries, setEntries] = useState<LocalOutboxEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const syncingRef = useRef(false);
+  const autoSyncKeyRef = useRef("");
 
-  useEffect(() => { loadOutbox(); }, []);
+  const loadOutbox = useCallback(async () => {
+    try {
+      const repo = new IdbOutboxRepository();
+      const items = await repo.getAll();
+      setEntries([...items].sort(
+        (a, b) => new Date(b.captureTime).getTime() - new Date(a.captureTime).getTime()
+      ));
+      setLoadError("");
+      return items;
+    } catch {
+      setLoadError("Could not read reports saved on this device.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const syncReports = useCallback(async () => {
+    // A ref blocks overlapping automatic and manual sync attempts immediately.
+    if (syncingRef.current || !isOnline) return;
+    syncingRef.current = true;
+    setIsSyncing(true);
+    setNotice({ message: "Sending saved reports…", type: "info" });
+
+    let sent = 0;
+    let failed = 0;
+    try {
+      const repo = new IdbOutboxRepository();
+      const pending = await repo.getPending();
+      for (const entry of pending) {
+        try {
+          const response = await fetch("/api/reports", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(entry),
+          });
+          if (!response.ok) throw new Error("The server did not accept this report.");
+          await repo.remove(entry.localId);
+          sent += 1;
+        } catch (error: unknown) {
+          const reason = error instanceof Error ? error.message : "Could not send report.";
+          await repo.save({ ...entry, status: "FAILED", failureReason: reason });
+          failed += 1;
+        }
+      }
+
+      if (failed) {
+        setNotice({
+          message: `${sent} sent, ${failed} failed. You can try again.`,
+          type: "error",
+        });
+      } else if (sent) {
+        setNotice({
+          message: `${sent} report${sent === 1 ? "" : "s"} sent successfully.`,
+          type: "success",
+        });
+      } else {
+        setNotice(null);
+      }
+    } catch {
+      setNotice({ message: "Unable to access the outbox. Please retry.", type: "error" });
+    } finally {
+      await loadOutbox();
+      syncingRef.current = false;
+      setIsSyncing(false);
+    }
+  }, [isOnline, loadOutbox]);
 
   useEffect(() => {
-    if (isOnline && entries.some((e) => e.status === "PENDING_SYNC" || e.status === "FAILED")) {
-      handleSync();
-    }
-  }, [isOnline]);
+    void loadOutbox();
+  }, [loadOutbox]);
 
-  const loadOutbox = async () => {
-    const repo = new IdbOutboxRepository();
-    const data = await repo.getAll();
-    setEntries(data.sort((a, b) => new Date(b.captureTime).getTime() - new Date(a.captureTime).getTime()));
-  };
+  useEffect(() => {
+    // Automatically send newly queued reports when back online. Failed reports
+    // require a manual retry rather than silently retrying on every render.
+    if (!isOnline || loading || loadError || isSyncing) return;
+    const waitingIds = entries
+      .filter((entry) => entry.status === "PENDING_SYNC")
+      .map((entry) => entry.localId)
+      .sort()
+      .join("|");
+    if (!waitingIds || waitingIds === autoSyncKeyRef.current) return;
+    autoSyncKeyRef.current = waitingIds;
+    void syncReports();
+  }, [entries, isOnline, loading, loadError, isSyncing, syncReports]);
 
-  const handleSync = async () => {
-    if (!isOnline) {
-      setSyncResult({ msg: "You're offline. Reconnect to send your reports.", type: "error" });
-      return;
-    }
-    setIsSyncing(true);
-    setSyncResult({ msg: "Sending your reports…", type: "info" });
-    let succeeded = 0;
-    let failed = 0;
-
-    const repo = new IdbOutboxRepository();
-    const pending = await repo.getPending();
-
-    for (const entry of pending) {
-      try {
-        const response = await fetch("/api/reports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(entry),
-        });
-        if (response.ok) {
-          await repo.remove(entry.localId);
-          succeeded++;
-        } else {
-          await repo.save({ ...entry, status: "FAILED", failureReason: "Server rejected" });
-          failed++;
-        }
-      } catch (err: any) {
-        await repo.save({ ...entry, status: "FAILED", failureReason: err.message });
-        failed++;
-      }
-    }
-
-    if (failed > 0) {
-      setSyncResult({ msg: `${succeeded} sent, ${failed} failed. Tap Send all to retry.`, type: "error" });
-    } else if (succeeded > 0) {
-      setSyncResult({ msg: `${succeeded} report${succeeded === 1 ? "" : "s"} sent.`, type: "success" });
-      setTimeout(() => setSyncResult(null), 3000);
-    } else {
-      setSyncResult(null);
-    }
-    setIsSyncing(false);
-    await loadOutbox();
-  };
-
-  const statusStyle = (s: string) =>
-    s === "PENDING_SYNC" ? "bg-amber-50 text-amber-700"
-    : s === "SYNCING" ? "bg-sky-50 text-sky-700"
-    : "bg-red-50 text-red-700";
-
-  const statusLabel = (s: string) => (s === "PENDING_SYNC" ? "Waiting" : s === "SYNCING" ? "Sending" : "Failed");
-
-  const failedCount = entries.filter((e) => e.status === "FAILED").length;
+  const failedCount = entries.filter((entry) => entry.status === "FAILED").length;
+  const waitingCount = entries.filter((entry) => entry.status === "PENDING_SYNC").length;
+  const canSend = isOnline && !isSyncing && entries.length > 0 && !loading && !loadError;
 
   return (
-    <div className="min-h-screen bg-slate-100 pb-32">
-      {/* Hero header */}
-      <header className="bg-slate-950 text-white px-5 pt-5 pb-16 rounded-b-[2rem]">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Outbox</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              {entries.length === 0 ? "Nothing waiting to send" : `${entries.length} report${entries.length === 1 ? "" : "s"} waiting`}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Link href="/report/history" className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 px-3 py-2.5 rounded-xl active:bg-white/10"><ClipboardList size={16} /> Sent reports</Link>
-            <Link href="/report/new" className="flex items-center gap-1.5 text-sm font-semibold bg-teal-500 text-slate-950 pl-3 pr-4 py-2.5 rounded-full active:bg-teal-400 shadow-lg">
-              <Plus size={18} strokeWidth={3} /> New report
+    <div className="min-h-screen bg-slate-50 pb-28 text-slate-900">
+      <header className="bg-slate-950 text-white">
+        <div className="mx-auto max-w-xl px-4 pb-5 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Link
+                href="/report/new"
+                aria-label="Back to report a hazard"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
+              >
+                <ChevronLeft size={20} />
+              </Link>
+              <CreativeDewecsLogo variant="dark" size="sm" showTagline={false} />
+            </div>
+            <Link
+              href="/report/new"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-400 px-3 py-2.5 text-sm font-semibold text-slate-950 hover:bg-teal-300"
+            >
+              <Plus size={16} /> New report
             </Link>
+          </div>
+          <div className="mt-5">
+            <h1 className="text-2xl font-bold tracking-tight">Outbox</h1>
+            <p className="mt-1 text-sm text-slate-300">
+              Reports saved on this device until they are sent.
+            </p>
           </div>
         </div>
       </header>
 
-      <main className="px-4 -mt-9 max-w-md mx-auto space-y-4">
-        {/* Connection card */}
-        <div className={`p-4 rounded-3xl flex items-center justify-between shadow-sm ${isOnline ? "bg-white" : "bg-amber-50 border border-amber-200"}`}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 ${isOnline ? "bg-emerald-50 text-emerald-600" : "bg-amber-100 text-amber-700"}`}>
-              {isOnline ? <Wifi size={22} /> : <WifiOff size={22} />}
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-slate-900">{isOnline ? "You're online" : "You're offline"}</p>
-              <p className="text-xs text-slate-500">{isOnline ? "Reports send automatically" : "Reports are saved on this phone"}</p>
+      <main className="mx-auto max-w-xl space-y-4 px-4 py-5">
+        <nav aria-label="Report navigation" className="grid grid-cols-2 gap-2">
+          <Link href="/report/alerts" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            <AlertTriangle size={16} className="text-amber-600" /> Active alerts
+          </Link>
+          <Link href="/report/history" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            <ClipboardList size={16} className="text-teal-700" /> Sent reports
+          </Link>
+        </nav>
+
+        <section className={`rounded-2xl border p-4 ${isOnline ? "border-slate-200 bg-white" : "border-amber-200 bg-amber-50"}`} aria-label="Network status">
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOnline ? "bg-emerald-50 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>
+              {isOnline ? <Wifi size={20} /> : <WifiOff size={20} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{isOnline ? "Connection available" : "Offline mode"}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+                {isOnline ? "Waiting reports can be sent now." : "Your unsent reports remain saved on this device."}
+              </p>
             </div>
           </div>
-          <button
-            onClick={() => setSimulateOffline(!simulateOffline)}
-            className="text-xs font-semibold px-3.5 py-2 bg-slate-100 text-slate-700 rounded-xl active:bg-slate-200 shrink-0"
-          >
-            {simulateOffline ? "Go online" : "Go offline"}
-          </button>
-        </div>
+          {process.env.NODE_ENV === "development" && (
+            <button type="button" onClick={() => setSimulateOffline(!simulateOffline)} className="mt-3 text-xs font-medium text-teal-800 underline underline-offset-2">
+              {simulateOffline ? "Disable simulated offline mode" : "Simulate offline mode (dev only)"}
+            </button>
+          )}
+        </section>
 
-        {syncResult && (
-          <div role="status" className={`px-4 py-3 flex items-center gap-2.5 rounded-2xl text-sm font-medium ${
-            syncResult.type === "error" ? "bg-red-50 text-red-700" : syncResult.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-sky-50 text-sky-700"
-          }`}>
-            {syncResult.type === "info" && <RefreshCw size={16} className="animate-spin shrink-0" />}
-            {syncResult.type === "error" && <AlertCircle size={16} className="shrink-0" />}
-            {syncResult.type === "success" && <CheckCircle2 size={16} className="shrink-0" />}
-            {syncResult.msg}
+        {notice && (
+          <div role={notice.type === "error" ? "alert" : "status"} className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${notice.type === "error" ? "bg-rose-50 text-rose-800" : notice.type === "success" ? "bg-emerald-50 text-emerald-800" : "bg-sky-50 text-sky-800"}`}>
+            {notice.type === "error" ? <AlertCircle size={18} className="mt-0.5 shrink-0" /> : notice.type === "success" ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <RefreshCw size={18} className="mt-0.5 shrink-0 animate-spin" />}
+            <span>{notice.message}</span>
           </div>
         )}
 
-        {entries.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 flex flex-col items-center text-center shadow-sm">
-            <div className="h-20 w-20 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
-              <Inbox size={36} />
-            </div>
-            <p className="font-bold text-slate-900 text-lg">Everything is sent</p>
-            <p className="text-slate-500 text-sm mt-1 max-w-[16rem]">Reports saved while offline will show up here until they're delivered.</p>
-            <Link href="/report/new" className="mt-6 px-6 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold active:scale-95 transition-transform">
-              Report a hazard
-            </Link>
-          </div>
+        {loading ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-8 text-center" role="status">
+            <RefreshCw size={24} className="mx-auto mb-3 animate-spin text-teal-700" />
+            <p className="text-sm text-slate-600">Loading saved reports…</p>
+          </section>
+        ) : loadError ? (
+          <section role="alert" className="rounded-2xl border border-rose-200 bg-white p-7 text-center">
+            <AlertCircle size={28} className="mx-auto mb-3 text-rose-600" />
+            <h2 className="font-semibold">Unable to open outbox</h2>
+            <p className="mt-1 text-sm text-slate-600">{loadError}</p>
+            <button type="button" onClick={() => void loadOutbox()} className="mt-4 min-h-11 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white">Try again</button>
+          </section>
+        ) : entries.length === 0 ? (
+          <section className="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-700"><Inbox size={28} /></span>
+            <h2 className="mt-4 text-lg font-semibold">No reports waiting</h2>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-slate-600">Reports you save while offline will appear here until sent.</p>
+            <Link href="/report/new" className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white">Report a hazard</Link>
+          </section>
         ) : (
-          <>
-            <div className="flex items-center justify-between px-1">
-              <h2 className="font-bold text-slate-900">Waiting to send</h2>
-              {failedCount > 0 && <span className="text-xs font-semibold text-red-600">{failedCount} failed</span>}
+          <section aria-labelledby="queued-heading">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 id="queued-heading" className="text-base font-semibold">Saved reports</h2>
+                <p className="mt-0.5 text-xs text-slate-500">{waitingCount} waiting{failedCount ? ` · ${failedCount} failed` : ""}</p>
+              </div>
+              <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">{entries.length} total</span>
             </div>
-
             <ul className="space-y-3">
               {entries.map((entry) => {
-                const meta = HAZARD_META[entry.hazardType] ?? HAZARD_META.OTHER;
-                const photos = photoCount((entry as any).photo);
+                const hazard = hazardMeta(entry.hazardType);
+                const photos = countPhotos((entry as LocalOutboxEntry & { photo?: string }).photo);
                 return (
-                  <li key={entry.localId} className="bg-white p-4 rounded-3xl shadow-sm flex gap-3.5">
-                    <div className={`h-14 w-14 rounded-2xl ${meta.bg} flex items-center justify-center text-3xl shrink-0`}>
-                      {meta.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-semibold text-slate-900 capitalize truncate">{entry.hazardType.toLowerCase()}</h3>
-                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 ${statusStyle(entry.status)}`}>
-                          {entry.status === "PENDING_SYNC" && <Clock size={11} />}
-                          {entry.status === "SYNCING" && <RefreshCw size={11} className="animate-spin" />}
-                          {entry.status === "FAILED" && <AlertCircle size={11} />}
-                          {statusLabel(entry.status)}
+                  <li key={entry.localId} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start gap-3">
+                      <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl ${hazard.tint}`}>{hazard.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-semibold">{hazard.label}</h3>
+                        <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[entry.status] ?? STATUS_STYLE.FAILED}`}>
+                          {entry.status === "FAILED" ? <AlertCircle size={13} /> : entry.status === "SYNCING" ? <RefreshCw size={13} className="animate-spin" /> : <Clock3 size={13} />}
+                          {STATUS_LABEL[entry.status] ?? "Needs attention"}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-600 mt-1 line-clamp-2">{entry.description}</p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
-                        <span>{timeAgo(entry.captureTime)}</span>
-                        {photos > 0 && (
-                          <span className="flex items-center gap-1"><ImageIcon size={12} /> {photos} photo{photos === 1 ? "" : "s"}</span>
-                        )}
-                      </div>
-                      {entry.failureReason && (
-                        <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1">
-                          <AlertCircle size={12} /> {entry.failureReason}
-                        </p>
-                      )}
                     </div>
+                    {entry.description && <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600">{entry.description}</p>}
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1"><Clock3 size={13} /> {timeAgo(entry.captureTime)}</span>
+                      {photos > 0 && <span className="inline-flex items-center gap-1"><ImageIcon size={13} /> {photos} photo{photos === 1 ? "" : "s"}</span>}
+                    </div>
+                    {entry.failureReason && (
+                      <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs leading-relaxed text-rose-800">{entry.failureReason}</p>
+                    )}
                   </li>
                 );
               })}
             </ul>
-          </>
+          </section>
         )}
       </main>
 
-      {entries.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-slate-200 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <button
-            onClick={handleSync}
-            disabled={isSyncing || !isOnline}
-            className="w-full max-w-md mx-auto flex items-center justify-center gap-2 bg-teal-600 text-white font-semibold py-4 rounded-2xl shadow-lg active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100"
-          >
-            <RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} />
-            {isSyncing ? "Sending…" : isOnline ? "Send all now" : "Reconnect to send"}
-          </button>
+      {!loading && !loadError && entries.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto max-w-xl">
+            <button type="button" onClick={() => void syncReports()} disabled={!canSend} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">
+              <RefreshCw size={17} className={isSyncing ? "animate-spin" : ""} />
+              {isSyncing ? "Sending reports…" : isOnline ? "Send saved reports" : "Reconnect to send"}
+            </button>
+          </div>
         </div>
       )}
     </div>

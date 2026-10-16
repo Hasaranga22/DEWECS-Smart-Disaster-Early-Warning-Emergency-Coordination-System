@@ -4,7 +4,7 @@ import type { Actor } from '@/shared/contracts/types'
 import type { AuditLogger } from '../adapters/AuditLogger'
 import type { SnapshotRepository } from '../adapters/SnapshotRepository'
 import type { AnalysisReport } from '../domain/AnalysisReport'
-import { AggregationTimeoutError } from '../domain/errors'
+import { AggregationTimeoutError, ForbiddenError } from '../domain/errors'
 import type { Metrics } from '../domain/Metrics'
 import type { AggregationService } from './AggregationService'
 import type { ReportFilterValidator } from './ReportFilterValidator'
@@ -65,6 +65,12 @@ export class SnapshotService {
    *         (nothing is saved)
    */
   async generate(input: unknown, actor: Actor): Promise<AnalysisReport> {
+    // 0. BR1: only a DMC Official may generate a snapshot — enforced at the
+    // service layer as well as at the API route layer.
+    if (actor.role !== 'DMC_OFFICIAL') {
+      throw new ForbiddenError(actor.role, 'generate an analysis report')
+    }
+
     // 1. Validate filters — may throw ValidationError before any side effect.
     const filters = this.validator.validate(input)
 
