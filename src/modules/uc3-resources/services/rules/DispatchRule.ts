@@ -1,3 +1,4 @@
+//UC3 - Resource Management-SOLID Principles-Open/Closed Principle(O)
 import { RescueTeam } from "../../domain/entities/RescueTeam";
 import {
   CrossOrganizationConfirmationRequiredError,

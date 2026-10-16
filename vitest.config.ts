@@ -12,6 +12,7 @@ export default defineConfig({
       exclude: [
         '**/__tests__/**',
         '**/adapters/prisma/**',
+        '**/adapters/repositories/**',
         'src/modules/uc4-analysis/seed/**',
         'src/generated/**',
         'src/app/**',

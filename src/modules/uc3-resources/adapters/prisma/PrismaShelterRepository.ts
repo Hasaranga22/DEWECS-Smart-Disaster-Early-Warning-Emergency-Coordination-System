@@ -1,3 +1,5 @@
+
+//UC3 - Resource Management-SOLID Principles-Dependency Inversion (D)
 import { prisma } from "@/shared/infra/prisma/client";
 import { Shelter } from "../../domain/entities/Shelter";
 import { ShelterRepository } from "../repositories/ShelterRepository";

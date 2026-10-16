@@ -104,7 +104,11 @@ export default function DashboardPage() {
         setUnassignedRequests(data.unassignedDispatchRequests || []);
         setPreselectedAlert(data.preselectedFromAlert || null);
         setLastRefreshedAt(new Date(data.lastRefreshedAt || Date.now()).toLocaleTimeString());
-
+        setBannerMessage(null);
+      } else {
+        const errJson = await res.json().catch(() => null);
+        const msg = errJson?.error?.message || `Failed to load dashboard data (Status ${res.status})`;
+        setBannerMessage(msg);
       }
     } catch (err) {
       setBannerMessage("Failed to load live dashboard data. Operating on cached state.");
@@ -115,6 +119,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+
+    const onRoleChanged = () => {
+      fetchDashboardData();
+    };
+    window.addEventListener("dewecs-role-changed", onRoleChanged);
+    return () => window.removeEventListener("dewecs-role-changed", onRoleChanged);
   }, []);
 
   const handleActivateShelter = async (e: React.FormEvent) => {
