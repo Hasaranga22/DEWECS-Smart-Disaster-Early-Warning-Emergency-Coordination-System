@@ -91,6 +91,7 @@ model Officer {
   hazardAlerts        HazardAlert[]
   alertEscalations    AlertEscalation[]
   reportAuditEntries  ReportAuditEntry[]
+  resolvedReports     GroundReport[]      @relation("ReportResolution")
   occupancyEvents     OccupancyEvent[]
   distributions       Distribution[]
   teamStatusEvents    TeamStatusEvent[]

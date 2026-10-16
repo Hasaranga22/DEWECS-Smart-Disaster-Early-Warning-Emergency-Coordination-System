@@ -1,0 +1,61 @@
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90mC:/Users/USER/Desktop/All/3y 2s/css/assiment/Asimrnt 2 project/DEWECS-Smart-Disaster-Early-Warning-Emergency-Coordination-System[39m
+
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts[2m > [22mReachCalculator[2m > [22mA02.a: distinctCitizens === 3 (C001, C002, C004 each have >=1 DELIVERED)[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts[2m > [22mReachCalculator[2m > [22mA02.b: perChannel.PUSH === { attempted: 3, delivered: 2, failed: 1 }[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts[2m > [22mReachCalculator[2m > [22mA02.c: perChannel.SMS === { attempted: 4, delivered: 2, failed: 2 }[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts[2m > [22mReachCalculator[2m > [22mA02.d: empty array → all zeros[32m 0[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReachCalculator.test.ts[2m > [22mReachCalculator[2m > [22mA02.e: filter only C001's two attempts → distinctCitizens === 1 (proves G04 fix)[32m 0[2mms[22m[39m
+ [32m✓[39m tests/integration/roles.test.ts[2m > [22mUC4 role guards[2m > [22mROLE-01: District Officer actor → requireRole([DMC_OFFICIAL]) throws ForbiddenError[32m 4[2mms[22m[39m
+ [32m✓[39m tests/integration/roles.test.ts[2m > [22mUC4 role guards[2m > [22mROLE-02: Citizen actor → requireRole([DMC_OFFICIAL]) throws ForbiddenError[32m 1[2mms[22m[39m
+ [32m✓[39m tests/integration/roles.test.ts[2m > [22mUC4 role guards[2m > [22mROLE-03: DMC Official actor → requireRole([DMC_OFFICIAL]) does not throw[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/GroundReport.test.ts[2m > [22mGroundReport Domain Entity[2m > [22mshould successfully transition to VERIFIED and increment version[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/GroundReport.test.ts[2m > [22mGroundReport Domain Entity[2m > [22mshould successfully transition to REJECTED and increment version[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/GroundReport.test.ts[2m > [22mGroundReport Domain Entity[2m > [22mshould throw error if rejecting without a reason[32m 2[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/GroundReport.test.ts[2m > [22mGroundReport Domain Entity[2m > [22mshould throw InvalidStateTransitionError if verifying an already rejected report[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/GroundReport.test.ts[2m > [22mGroundReport Domain Entity[2m > [22mshould handle the NEEDS_INFO -> PENDING_REVIEW clarification loop[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/AggregationService.test.ts[2m > [22mAggregationService[2m > [22mA03.a: passes the same Filter object (with .cutoff) to every reader[32m 7[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/AggregationService.test.ts[2m > [22mAggregationService[2m > [22mA06.a: SlowReader as alertReader + 50ms deadline → throws AggregationTimeoutError[32m 54[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/AggregationService.test.ts[2m > [22mAggregationService[2m > [22mA08.a: distribution with total === 0 → supplies.byType[type].percent === null[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/AggregationService.test.ts[2m > [22mAggregationService[2m > [22mA08.b: distribution with delivered === total → percent === 100[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/ReviewService.test.ts[2m > [22mReviewService[2m > [22mshould verify a report, persist it, and write an audit log[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/ReviewService.test.ts[2m > [22mReviewService[2m > [22mshould throw VersionConflictError during concurrent modifications[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/SubmissionService.test.ts[2m > [22mSubmissionService[2m > [22mshould route to offline Outbox if isOnline = false[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/SubmissionService.test.ts[2m > [22mSubmissionService[2m > [22mshould route to central DB if isOnline = true[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/SubmissionService.test.ts[2m > [22mSubmissionService[2m > [22mshould detect duplicate and link if submitted within 500m and 60min[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc2-report/__tests__/SubmissionService.test.ts[2m > [22mSubmissionService[2m > [22mshould NOT link if hazard type is different despite being close[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ShareService.test.ts[2m > [22mShareService[2m > [22mA07.a: 3 orgs, RNG [0.9, 0.1, 0.9] @ 0.5 → ['SENT','FAILED','SENT'], 3 log rows[32m 60[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ShareService.test.ts[2m > [22mShareService[2m > [22mA07.b: retry same org twice (RNG [0.1, 0.9]) → shareLog.count() === 2 (append-only)[32m 34[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ShareService.test.ts[2m > [22mShareService[2m > [22mA07.c: empty org list → throws ValidationError[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ShareService.test.ts[2m > [22mShareService[2m > [22mA07.d: unknown reportId → throws NotFoundError[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22mreturns typed filters with Date objects on valid input[32m 8[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22mpasses through optional districtId and hazardType[32m 0[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22maccepts exactly 365 days range[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22mrule 1: throws ValidationError [from, to] when dates are missing[32m 4[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22mrule 2: throws ValidationError [from] when from is after to[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22mrule 3: throws ValidationError [to] when range exceeds 365 days[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22mrule 4: throws ValidationError [includedSections] when no sections selected[32m 0[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ReportFilterValidator.test.ts[2m > [22mReportFilterValidator[2m > [22mreports shape errors for invalid enum / uuid values[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/ShareService.test.ts[2m > [22mShareService[2m > [22mA07.e: all failures (RNG [0.1, 0.1, 0.1]) → outcomes all FAILED, shareLog.count() === 3[32m 41[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts[2m > [22mSnapshotService[2m > [22mA03.c: two generate() calls with different filters → different report IDs; both retrievable[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts[2m > [22mSnapshotService[2m > [22mA04.a: mutating reader data after generate leaves stored metrics unchanged[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts[2m > [22mSnapshotService[2m > [22mA04.b: report is frozen (Object.isFrozen === true)[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts[2m > [22mSnapshotService[2m > [22mA05.a: empty readers → warningFlag === true[32m 1[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts[2m > [22mSnapshotService[2m > [22mA05.b: non-empty readers (at least 1 alert) → warningFlag === false[32m 0[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/SnapshotService.test.ts[2m > [22mSnapshotService[2m > [22mA06.b: SlowReader + valid input → throws AggregationTimeoutError AND repo.count() === 0[32m 2[2mms[22m[39m
+ [32m✓[39m tests/integration/uc134-to-uc4.test.ts[2m > [22mUC4 integration: UC1+UC3 → UC4 full flow[2m > [22mINT-01: full flow produces correct metrics[32m 9[2mms[22m[39m
+ [32m✓[39m tests/integration/uc134-to-uc4.test.ts[2m > [22mUC4 integration: share retry semantics[2m > [22mINT-02: share failures append without invalidating snapshot[32m 61[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/PdfExporter.test.ts[2m > [22mPdfExporter[2m > [22mA11.a: full snapshot → PDF has >= 1 page[32m 31[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/PdfExporter.test.ts[2m > [22mPdfExporter[2m > [22mA11.b: includedSections: ['ALERTS'] → PDF valid, no crash[32m 4[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/PdfExporter.test.ts[2m > [22mPdfExporter[2m > [22mA11.c: empty snapshot (warningFlag=true, all metrics zero) → still valid PDF[32m 4[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/PdfExporter.test.ts[2m > [22mPdfExporter[2m > [22mA11.d: percent === null case (zero-total supplies) → PDF valid, no crash[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/uc4-analysis/__tests__/PdfExporter.test.ts[2m > [22mPdfExporter[2m > [22mA11.e: Sinhala labels (language SI) export without crash (WinAnsi fallback)[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m11 passed[39m[22m[90m (11)[39m
+[2m      Tests [22m [1m[32m49 passed[39m[22m[90m (49)[39m
+[2m   Start at [22m 08:20:02
+[2m   Duration [22m 981ms[2m (transform 47%, import 40%, tests 10%, worker 3%)[22m
+

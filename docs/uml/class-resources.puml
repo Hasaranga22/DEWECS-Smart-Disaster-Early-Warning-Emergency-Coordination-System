@@ -1,0 +1,144 @@
+@startuml class-resources
+skinparam fontName Arial
+skinparam fontSize 12
+
+package "Domain Layer" {
+  class Shelter {
+    + id: string
+    + districtId: string
+    + organizationId: string
+    + name: string
+    + capacity: number
+    + occupancy: number
+    + status: ShelterStatus
+    + version: number
+    + withOccupancy(newCount, alternatives): Shelter
+  }
+
+  class RescueTeam {
+    + id: string
+    + districtId: string
+    + organizationId: string
+    + name: string
+    + capability: string
+    + state: TeamState
+    + version: number
+    + dispatch(): RescueTeam
+    + arrive(): RescueTeam
+    + startReturn(): RescueTeam
+    + completeReturn(): RescueTeam
+  }
+
+  interface TeamState {
+    + name: RescueTeamStatus
+    + dispatch(): TeamState
+    + arrive(): TeamState
+    + startReturn(): TeamState
+    + completeReturn(): TeamState
+  }
+
+  class AvailableState implements TeamState
+  class EnRouteState implements TeamState
+  class OnSiteState implements TeamState
+  class ReturningState implements TeamState
+
+  RescueTeam *-- TeamState
+
+  class SupplyStock {
+    + id: string
+    + organizationId: string
+    + districtId: string
+    + supplyType: string
+    + onHand: number
+    + version: number
+    + withDeduction(quantity): SupplyStock
+  }
+
+  class OccupancyEvent {
+    + id: string
+    + shelterId: string
+    + previousCount: number
+    + newCount: number
+    + occurredAt: Date
+    + actionId: string
+  }
+
+  class Distribution {
+    + id: string
+    + stockId: string
+    + destinationShelterId: string
+    + quantity: number
+    + occurredAt: Date
+    + actionId: string
+  }
+
+  class DispatchRequest {
+    + id: string
+    + districtId: string
+    + location: string
+    + status: DispatchRequestStatus
+  }
+
+  class ConflictQueueItem {
+    + id: string
+    + actionType: string
+    + payload: Json
+    + expectedVersion: number
+    + actualVersion: number
+    + status: ConflictStatus
+  }
+}
+
+package "Services & Application Layer" {
+  class ShelterService {
+    + registerShelter(cmd): Promise<Shelter>
+    + updateOccupancy(cmd): Promise<Shelter>
+  }
+
+  class DispatchService {
+    + dispatch(cmd): Promise<DispatchResult>
+    + findBackupTeams(districtId): Promise<RescueTeam[]>
+    + advanceTeam(cmd): Promise<RescueTeam>
+  }
+
+  class DistributionService {
+    + distribute(cmd): Promise<Distribution>
+  }
+
+  class DashboardService {
+    + getDashboard(actor, districtId): Promise<DashboardData>
+  }
+
+  class ConflictQueue {
+    + enqueue(...): Promise<ConflictQueueItem>
+    + listOpen(districtId): Promise<ConflictQueueItem[]>
+    + resolve(id, resolution, officerId): Promise<ConflictQueueItem>
+  }
+
+  class IdempotentCommandExecutor {
+    + executeCommand(cmd): Promise<T>
+  }
+}
+
+package "Ports & Contracts" {
+  interface PartnerNotifier {
+    + notifyPartnerDispatch(notification): Promise<void>
+  }
+
+  interface DistrictAdjacency {
+    + getAdjacentDistrictIds(districtId): Promise<string[]>
+  }
+
+  interface TransactionRunner {
+    + runInTransaction(work): Promise<T>
+  }
+}
+
+ShelterService --> Shelter
+DispatchService --> RescueTeam
+DistributionService --> SupplyStock
+DistributionService --> TransactionRunner
+DispatchService --> PartnerNotifier
+DispatchService --> DistrictAdjacency
+
+@enduml

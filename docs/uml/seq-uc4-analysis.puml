@@ -1,0 +1,202 @@
+@startuml seq-uc4-analysis
+skinparam fontName Arial
+skinparam fontSize 12
+skinparam boxPadding 10
+skinparam participantPadding 10
+
+autonumber
+
+box "User & UI" #FFF8DC
+actor "DMC Official" as Officer
+participant "Analysis UI\n(/analysis, /[id], /charts, /share, /history)" as UI
+end box
+
+box "API Layer" #AliceBlue
+participant "API Routes\n(/api/analysis/*)" as API
+end box
+
+box "Domain & Application Services" #LightYellow
+participant "ReportFilterValidator" as Validator
+participant "SnapshotService" as SnapSvc
+participant "AggregationService" as Agg
+participant "ReachCalculator" as Reach
+participant "PdfExporter" as Pdf
+participant "ShareService" as ShareSvc
+end box
+
+box "Reader Contracts (6)" #MintCream
+participant "AlertReader" as AlertR
+participant "AttemptReader" as AttemptR
+participant "ReportDecisionReader" as DecisionR
+participant "OccupancyEventReader" as OccupancyR
+participant "DistributionReader" as DistR
+participant "SupplyStockReader" as StockR
+end box
+
+box "Adapters & Persistence" #Snow
+participant "SnapshotRepository" as SnapRepo
+participant "ShareLogRepository" as ShareLog
+participant "OrganizationReader" as OrgReader
+participant "PartnerChannel" as Channel
+participant "AuditLogger" as Audit
+end box
+
+== Main Flow: Generate Snapshot (UC4 M1-M3) ==
+
+UI -> API: POST /api/analysis {from, to, districtId?, hazardType?, includedSections, language}
+API -> SnapSvc: generate(input, actor)
+alt BR1 / A10: actor.role != DMC_OFFICER
+    SnapSvc --> API: throw ForbiddenError(role, action)
+    API --> UI: HTTP 403 Forbidden
+else DMC_OFFICER
+    SnapSvc -> Validator: validate(input)
+    alt Invalid filters (from > to, range > 365 days, bad enums)
+        Validator --> SnapSvc: throw ValidationError(fields)
+        SnapSvc --> API: rethrow
+        API --> UI: HTTP 400 (fields highlighted)
+    else Valid
+        Validator --> SnapSvc: ValidatedFilters
+        SnapSvc -> SnapSvc: sourceCutoff = Clock.now(); deadline = cutoff + 60s
+        SnapSvc -> Agg: aggregate(filters, sourceCutoff, deadline)
+
+        note right of Agg
+          ONE shared Filter {from, to, districtId,
+          hazardType, cutoff} goes to ALL 6 readers
+          in parallel (BR5 coherent snapshot)
+        end note
+
+        par Parallel reader queries
+            Agg -> AlertR: listAlerts(sharedFilter)
+            AlertR --> Agg: HazardAlert[]
+        also
+            Agg -> AttemptR: listAttempts(sharedFilter)
+            AttemptR --> Agg: NotificationAttempt[]
+        also
+            Agg -> DecisionR: listDecisions(sharedFilter)
+            DecisionR --> Agg: ReportDecision[]
+        also
+            Agg -> OccupancyR: listEvents(sharedFilter)
+            OccupancyR --> Agg: OccupancyEvent[]
+        also
+            Agg -> DistR: listDistributions(sharedFilter)
+            DistR --> Agg: Distribution[]
+        also
+            Agg -> StockR: listStocks(sharedFilter)
+            StockR --> Agg: SupplyStock[]
+        end
+
+        Agg -> Reach: compute(attempts)
+        Reach --> Agg: ReachMetrics (distinct delivered citizens BR3, per-channel non-additive BR4)
+        Agg --> SnapSvc: Metrics
+
+        alt E2: aggregation misses the deadline
+            Agg --> SnapSvc: throw AggregationTimeoutError
+            SnapSvc -> Audit: logFailure('TIMEOUT', actorId)
+            SnapSvc --> API: rethrow (NO snapshot saved, BR6)
+            API --> UI: error + "retry with narrower scope"
+        else Within deadline
+            opt E1: empty period (isAllZero(metrics))
+                SnapSvc -> SnapSvc: warningFlag = true (still a valid report, no exception)
+            end
+            SnapSvc -> SnapSvc: report = Object.freeze({id: IdGenerator.next(), filters, sourceCutoff, generatedAt, generatedBy, metrics, warningFlag})
+            SnapSvc -> SnapRepo: save(report)   write-once, no update/delete (BR2)
+            SnapSvc -> Audit: logGeneration(reportId, actorId)
+            SnapSvc --> API: AnalysisReport
+            API --> UI: HTTP 200 (KPIs + charts render)
+        end
+    end
+end
+
+== Alternate A4: Prefill from Query Params ==
+
+UI -> API: GET /analysis?district=...&from=...&to=...
+alt A4: query params present
+    API --> UI: form pre-filled from params (buildQueryString / prefillFromQuery)
+else no params
+    API --> UI: empty setup form (defaults)
+end
+
+== Alternates A1 + A2: New Snapshot / Reopen from History ==
+
+UI -> API: GET /api/analysis (history list)
+API -> SnapRepo: list(limit?, districtId?, hazardType?)
+SnapRepo --> API: AnalysisReport[]
+API --> UI: history table
+UI -> API: GET /api/analysis/{id}   A2: reopen
+API -> SnapRepo: getById(id)
+SnapRepo --> API: saved AnalysisReport (metrics unchanged)
+
+alt A1: user changes filters and regenerates
+    UI -> API: POST /api/analysis {new filters}
+    API -> SnapSvc: generate(newInput, actor)
+    SnapSvc -> SnapRepo: save(newReport)   append-only: old snapshot retained, distinct id
+    SnapSvc --> UI: new scoped report (original still retrievable)
+end
+
+== Main Flow: Export PDF (Alternate A3: export-only, no share) ==
+
+UI -> API: GET /api/analysis/{id}/pdf?lang=EN&mask=1
+API -> SnapRepo: getById(id)
+SnapRepo --> API: AnalysisReport (saved snapshot, never live data)
+API -> Pdf: export(snapshot, language)
+opt A5 / BR12: includedSections omits unselected sections
+    Pdf -> Pdf: render only selected sections
+end
+alt E3: export fails
+    Pdf --> API: throw PdfExportError
+    API --> UI: HTTP 503 {error: 'PdfExportError'} (snapshot retained)
+    UI -> API: retry GET /pdf   re-export WITHOUT re-aggregation
+else success
+    Pdf --> API: Uint8Array (filename + '-masked' when mask=1)
+    API --> UI: PDF download
+end
+
+== Main Flow: Share with Partners ==
+
+UI -> API: POST /api/analysis/{id}/share {organizationIds: [org1, org2, org3]}
+API -> ShareSvc: share(reportId, organizationIds, actor)
+alt BR1 / A10: actor.role != DMC_OFFICER
+    ShareSvc --> API: throw ForbiddenError
+    API --> UI: HTTP 403
+else DMC_OFFICER
+    alt report missing / organizationIds empty
+        ShareSvc --> API: throw NotFoundError / ValidationError
+        API --> UI: HTTP 404 / 400
+    else ok
+        loop one recipient at a time (individual failure never breaks the batch, BR9)
+            ShareSvc -> OrgReader: getById(orgId)
+            alt unknown organisation
+                ShareSvc -> ShareSvc: outcome = FAILED ('Unknown organization', name '?') - no row saved
+            else known organisation
+                OrgReader --> ShareSvc: Organization
+                alt E4: channel delivery fails
+                    ShareSvc -> Channel: send(report, org)
+                    Channel --> ShareSvc: throw (per-recipient failure)
+                    ShareSvc -> ShareSvc: share.status = FAILED (failureReason set)
+                else delivered
+                    ShareSvc -> Channel: send(report, org)
+                    Channel --> ShareSvc: ok
+                    ShareSvc -> ShareSvc: share.status = SENT
+                end
+                ShareSvc -> ShareLog: save(share)   append-only, retries add NEW rows (BR8)
+            end
+        end
+        ShareSvc -> Audit: logShare(reportId, outcomes, actorId)
+        ShareSvc --> API: ShareOutcome[] (one per recipient)
+        API --> UI: outcomes table
+    end
+end
+
+opt E4: retry failed partners
+    UI -> API: POST /api/analysis/{id}/share {organizationIds: FAILED subset only}
+    API -> ShareSvc: share(reportId, failedIds, actor)
+    ShareSvc -> ShareLog: save(new attempt rows)   history preserved, append-only
+    ShareSvc --> UI: retry outcomes
+end
+
+UI -> API: GET /api/analysis/{id}/share (share history)
+API -> ShareLog: listByReport(reportId)
+ShareLog --> API: ReportShare[] (oldest attempt first)
+API --> UI: full SENT/FAILED history (A2: reopen old report, share again)
+
+@enduml
