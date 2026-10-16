@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { NetworkProvider } from "@/modules/uc2-report/client/network";
+import { OutboxAutoSync } from "@/modules/uc2-report/client/OutboxAutoSync";
 import { RoleSwitcherLoader } from "@/components/RoleSwitcherLoader";
 import { AppLayoutShell } from "@/components/AppLayoutShell";
 import "./globals.css";
@@ -33,6 +34,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-100 text-slate-900">
         <NetworkProvider>
+          <OutboxAutoSync />
           <AppLayoutShell
             roleSwitcher={
               <Suspense fallback={<div className="h-8 w-32 animate-pulse bg-slate-200 rounded" />}>

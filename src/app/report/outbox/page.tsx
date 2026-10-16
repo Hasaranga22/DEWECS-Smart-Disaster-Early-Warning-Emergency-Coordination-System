@@ -21,6 +21,7 @@ import { IdbOutboxRepository } from "@/modules/uc2-report/client/IdbOutboxReposi
 import type { LocalOutboxEntry } from "@/modules/uc2-report/domain/LocalOutboxEntry";
 import { useNetworkStatus } from "@/modules/uc2-report/client/network";
 import { hazardMeta, timeAgo } from "@/modules/uc2-report/client/reportUi";
+import { syncPendingOutbox } from "@/modules/uc2-report/client/syncOutbox";
 
 type Notice = { message: string; type: "info" | "success" | "error" };
 
@@ -54,7 +55,6 @@ export default function OutboxPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const syncingRef = useRef(false);
-  const autoSyncKeyRef = useRef("");
 
   const loadOutbox = useCallback(async () => {
     try {
@@ -83,24 +83,9 @@ export default function OutboxPage() {
     let sent = 0;
     let failed = 0;
     try {
-      const repo = new IdbOutboxRepository();
-      const pending = await repo.getPending();
-      for (const entry of pending) {
-        try {
-          const response = await fetch("/api/reports", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(entry),
-          });
-          if (!response.ok) throw new Error("The server did not accept this report.");
-          await repo.remove(entry.localId);
-          sent += 1;
-        } catch (error: unknown) {
-          const reason = error instanceof Error ? error.message : "Could not send report.";
-          await repo.save({ ...entry, status: "FAILED", failureReason: reason });
-          failed += 1;
-        }
-      }
+      const summary = await syncPendingOutbox();
+      sent = summary.sent;
+      failed = summary.failed;
 
       if (failed) {
         setNotice({
@@ -129,18 +114,10 @@ export default function OutboxPage() {
   }, [loadOutbox]);
 
   useEffect(() => {
-    // Automatically send newly queued reports when back online. Failed reports
-    // require a manual retry rather than silently retrying on every render.
-    if (!isOnline || loading || loadError || isSyncing) return;
-    const waitingIds = entries
-      .filter((entry) => entry.status === "PENDING_SYNC")
-      .map((entry) => entry.localId)
-      .sort()
-      .join("|");
-    if (!waitingIds || waitingIds === autoSyncKeyRef.current) return;
-    autoSyncKeyRef.current = waitingIds;
-    void syncReports();
-  }, [entries, isOnline, loading, loadError, isSyncing, syncReports]);
+    const refreshAfterSync = () => void loadOutbox();
+    window.addEventListener("dewecs:outbox-synced", refreshAfterSync);
+    return () => window.removeEventListener("dewecs:outbox-synced", refreshAfterSync);
+  }, [loadOutbox]);
 
   const failedCount = entries.filter((entry) => entry.status === "FAILED").length;
   const waitingCount = entries.filter((entry) => entry.status === "PENDING_SYNC").length;

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, ArrowUpRight, Check, CheckCircle2,
@@ -17,6 +17,8 @@ import {
   parsePhotos, statusMeta, timeAgo,
 } from "@/modules/uc2-report/client/reportUi";
 import type { OfficerReport } from "@/modules/uc2-report/client/reportUi";
+import { ROLE_LABELS } from "@/shared/access/actors";
+import { setRole } from "@/shared/access/roleActions";
 
 const DisasterMap = dynamic(() => import("@/modules/uc2-report/client/DisasterMap"), {
   ssr: false,
@@ -36,6 +38,7 @@ const REJECTION_REASONS = [
 // The map is an operational view, not an archive. Verified incident markers
 // expire seven days after the reported incident time.
 const MAP_INCIDENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const REPORT_REVIEW_ROLE = "DUTY_OFFICER" as const;
 
 const isActiveMapIncident = (report: OfficerReport, now: number) => {
   const legacyExpiry = new Date(report.captureTime).getTime() + MAP_INCIDENT_WINDOW_MS;
@@ -232,26 +235,14 @@ function ReportCard({ report, mapVisible, onReview, onBroadcast, onFocus, onPhot
 }
 
 export default function OfficerDashboard() {
+  const [, startRoleTransition] = useTransition();
   const [reports, setReports] = useState<OfficerReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  const [activeRoleName, setActiveRoleName] = useState("DMC Officer");
+  const activeRoleName = ROLE_LABELS[REPORT_REVIEW_ROLE];
   const [status, setStatus] = useState<Status>("PENDING_REVIEW");
-
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      const match = document.cookie.match(/(?:^|;\s*)dewecs_role=([^;]+)/);
-      if (match) {
-        const val = decodeURIComponent(match[1]);
-        if (val === "DUTY_OFFICER") setActiveRoleName("Duty Officer");
-        else if (val === "DISTRICT_OFFICER") setActiveRoleName("District Officer");
-        else if (val === "CITIZEN") setActiveRoleName("Citizen");
-        else setActiveRoleName("DMC Officer");
-      }
-    }
-  }, []);
   const [hazard, setHazard] = useState("ALL");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [photoFilter, setPhotoFilter] = useState("ALL");
@@ -288,12 +279,15 @@ export default function OfficerDashboard() {
   }, []);
 
   useEffect(() => {
-    void fetchReports(true);
+    startRoleTransition(async () => {
+      await setRole(REPORT_REVIEW_ROLE);
+      await fetchReports(true);
+    });
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void fetchReports();
     }, 15_000);
     return () => window.clearInterval(interval);
-  }, [fetchReports]);
+  }, [fetchReports, startRoleTransition]);
 
   useEffect(() => {
     if (!notice) return;

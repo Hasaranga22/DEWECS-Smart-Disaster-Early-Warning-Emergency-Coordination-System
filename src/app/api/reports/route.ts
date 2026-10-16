@@ -3,6 +3,11 @@ import { z } from "zod";
 import { uc2 } from "@/shared/infra/container";
 import { ValidationError, DuplicateLocalIdError } from "@/modules/uc2-report/domain/errors";
 
+type PrismaErrorLike = {
+  code?: string;
+  meta?: { constraint?: string; modelName?: string };
+};
+
 const MAX_PHOTO_PAYLOAD_CHARS = 850_000;
 
 // 1. Zod schema for incoming JSON (matches ReportDraft interface perfectly)
@@ -67,6 +72,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { message: "Already synced", localId: rawBody?.localId },
         { status: 200 }
+      );
+    }
+
+    const prismaError = error as PrismaErrorLike;
+    if (prismaError.code === "P2003") {
+      console.error("Report reference record is missing:", error);
+      return NextResponse.json(
+        {
+          error: "Reporter or district is not registered in this environment.",
+          code: "MISSING_REPORT_REFERENCE",
+        },
+        { status: 409 }
       );
     }
 

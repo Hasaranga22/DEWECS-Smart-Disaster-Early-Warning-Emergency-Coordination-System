@@ -86,11 +86,15 @@ async function main() {
 
   await prisma.officer.upsert({
     where: { id: officerId },
-    update: {},
+    update: {
+      name: 'Test Duty Officer',
+      role: 'DUTY_OFFICER',
+      districtId: districtId,
+    },
     create: {
       id: officerId,
       name: 'Test Duty Officer',
-      role: 'DISTRICT_OFFICER',
+      role: 'DUTY_OFFICER',
       districtId: districtId,
     },
   });
