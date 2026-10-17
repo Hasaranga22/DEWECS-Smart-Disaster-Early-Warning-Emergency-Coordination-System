@@ -3,7 +3,7 @@ import { DEMO_ACTORS, type Actor } from './actors';
 import { AccessDeniedError, ForbiddenError } from './errors';
 
 export const ROLE_COOKIE = 'dewecs_role';
-export const DEFAULT_ROLE: Role = 'DMC_OFFICIAL';
+export const DEFAULT_ROLE: Role = 'CITIZEN';
 
 export const ROLE_VALUES: readonly string[] = [
   'CITIZEN',
@@ -83,8 +83,8 @@ export async function getActor(request: Request): Promise<Actor> {
     return actorFromRoleValue(rawRole);
   }
 
-  // Neither cookie is present
-  throw new ForbiddenError('ANONYMOUS', 'access this endpoint');
+  // Actor cookie present but unrecognised is UNKNOWN; no cookies at all is ANONYMOUS.
+  throw new ForbiddenError(rawActor !== null ? 'UNKNOWN' : 'ANONYMOUS', 'access this endpoint');
 }
 
 /** Throws AccessDeniedError (subclass of ForbiddenError) unless the actor has one of the allowed roles. */

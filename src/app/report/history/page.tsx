@@ -18,6 +18,7 @@ import {
 import { CreativeDewecsLogo } from "@/components/CreativeDewecsLogo";
 import { DEMO_CITIZEN_ID } from "@/modules/uc2-report/client/citizen";
 import { hazardMeta, parsePhotos, timeAgo } from "@/modules/uc2-report/client/reportUi";
+import { useAutoRefresh } from "@/shared/hooks/useAutoRefresh";
 
 type CitizenReport = {
   id: string;
@@ -185,9 +186,9 @@ export default function ReportHistoryPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activePhoto]);
 
-  const loadReports = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const loadReports = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
+    if (!background) setError("");
     try {
       const response = await fetch(
         `/api/reports/mine?reporterId=${encodeURIComponent(DEMO_CITIZEN_ID)}`,
@@ -199,15 +200,16 @@ export default function ReportHistoryPage() {
       if (!Array.isArray(data)) throw new Error("Received an unexpected report list.");
       setReports(data as CitizenReport[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load your reports.");
+      if (!background) setError(err instanceof Error ? err.message : "Could not load your reports.");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void loadReports();
   }, [loadReports]);
+  useAutoRefresh(() => void loadReports(true));
 
   const sortedReports = [...reports].sort(
     (a, b) => new Date(b.captureTime).getTime() - new Date(a.captureTime).getTime(),

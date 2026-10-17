@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   FileBarChart,
@@ -12,6 +12,8 @@ import {
   X,
   RotateCcw,
   ArrowRight,
+  Activity,
+  Radio,
 } from "lucide-react";
 import {
   api,
@@ -23,6 +25,9 @@ import {
   LANGUAGES,
   toIsoRange,
   daysBetween,
+  formatDate,
+  formatNumber,
+  type LiveMetricsResponse,
 } from "./_types";
 import { prefillFromQuery } from "./_prefill";
 import { Card, CardTitle, Banner } from "./_components";
@@ -59,6 +64,13 @@ function AnalysisForm() {
     message: string;
   } | null>(null);
 
+  // Live (non-frozen) metrics — polls the shared DB every 15s while enabled.
+  const [liveOn, setLiveOn] = useState<boolean>(false);
+  const [liveData, setLiveData] = useState<LiveMetricsResponse | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [liveLoading, setLiveLoading] = useState<boolean>(false);
+  const liveSeq = useRef(0);
+
   // Live Inline Validations
   const isFromAfterTo = Boolean(from && to && new Date(from).getTime() > new Date(to).getTime());
   const rangeDays = from && to ? daysBetween(from, to) : 0;
@@ -71,6 +83,43 @@ function AnalysisForm() {
     !isFromAfterTo &&
     !isRangeTooLong &&
     !isNoSectionSelected;
+
+  // Poll live metrics every 15s while the toggle is on (and when filters change).
+  useEffect(() => {
+    if (!liveOn || !from || !to || isFromAfterTo || isRangeTooLong) return;
+    const seq = ++liveSeq.current;
+    let cancelled = false;
+
+    const load = async () => {
+      setLiveLoading(true);
+      try {
+        const iso = toIsoRange(from, to);
+        const res = await api.fetchLive({
+          from: iso.from,
+          to: iso.to,
+          districtId: districtId.trim() || undefined,
+          hazardType: hazardType.trim() || undefined,
+        });
+        if (!cancelled && seq === liveSeq.current) {
+          setLiveData(res);
+          setLiveError(null);
+        }
+      } catch (err) {
+        if (!cancelled && seq === liveSeq.current) {
+          setLiveError(err instanceof Error ? err.message : "Failed to load live metrics");
+        }
+      } finally {
+        if (!cancelled && seq === liveSeq.current) setLiveLoading(false);
+      }
+    };
+
+    load();
+    const timer = setInterval(load, 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [liveOn, from, to, districtId, hazardType, isFromAfterTo, isRangeTooLong]);
 
   const toggleSection = (sec: string) => {
     const next = new Set(includedSections);
@@ -174,6 +223,91 @@ function AnalysisForm() {
           {banner.message}
         </Banner>
       )}
+
+      {/* Live Metrics Card */}
+      <Card className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <CardTitle>
+            <span className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-400" /> Live Database Metrics
+            </span>
+          </CardTitle>
+          <button
+            type="button"
+            onClick={() => setLiveOn((v) => !v)}
+            aria-pressed={liveOn}
+            className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5 ${
+              liveOn
+                ? "bg-emerald-950 border-emerald-700 text-emerald-300"
+                : "bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600"
+            }`}
+          >
+            <Radio className={`w-3.5 h-3.5 ${liveOn ? "animate-pulse" : ""}`} />
+            {liveOn ? "Live ON" : "Go Live"}
+          </button>
+        </div>
+
+        {liveOn && (
+          <>
+            <p className="text-[11px] text-slate-500">
+              Reads the shared database every 15s — reflects alerts, ground reports, shelters and supplies
+              written by all modules. Nothing is saved until you generate a report below.
+            </p>
+            {liveError && (
+              <Banner type="error" onClose={() => setLiveError(null)}>
+                Live metrics error: {liveError}
+              </Banner>
+            )}
+            {liveData ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Alerts</div>
+                  <div className="text-xl font-bold text-white tabular-nums">
+                    {formatNumber(liveData.metrics.alerts.total)}
+                  </div>
+                </div>
+                <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Citizens Reached</div>
+                  <div className="text-xl font-bold text-white tabular-nums">
+                    {formatNumber(liveData.metrics.reach.distinctCitizens)}
+                  </div>
+                </div>
+                <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Reports (V/P/R)</div>
+                  <div className="text-xl font-bold text-white tabular-nums">
+                    {liveData.metrics.reports.verified}/{liveData.metrics.reports.pending}/
+                    {liveData.metrics.reports.rejected}
+                  </div>
+                </div>
+                <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Shelters</div>
+                  <div className="text-xl font-bold text-white tabular-nums">
+                    {formatNumber(liveData.metrics.shelters.activated)}
+                  </div>
+                </div>
+                <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Supply Types</div>
+                  <div className="text-xl font-bold text-white tabular-nums">
+                    {Object.keys(liveData.metrics.supplies.byType).length}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              !liveError && (
+                <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                  <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" /> Loading live metrics...
+                </div>
+              )
+            )}
+            {liveData && (
+              <div className="text-[10px] text-slate-600 flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Last updated {formatDate(liveData.generatedAt)} · auto-refreshes every 15s
+              </div>
+            )}
+          </>
+        )}
+      </Card>
 
       {/* Progress Banner while submitting */}
       {submitting && (

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Home, AlertTriangle, RefreshCw, CheckCircle2, X, RotateCcw, Trash2 } from "lucide-react";
 import { ShelterData, ConflictItem } from "../page";
+import { useAutoRefresh } from "@/shared/hooks/useAutoRefresh";
 
 const DEFAULT_COLOMBO_DISTRICT_ID = "00000000-0000-4000-8000-000000000010";
 
@@ -23,8 +24,8 @@ export default function SheltersPage() {
   // Discard alert dialog state
   const [conflictToDiscard, setConflictToDiscard] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const res = await fetch(`/api/resources/dashboard?districtId=${DEFAULT_COLOMBO_DISTRICT_ID}`);
       if (res.ok) {
@@ -33,9 +34,9 @@ export default function SheltersPage() {
         setConflicts(data.openConflicts || []);
       }
     } catch {
-      setFeedback({ type: "error", message: "Failed to load shelter records" });
+      if (!background) setFeedback({ type: "error", message: "Failed to load shelter records" });
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
@@ -43,6 +44,7 @@ export default function SheltersPage() {
     loadData();
     setActionId(crypto.randomUUID());
   }, []);
+  useAutoRefresh(() => loadData(true));
 
   const openUpdateModal = (shelter: ShelterData) => {
     setSelectedShelter(shelter);
@@ -127,7 +129,7 @@ export default function SheltersPage() {
           </p>
         </div>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           disabled={loading}
           className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-2 border border-slate-700"
         >

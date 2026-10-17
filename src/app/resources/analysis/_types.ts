@@ -53,6 +53,13 @@ export interface GenerateResponse {
   metrics: AnalysisReport["metrics"];
 }
 
+export interface LiveMetricsResponse {
+  metrics: AnalysisReport["metrics"];
+  generatedAt: string;
+  sourceCutoff: string;
+  filters: AnalysisReport["filters"];
+}
+
 export interface ShareOutcome {
   id: string;
   reportId: string;
@@ -169,6 +176,17 @@ export const api = {
   },
   getReport(id: string): Promise<AnalysisReport> {
     return apiFetch(`/api/analysis/${id}`);
+  },
+  fetchLive(input: {
+    from: string;
+    to: string;
+    districtId?: string;
+    hazardType?: string;
+  }): Promise<LiveMetricsResponse> {
+    const qs = new URLSearchParams({ from: input.from, to: input.to });
+    if (input.districtId) qs.set("districtId", input.districtId);
+    if (input.hazardType) qs.set("hazardType", input.hazardType);
+    return apiFetch(`/api/analysis/live?${qs.toString()}`);
   },
   shareReport(id: string, organizationIds: string[]): Promise<{ outcomes: ShareOutcome[] }> {
     return apiFetch(`/api/analysis/${id}/share`, {

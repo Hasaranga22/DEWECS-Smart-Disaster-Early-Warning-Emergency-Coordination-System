@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useAutoRefresh } from "@/shared/hooks/useAutoRefresh";
 import {
   LayoutDashboard,
   Home,
@@ -86,8 +87,8 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const fetchDashboardData = async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const res = await fetch(`/api/resources/dashboard?districtId=${DEFAULT_COLOMBO_DISTRICT_ID}`);
       if (res.ok) {
@@ -107,15 +108,16 @@ export default function DashboardPage() {
 
       }
     } catch (err) {
-      setBannerMessage("Failed to load live dashboard data. Operating on cached state.");
+      if (!background) setBannerMessage("Failed to load live dashboard data. Operating on cached state.");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+  useAutoRefresh(() => fetchDashboardData(true));
 
   const handleActivateShelter = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,7 +177,7 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchDashboardData}
+            onClick={() => fetchDashboardData()}
             disabled={loading}
             className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-2 border border-slate-700 transition"
           >

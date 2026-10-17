@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Package, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw, Check } from "lucide-react";
 import { ShelterData, StockGroup, StockItem } from "../page";
+import { useAutoRefresh } from "@/shared/hooks/useAutoRefresh";
 
 const DEFAULT_COLOMBO_DISTRICT_ID = "00000000-0000-4000-8000-000000000010";
 
@@ -21,8 +22,8 @@ export default function DistributionPage() {
   const [receipt, setReceipt] = useState<any | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const res = await fetch(`/api/resources/dashboard?districtId=${DEFAULT_COLOMBO_DISTRICT_ID}`);
       if (res.ok) {
@@ -31,9 +32,9 @@ export default function DistributionPage() {
         setStockGroups(data.stockByOrganization || []);
       }
     } catch {
-      setFeedback({ type: "error", message: "Failed to load supply and shelter data" });
+      if (!background) setFeedback({ type: "error", message: "Failed to load supply and shelter data" });
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
@@ -41,6 +42,7 @@ export default function DistributionPage() {
     loadData();
     setActionId(crypto.randomUUID());
   }, []);
+  useAutoRefresh(() => loadData(true));
 
   // Find selected stock item across groups
   let selectedStock: StockItem | undefined;
@@ -114,7 +116,7 @@ export default function DistributionPage() {
           <p className="text-xs text-slate-400 mt-1">Atomic transaction management. Distribution does NOT alter shelter occupancy.</p>
         </div>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           disabled={loading}
           className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-2 border border-slate-700"
         >

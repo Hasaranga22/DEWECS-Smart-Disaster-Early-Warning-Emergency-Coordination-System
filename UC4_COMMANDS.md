@@ -35,6 +35,8 @@ npx vitest run src/modules/uc4-analysis/__tests__/PdfExporter.test.ts
 npx vitest run src/modules/uc4-analysis/__tests__/errors.test.ts
 All as one folder: npx vitest run src/modules/uc4-analysis → 12 files / 78 tests green.
 
+npx vitest run src/modules/uc4-analysis/__tests__/ShareService.test.ts -t "A07.a"
+
 Integration tests — tests/integration/ (6 files):
 
 npx vitest run tests/integration/uc134-to-uc4.test.ts

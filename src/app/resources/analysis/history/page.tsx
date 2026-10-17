@@ -19,15 +19,16 @@ import {
   formatDate,
 } from "../_types";
 import { Card, CardTitle, Banner, Loading, EmptyState } from "../_components";
+import { useAutoRefresh } from "@/shared/hooks/useAutoRefresh";
 
 export default function HistoryPage() {
   const [reports, setReports] = useState<AnalysisReport[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadHistory = async () => {
-    setLoading(true);
-    setError(null);
+  const loadHistory = async (background = false) => {
+    if (!background) setLoading(true);
+    if (!background) setError(null);
     try {
       const data = await api.listReports();
       setReports(data);
@@ -39,13 +40,14 @@ export default function HistoryPage() {
         setError(msg);
       }
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadHistory();
   }, []);
+  useAutoRefresh(() => loadHistory(true));
 
   if (loading) {
     return <Loading message="Loading report history..." />;
@@ -80,7 +82,7 @@ export default function HistoryPage() {
           </Banner>
           <div className="flex justify-center">
             <button
-              onClick={loadHistory}
+              onClick={() => loadHistory()}
               className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" /> Retry Loading History

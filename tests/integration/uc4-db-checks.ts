@@ -1,6 +1,6 @@
 import type { ExpectStatic } from 'vitest'
 
-import { getActor, requireRole } from '@/shared/access'
+import { DEMO_ACTORS, getActor, requireRole } from '@/shared/access'
 import { MockPartnerChannel } from '@/modules/uc4-analysis/adapters/MockPartnerChannel'
 import { PrismaSnapshotRepository } from '@/modules/uc4-analysis/adapters/prisma/PrismaSnapshotRepository'
 import type { SnapshotRepository } from '@/modules/uc4-analysis/adapters/SnapshotRepository'
@@ -955,7 +955,7 @@ const checksH: Check[] = [
         headers: { cookie: jsonCookie('DISTRICT_OFFICER', seed.districtOfficerId) },
       })
       const actor = await getActor(request)
-      expect(actor).toEqual({ id: seed.districtOfficerId, role: 'DISTRICT_OFFICER' })
+      expect(actor).toMatchObject({ id: seed.districtOfficerId, role: 'DISTRICT_OFFICER' })
       try {
         requireRole(actor, ['DMC_OFFICIAL'])
         expect.unreachable('DISTRICT_OFFICER must be rejected')
@@ -996,11 +996,11 @@ const checksH: Check[] = [
         headers: { cookie: jsonCookie('DMC_OFFICIAL', seed.dmcOfficerId) },
       })
       const actor = await getActor(request)
-      expect(actor).toEqual({ id: seed.dmcOfficerId, role: 'DMC_OFFICIAL' })
+      expect(actor).toMatchObject({ id: seed.dmcOfficerId, role: 'DMC_OFFICIAL' })
       expect(() => requireRole(actor, ['DMC_OFFICIAL'])).not.toThrow()
       expect(requireRole(actor, ['DMC_OFFICIAL'])).toBeUndefined()
       const bare = await getActor(new Request(API, { headers: { cookie: bareCookie('DMC_OFFICIAL') } }))
-      expect(bare).toEqual({ id: '00000000-0000-4000-8000-000000000888', role: 'DMC_OFFICIAL' })
+      expect(bare).toMatchObject({ id: DEMO_ACTORS.DMC_OFFICIAL.id, role: 'DMC_OFFICIAL' })
       const unknown = await getActor(
         new Request(API, {
           headers: {

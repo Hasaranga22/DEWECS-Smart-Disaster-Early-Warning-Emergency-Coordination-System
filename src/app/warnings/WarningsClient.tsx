@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { AlertItem, DispatchResultData, EvidenceItem, HazardType, PreviewData, Severity, WarningsClientProps } from './lib/types';
 import { toggleBasinInState, toggleDistrictInList } from './lib/helpers';
+import { useAutoRefresh } from '@/shared/hooks/useAutoRefresh';
 import { WarningsHeader } from './components/WarningsHeader';
 import { KpiStrip } from './components/KpiStrip';
 import { Stepper } from './components/Stepper';
@@ -52,21 +53,25 @@ export function WarningsClient({ actorRole, actorDistrictId }: WarningsClientPro
     fetchAlerts();
     if (isDmcOfficial) fetchEvidence();
   }, [isDmcOfficial]);
+  useAutoRefresh(() => {
+    void fetchAlerts();
+    if (isDmcOfficial) void fetchEvidence();
+  });
 
-  async function fetchEvidence() {
-    setLoadingEvidence(true);
+  async function fetchEvidence(background = false) {
+    if (!background) setLoadingEvidence(true);
     try {
       const res = await fetch('/api/warnings/evidence');
       if (res.ok) setEvidenceList(await res.json());
-    } finally { setLoadingEvidence(false); }
+    } finally { if (!background) setLoadingEvidence(false); }
   }
 
-  async function fetchAlerts() {
-    setLoadingAlerts(true);
+  async function fetchAlerts(background = false) {
+    if (!background) setLoadingAlerts(true);
     try {
       const res = await fetch('/api/warnings');
       if (res.ok) setAlertsList(await res.json());
-    } finally { setLoadingAlerts(false); }
+    } finally { if (!background) setLoadingAlerts(false); }
   }
 
   function toggleBasin(basinId: string) {

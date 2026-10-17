@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Truck, AlertTriangle, ShieldCheck, CheckCircle2, RefreshCw, MapPin } from "lucide-react";
 import { TeamData } from "../page";
+import { useAutoRefresh } from "@/shared/hooks/useAutoRefresh";
 
 const DEFAULT_COLOMBO_DISTRICT_ID = "00000000-0000-4000-8000-000000000010";
 
@@ -24,8 +25,8 @@ export default function DispatchPage() {
 
   const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const res = await fetch(`/api/resources/dashboard?districtId=${DEFAULT_COLOMBO_DISTRICT_ID}`);
       if (res.ok) {
@@ -45,9 +46,9 @@ export default function DispatchPage() {
         setBackupTeams(backups || []);
       }
     } catch {
-      setFeedback({ type: "error", message: "Failed to load rescue team data" });
+      if (!background) setFeedback({ type: "error", message: "Failed to load rescue team data" });
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
@@ -55,6 +56,7 @@ export default function DispatchPage() {
     loadData();
     setActionId(crypto.randomUUID());
   }, []);
+  useAutoRefresh(() => loadData(true));
 
   const availableTeams = teams.filter((t) => t.status === "AVAILABLE");
 
@@ -134,7 +136,7 @@ export default function DispatchPage() {
           <p className="text-xs text-slate-400 mt-1">System-set state management (AVAILABLE &rarr; EN_ROUTE &rarr; ON_SITE &rarr; RETURNING)</p>
         </div>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           disabled={loading}
           className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-2 border border-slate-700"
         >
