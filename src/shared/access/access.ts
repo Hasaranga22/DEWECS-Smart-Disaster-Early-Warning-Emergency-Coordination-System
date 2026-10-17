@@ -57,15 +57,16 @@ export async function getActor(request: Request): Promise<Actor> {
     try {
       const parsed: unknown = JSON.parse(decodeURIComponent(rawActor));
       if (typeof parsed === 'object' && parsed !== null) {
-        const candidate = parsed as { id?: unknown; role?: unknown; districtId?: unknown };
+        const candidate = parsed as { id?: unknown; role?: unknown; districtId?: unknown; name?: unknown; userId?: unknown };
         if (typeof candidate.id === 'string' && isRole(candidate.role)) {
-          return {
+          const actor: Actor = {
             id: candidate.id,
-            userId: candidate.id,
-            name: `${candidate.role} User`,
             role: candidate.role,
-            districtId: typeof candidate.districtId === 'string' ? candidate.districtId : undefined,
           };
+          if (typeof candidate.userId === 'string') actor.userId = candidate.userId;
+          if (typeof candidate.name === 'string') actor.name = candidate.name;
+          if (typeof candidate.districtId === 'string') actor.districtId = candidate.districtId;
+          return actor;
         }
       }
     } catch {
@@ -73,7 +74,7 @@ export async function getActor(request: Request): Promise<Actor> {
     }
 
     if (isRole(rawActor)) {
-      return DEMO_ACTORS[rawActor];
+      return { id: DEMO_ACTORS[rawActor].id, role: rawActor };
     }
   }
 
