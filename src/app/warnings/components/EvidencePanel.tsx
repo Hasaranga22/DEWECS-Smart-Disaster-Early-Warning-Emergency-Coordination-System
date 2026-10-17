@@ -60,6 +60,14 @@ export function EvidencePanel({ evidenceList, loadingEvidence }: EvidencePanelPr
                 <span>Corroboration: <strong>{ev.corroborationCount}</strong> reports</span>
                 <span>Confidence: <strong>{ev.confidence}</strong></span>
               </div>
+              <div className="pt-1.5">
+                <a
+                  href={`/resources/dispatch?location=${encodeURIComponent(ev.lat.toFixed(4) + ", " + ev.lng.toFixed(4))}&incident=${encodeURIComponent(ev.hazardType + " incident - Evidence #" + ev.reportId.slice(0, 8))}`}
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200/80 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition"
+                >
+                  Dispatch rescue team here →
+                </a>
+              </div>
             </div>
           ))}
         </div>

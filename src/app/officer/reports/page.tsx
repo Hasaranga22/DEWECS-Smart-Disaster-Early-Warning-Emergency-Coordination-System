@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, ArrowUpRight, Check, CheckCircle2,
   ChevronDown, Clock3, ImageOff, ListFilter, MapPin,
-  Megaphone, RefreshCw, Search, ShieldCheck, SlidersHorizontal, X, XCircle,
+  Megaphone, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Truck, X, XCircle,
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
@@ -222,7 +222,22 @@ function ReportCard({ report, mapVisible, onReview, onBroadcast, onFocus, onPhot
           <button type="button" onClick={() => onReview("verify")} className={`${BUTTON_FOCUS} flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700`}><Check size={15} /> Verify</button>
         </div>
       )}
-      {canAlert && (
+      {report.reviewStatus === "VERIFIED" && (
+        <div className="space-y-2 border-t border-slate-100 bg-slate-50/70 p-3">
+          <a
+            href={`/resources/dispatch?location=${encodeURIComponent(report.latitude.toFixed(4) + ", " + report.longitude.toFixed(4))}&incident=${encodeURIComponent(hazard.label + " incident - Report #" + report.id.slice(0, 8))}`}
+            className={`${BUTTON_FOCUS} flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition`}
+          >
+            <Truck size={14} /> Dispatch rescue team here
+          </a>
+          {canAlert && (
+            <button type="button" onClick={onBroadcast} className={`${BUTTON_FOCUS} flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-2 text-xs font-semibold text-white hover:bg-rose-700`}>
+              <Megaphone size={14} /> Emergency broadcast
+            </button>
+          )}
+        </div>
+      )}
+      {canAlert && report.reviewStatus !== "VERIFIED" && (
         <div className="border-t border-rose-100 bg-rose-50/60 p-3">
           <button type="button" onClick={onBroadcast} className={`${BUTTON_FOCUS} flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700`}><Megaphone size={15} /> Emergency dispatch</button>
         </div>

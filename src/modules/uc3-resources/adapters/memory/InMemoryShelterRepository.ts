@@ -1,3 +1,4 @@
+//UC3 - Resource Management-SOLID Principles-Interface Segregation (I)
 import { InMemoryRepository } from "@/shared/infra/InMemoryRepository";
 import { Shelter, ShelterProps } from "../../domain/entities/Shelter";
 import { ShelterRepository } from "../repositories/ShelterRepository";

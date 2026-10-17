@@ -15,6 +15,7 @@ export class StaticDistrictAdjacency implements DistrictAdjacency {
       ["Colombo", "Gampaha"],
       ["Colombo", "Kegalle"],
       ["Gampaha", "Kegalle"],
+      ["00000000-0000-4000-8000-000000000010", "00000000-0000-4000-8000-000000000020"],
     ];
 
     for (const [a, b] of pairs) {

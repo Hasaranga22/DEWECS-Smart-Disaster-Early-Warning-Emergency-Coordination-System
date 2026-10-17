@@ -1,3 +1,4 @@
+//testing pa
 import { describe, it, expect, beforeEach } from "vitest";
 import { Actor, DistrictNotification } from "@/shared/contracts/types";
 import { DistrictNotificationStore } from "@/shared/contracts/DistrictNotificationStore";
@@ -32,8 +33,13 @@ import {
 import { ForbiddenError, VersionConflictError, NotFoundError } from "@/shared/infra/errors";
 import { OccupancyCount } from "../domain/valueObjects/OccupancyCount";
 import { Quantity } from "../domain/valueObjects/Quantity";
-import { AvailableState, EnRouteState, OnSiteState, ReturningState } from "../domain/states/TeamState";
+import { AvailableState, EnRouteState, OnSiteState, ReturningState, parseTeamState } from "../domain/states/TeamState";
 import { buildUc3Seed } from "../seed/buildUc3Seed";
+import { StaticDistrictAdjacency } from "../adapters/ports/DistrictAdjacency";
+import { TeamStatusEvent } from "../domain/entities/TeamStatusEvent";
+import { OccupancyEvent } from "../domain/entities/OccupancyEvent";
+import { DispatchRequest } from "../domain/entities/DispatchRequest";
+import { ConflictQueueItem } from "../domain/entities/ConflictQueueItem";
 
 class FakeNotificationStore implements DistrictNotificationStore {
   private notifications: DistrictNotification[] = [];
@@ -720,5 +726,344 @@ describe("UC3 Emergency Resources Core Module Tests", () => {
 
     const nearlyFull = seed.shelters.find((s) => s.occupancy === 380 && s.capacity === 400);
     expect(nearlyFull).toBeDefined();
+  });
+
+  it("TeamState exhaustively validates all invalid transitions and fallback parsing", () => {
+    const available = new AvailableState();
+    expect(() => available.arrive()).toThrow(InvalidTransitionError);
+    expect(() => available.startReturn()).toThrow(InvalidTransitionError);
+    expect(() => available.completeReturn()).toThrow(InvalidTransitionError);
+
+    const enRoute = new EnRouteState();
+    expect(() => enRoute.dispatch()).toThrow(InvalidTransitionError);
+    expect(() => enRoute.startReturn()).toThrow(InvalidTransitionError);
+    expect(() => enRoute.completeReturn()).toThrow(InvalidTransitionError);
+
+    const onSite = new OnSiteState();
+    expect(() => onSite.dispatch()).toThrow(InvalidTransitionError);
+    expect(() => onSite.arrive()).toThrow(InvalidTransitionError);
+    expect(() => onSite.completeReturn()).toThrow(InvalidTransitionError);
+
+    const returning = new ReturningState();
+    expect(() => returning.dispatch()).toThrow(InvalidTransitionError);
+    expect(() => returning.arrive()).toThrow(InvalidTransitionError);
+    expect(() => returning.startReturn()).toThrow(InvalidTransitionError);
+
+    expect(parseTeamState("INVALID" as any)).toBeInstanceOf(AvailableState);
+    expect(parseTeamState("AVAILABLE")).toBeInstanceOf(AvailableState);
+    expect(parseTeamState("EN_ROUTE")).toBeInstanceOf(EnRouteState);
+    expect(parseTeamState("ON_SITE")).toBeInstanceOf(OnSiteState);
+    expect(parseTeamState("RETURNING")).toBeInstanceOf(ReturningState);
+  });
+
+  it("RescueTeam, Shelter, and DispatchRequest entities validate serialization and state transitions", () => {
+    const team = new RescueTeam({
+      id: "team-test-1",
+      districtId: colomboDistrictId,
+      organizationId: govOrgId,
+      name: "Alpha Rescue",
+      capability: "Medical",
+      status: "AVAILABLE",
+      version: 0,
+      currentLatitude: 6.9271,
+      currentLongitude: 79.8612,
+    });
+    const teamJson = team.toJSON();
+    expect(teamJson.id).toBe("team-test-1");
+    expect(teamJson.status).toBe("AVAILABLE");
+
+    const shelter = new Shelter({
+      id: "shelter-test-1",
+      districtId: colomboDistrictId,
+      organizationId: govOrgId,
+      name: "Beta Shelter",
+      address: "100 High St",
+      capacity: 100,
+      occupancy: 50,
+      version: 0,
+    });
+    const shelterJson = shelter.toJSON();
+    expect(shelterJson.name).toBe("Beta Shelter");
+    expect(shelter.status).toBe("OPEN");
+
+    const fullShelter = shelter.withOccupancy(100);
+    expect(fullShelter.status).toBe("FULL");
+
+    const openShelter = fullShelter.withOccupancy(80);
+    expect(openShelter.status).toBe("OPEN");
+
+    const req = new DispatchRequest({
+      id: "req-1",
+      districtId: colomboDistrictId,
+      incident: "Flooding",
+      location: "Bridge 4",
+      requestedBy: officerActor.id,
+      actionId: "act-1",
+      occurredAt: clock.now(),
+    });
+    expect(req.status).toBe("UNASSIGNED");
+
+    const assigned = req.assign("team-test-1");
+    expect(assigned.status).toBe("ASSIGNED");
+    expect(assigned.teamId).toBe("team-test-1");
+
+    const cancelled = req.cancel();
+    expect(cancelled.status).toBe("CANCELLED");
+  });
+
+  it("DispatchService handles missing team, backup fallback, replay, and advance errors", async () => {
+    // 1. Missing team throws NotFoundError
+    await expect(
+      uc3.dispatch.dispatch({
+        actionId: "act-missing-team",
+        actor: officerActor,
+        destinationDistrictId: colomboDistrictId,
+        teamId: "non-existent-team-id",
+        location: "Zone X",
+        isConfirmed: true,
+      })
+    ).rejects.toThrow(NotFoundError);
+
+    // 2. Advance non-existent team throws NotFoundError
+    await expect(
+      uc3.dispatch.advanceTeam({
+        actor: officerActor,
+        teamId: "non-existent-team-id",
+        targetStatus: "ON_SITE",
+      })
+    ).rejects.toThrow(NotFoundError);
+
+    // 3. Auto-fallback to adjacent district backup team when home district has no teams
+    teamRepo.clear();
+    const gampahaBackup = new RescueTeam({
+      id: "team-gampaha-auto",
+      districtId: gampahaDistrictId,
+      organizationId: govOrgId,
+      name: "Gampaha Auto Backup",
+      capability: "Evacuation",
+      status: "AVAILABLE",
+      version: 0,
+    });
+    await teamRepo.save(gampahaBackup);
+
+    const backupList = await uc3.dispatch.findBackupTeams(colomboDistrictId);
+    expect(backupList.length).toBeGreaterThanOrEqual(1);
+
+    const autoDispatchRes = await uc3.dispatch.dispatch({
+      actionId: "act-auto-backup",
+      actor: officerActor,
+      destinationDistrictId: colomboDistrictId,
+      location: "Border Area",
+      isConfirmed: true,
+    });
+    expect(autoDispatchRes.team).toBeDefined();
+    expect(autoDispatchRes.team?.id).toBe(gampahaBackup.id);
+
+    // 4. Replay dispatch returns saved result
+    const replayed = await uc3.dispatch.dispatch({
+      actionId: "act-auto-backup",
+      actor: officerActor,
+      destinationDistrictId: colomboDistrictId,
+      location: "Border Area",
+      isConfirmed: true,
+    });
+    expect(replayed.team?.id).toBe(gampahaBackup.id);
+  });
+
+  it("DistributionService and ShelterService throw NotFoundError when targets do not exist", async () => {
+    // Non-existent stock in distribution throws NotFoundError
+    await expect(
+      uc3.distributions.distribute({
+        actionId: "act-dist-missing-stock",
+        actor: officerActor,
+        stockId: "missing-stock-id",
+        destinationShelterId: "shelter-id",
+        quantity: 10,
+      })
+    ).rejects.toThrow(NotFoundError);
+
+    // Non-existent shelter in updateOccupancy throws NotFoundError
+    await expect(
+      uc3.shelters.updateOccupancy({
+        actionId: "act-occ-missing-shelter",
+        actor: officerActor,
+        shelterId: "missing-shelter-id",
+        expectedVersion: 0,
+        newCount: 20,
+      })
+    ).rejects.toThrow(NotFoundError);
+
+    // Non-existent conflict item throws NotFoundError
+    await expect(
+      uc3.conflictQueue.resolve("missing-conflict-id", "DISCARD", officerActor.id)
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("DashboardService groups multiple stocks per organization and handles alert preselection", async () => {
+    const stock1 = new SupplyStock({
+      id: "stock-group-1",
+      districtId: colomboDistrictId,
+      organizationId: govOrgId,
+      supplyType: "Water Packs",
+      onHand: 200,
+      version: 0,
+    });
+    const stock2 = new SupplyStock({
+      id: "stock-group-2",
+      districtId: colomboDistrictId,
+      organizationId: govOrgId,
+      supplyType: "Dry Rations",
+      onHand: 150,
+      version: 0,
+    });
+    await stockRepo.save(stock1);
+    await stockRepo.save(stock2);
+
+    // Seed alert notification in notifStore
+    await notifStore.add({
+      id: "notif-1",
+      alertId: "alert-1",
+      districtId: colomboDistrictId,
+      hazardType: "FLOOD",
+      kind: "ESCALATED",
+      severity: "CRITICAL",
+      occurredAt: clock.now(),
+    });
+
+    const dash = await uc3.dashboard.getDashboard(officerActor, colomboDistrictId);
+    expect(dash.preselectedFromAlert).toBeDefined();
+    expect(dash.preselectedFromAlert?.kind).toBe("ESCALATED");
+
+    const govStocks = dash.stockByOrganization.find((s) => s.organizationId === govOrgId);
+    expect(govStocks).toBeDefined();
+    expect(govStocks!.items.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("In-memory repositories support findById, findByTeamId, snapshot, and restore", async () => {
+    const event = new TeamStatusEvent({
+      id: "status-ev-1",
+      teamId: "team-1",
+      fromStatus: "AVAILABLE",
+      toStatus: "EN_ROUTE",
+      actorId: officerActor.id,
+      occurredAt: clock.now(),
+      incident: "Fire",
+      location: "Sector 3",
+    });
+    await teamStatusEventRepo.save(event);
+
+    const foundEv = await teamStatusEventRepo.findById("status-ev-1");
+    expect(foundEv?.id).toBe("status-ev-1");
+
+    const teamEvents = await teamStatusEventRepo.findByTeamId("team-1");
+    expect(teamEvents).toHaveLength(1);
+
+    const snap = teamStatusEventRepo.snapshot();
+    teamStatusEventRepo.clear();
+    expect(await teamStatusEventRepo.findById("status-ev-1")).toBeNull();
+    teamStatusEventRepo.restore(snap);
+    expect(await teamStatusEventRepo.findById("status-ev-1")).toBeDefined();
+
+    const dispatchReq = new DispatchRequest({
+      id: "req-snap-1",
+      districtId: colomboDistrictId,
+      incident: "Landslide",
+      location: "Slope A",
+      requestedBy: officerActor.id,
+      actionId: "act-snap-1",
+      occurredAt: clock.now(),
+    });
+    await dispatchRequestRepo.save(dispatchReq);
+    expect(await dispatchRequestRepo.findById("req-snap-1")).toBeDefined();
+
+    const assignedReq = new DispatchRequest({
+      id: "req-assigned-1",
+      districtId: colomboDistrictId,
+      incident: "Landslide",
+      location: "Slope B",
+      requestedBy: officerActor.id,
+      actionId: "act-assigned-1",
+      occurredAt: clock.now(),
+      status: "ASSIGNED",
+    });
+    await dispatchRequestRepo.save(assignedReq);
+    const unassigned = await dispatchRequestRepo.findUnassignedByDistrictId(colomboDistrictId);
+    expect(unassigned.some((r) => r.id === "req-assigned-1")).toBe(false);
+
+    const reqSnap = dispatchRequestRepo.snapshot();
+    dispatchRequestRepo.clear();
+    expect(await dispatchRequestRepo.findById("req-snap-1")).toBeNull();
+    dispatchRequestRepo.restore(reqSnap);
+    expect(await dispatchRequestRepo.findById("req-snap-1")).toBeDefined();
+
+    const item = new ConflictQueueItem({
+      id: "cq-snap-1",
+      actionType: "DISPATCH_TEAM",
+      payload: { districtId: colomboDistrictId },
+      expectedVersion: 1,
+      actualVersion: 2,
+      createdAt: clock.now(),
+    });
+    await conflictQueueRepo.save(item);
+    expect(await conflictQueueRepo.findById("cq-snap-1")).toBeDefined();
+    expect(item.districtId).toBe(colomboDistrictId);
+
+    const nonDistrictItem = new ConflictQueueItem({
+      id: "cq-snap-2",
+      actionType: "OTHER_ACTION",
+      payload: {},
+      expectedVersion: 1,
+      actualVersion: 2,
+      createdAt: clock.now(),
+      status: "RESOLVED",
+    });
+    expect(nonDistrictItem.districtId).toBeUndefined();
+
+    const openItems = await conflictQueueRepo.findOpenByDistrictId(colomboDistrictId);
+    expect(openItems.length).toBeGreaterThan(0);
+
+    const queueSnap = conflictQueueRepo.snapshot();
+    conflictQueueRepo.clear();
+    expect(await conflictQueueRepo.findById("cq-snap-1")).toBeNull();
+    conflictQueueRepo.restore(queueSnap);
+    expect(await conflictQueueRepo.findById("cq-snap-1")).toBeDefined();
+
+    const now = clock.now();
+    const filterFrom = new Date(now.getTime() - 10000);
+    const filterTo = new Date(now.getTime() + 10000);
+    const filteredDist = await distributionRepo.findByFilter({
+      districtId: colomboDistrictId,
+      from: filterFrom,
+      to: filterTo,
+      cutoff: filterTo,
+    });
+    expect(filteredDist).toBeDefined();
+
+    const foundOccEv = await occupancyEventRepo.findById("non-existent-event");
+    expect(foundOccEv).toBeNull();
+    const filteredOcc = await occupancyEventRepo.findByFilter({
+      districtId: colomboDistrictId,
+      from: filterFrom,
+      to: filterTo,
+      cutoff: filterTo,
+    });
+    expect(filteredOcc).toBeDefined();
+
+    expect(await shelterRepo.findAll()).toBeDefined();
+    expect(await teamRepo.findAll()).toBeDefined();
+    expect(await stockRepo.findAll()).toBeDefined();
+  });
+
+  it("StaticDistrictAdjacency correctly checks adjacency and handles edge conditions", async () => {
+    const adj = new StaticDistrictAdjacency();
+    expect(await adj.areAdjacent("Colombo", "Colombo")).toBe(true);
+    expect(await adj.areAdjacent("Colombo", "Gampaha")).toBe(true);
+    expect(await adj.areAdjacent("Colombo", "Jaffna")).toBe(false);
+
+    const adjIds = await adj.getAdjacentDistrictIds("Colombo");
+    expect(adjIds).toContain("Gampaha");
+
+    const unknown = await adj.getAdjacentDistrictIds("UnknownDistrict");
+    expect(unknown).toEqual([]);
   });
 });

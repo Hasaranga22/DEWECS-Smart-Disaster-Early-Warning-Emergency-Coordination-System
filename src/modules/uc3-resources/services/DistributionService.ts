@@ -1,3 +1,4 @@
+//UC3 - Resource Management-SOLID Principles-Dependency Inversion (D)
 import { Actor } from "@/shared/contracts/types";
 import { Distribution } from "../domain/entities/Distribution";
 import { SupplyStockRepository } from "../adapters/repositories/SupplyStockRepository";

@@ -13,15 +13,28 @@ const roleUuids: Record<Role, string> = {
 };
 
 export async function getActor(request: NextRequest): Promise<Actor> {
-  const roleCookie = request.cookies.get("dewecs-role")?.value || request.cookies.get("actor")?.value;
-  const roleHeader = request.headers.get("x-dewecs-role");
-  const districtHeader = request.headers.get("x-dewecs-district-id");
+  let rawRole =
+    request.cookies.get("dewecs-role")?.value ||
+    request.cookies.get("actor")?.value ||
+    request.headers.get("x-dewecs-role") ||
+    "DISTRICT_OFFICER";
 
-  const rawRole = roleCookie || roleHeader || "DMC_OFFICIAL";
+  if (rawRole) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(rawRole));
+      if (parsed && typeof parsed.role === "string") {
+        rawRole = parsed.role;
+      }
+    } catch {
+      // not JSON
+    }
+  }
+
   const role: Role = (["DMC_OFFICIAL", "DISTRICT_OFFICER", "DUTY_OFFICER", "CITIZEN"].includes(rawRole)
     ? rawRole
-    : "DMC_OFFICIAL") as Role;
+    : "DISTRICT_OFFICER") as Role;
 
+  const districtHeader = request.headers.get("x-dewecs-district-id");
   const districtId = districtHeader || DEFAULT_COLOMBO_DISTRICT_ID;
   const actorId = roleUuids[role] || DEFAULT_COLOMBO_DISTRICT_OFFICER_ID;
 

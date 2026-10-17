@@ -21,20 +21,34 @@ import {
 export default function ResourcesLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isOffline, setIsOffline] = useState(false);
-  const [role, setRole] = useState<string>("DMC_OFFICIAL");
+  const isAnalysis = pathname?.includes("/analysis") ?? false;
+  const recommendedRole = isAnalysis ? "DMC_OFFICIAL" : "DISTRICT_OFFICER";
+  const [role, setRole] = useState<string>(recommendedRole);
+  const [userExplicitRole, setUserExplicitRole] = useState<boolean>(false);
+
+  // Sync role automatically on navigation unless user explicitly switched role
+  useEffect(() => {
+    if (!userExplicitRole) {
+      const needed = pathname?.includes("/analysis") ? "DMC_OFFICIAL" : "DISTRICT_OFFICER";
+      setRole(needed);
+    }
+  }, [pathname, userExplicitRole]);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.cookie = `actor=${role}; path=/; max-age=86400`;
       document.cookie = `dewecs-role=${role}; path=/; max-age=86400`;
+      window.dispatchEvent(new CustomEvent("dewecs-role-changed", { detail: { role } }));
     }
   }, [role]);
 
   const handleRoleChange = (newRole: string) => {
+    setUserExplicitRole(true);
     setRole(newRole);
     if (typeof document !== "undefined") {
       document.cookie = `actor=${newRole}; path=/; max-age=86400`;
       document.cookie = `dewecs-role=${newRole}; path=/; max-age=86400`;
+      window.dispatchEvent(new CustomEvent("dewecs-role-changed", { detail: { role: newRole } }));
     }
   };
 

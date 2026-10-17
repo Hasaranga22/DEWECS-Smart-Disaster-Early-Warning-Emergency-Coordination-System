@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "prisma generate && next build --webpack",
-    "start": "next start",
+    "dev": "node init && next dev --webpack",
+    "build": "node init && prisma generate && next build --webpack",
+    "start": "node init && next start",
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "test": "vitest run",
@@ -14,6 +14,7 @@
     "test:uc3": "vitest run src/modules/uc3-resources --coverage --coverage.include=\"src/modules/uc3-resources/**\"",
     "test:uc4": "vitest run src/modules/uc4-analysis --coverage --coverage.include=\"src/modules/uc4-analysis/**\"",
     "test:integration": "vitest run tests/integration",
+    "test:uc3:integration": "vitest run tests/integration/uc3-resources-full.test.ts tests/integration/uc3-cross-module.test.ts",
     "test:uc4:db": "vitest run tests/integration/uc4-db-full.test.ts",
     "test:uc4:db:script": "tsx scripts/uc4-full-db-test.ts",
     "postinstall": "prisma generate"
