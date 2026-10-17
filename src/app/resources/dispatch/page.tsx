@@ -1,20 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Truck, AlertTriangle, ShieldCheck, CheckCircle2, RefreshCw, MapPin } from "lucide-react";
 import { TeamData } from "../page";
 
 const DEFAULT_COLOMBO_DISTRICT_ID = "00000000-0000-4000-8000-000000000010";
 
-export default function DispatchPage() {
+function DispatchForm() {
+  const searchParams = useSearchParams();
   const [teams, setTeams] = useState<TeamData[]>([]);
   const [backupTeams, setBackupTeams] = useState<TeamData[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form inputs
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
-  const [location, setLocation] = useState("");
-  const [incident, setIncident] = useState("");
+  const [location, setLocation] = useState(searchParams.get("location") || "");
+  const [incident, setIncident] = useState(searchParams.get("incident") || "");
   const [actionId, setActionId] = useState<string>("");
 
   // Confirmation Alert Dialog state
@@ -319,5 +321,19 @@ export default function DispatchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DispatchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400 text-sm">
+          Loading Emergency Dispatch Console...
+        </div>
+      }
+    >
+      <DispatchForm />
+    </Suspense>
   );
 }

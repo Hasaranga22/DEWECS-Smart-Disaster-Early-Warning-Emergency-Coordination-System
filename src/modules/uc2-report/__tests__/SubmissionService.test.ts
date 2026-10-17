@@ -116,4 +116,19 @@ describe("SubmissionService", () => {
     expect(secondResult.isCorroboration).toBe(false);
     expect(secondResult.report.linkedToReportId).toBeUndefined();
   });
+
+  it("G02: offline report saved in outbox is completely invisible to officer queue", async () => {
+    // 1. Submit report while offline
+    const result = await service.submit(baseDraft, false);
+    expect(result.channel).toBe("offline");
+
+    // 2. Central repository queried by officer queue must have 0 reports
+    const officerQueueReports = await reports.findAll();
+    expect(officerQueueReports).toHaveLength(0);
+
+    // 3. Only the local client outbox has the pending entry
+    const pendingOutbox = await outbox.getPending();
+    expect(pendingOutbox).toHaveLength(1);
+    expect(pendingOutbox[0].status).toBe("PENDING_SYNC");
+  });
 });
